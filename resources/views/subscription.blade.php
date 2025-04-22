@@ -19,9 +19,9 @@
                                     </div>
                                     <div class="plan-features">
                                         <ul>
-                                            <li><i class="fas fa-check"></i> Connect up to 3 calendars</li>
+                                            <li><i class="fas fa-check"></i> Connect 1 calendar</li>
                                             <li><i class="fas fa-check"></i> Basic calendar analytics</li>
-                                            <li><i class="fas fa-check"></i> 3 calendar grades per month</li>
+                                            <li><i class="fas fa-check"></i> 3 calendar grades total</li>
                                             <li><i class="fas fa-times"></i> Advanced AI recommendations</li>
                                             <li><i class="fas fa-times"></i> Priority support</li>
                                         </ul>
@@ -35,7 +35,7 @@
                                                 aria-valuemin="0" aria-valuemax="3">
                                             </div>
                                         </div>
-                                        <p class="grades-remaining">{{ 3 - auth()->user()->gradesUsed() }} grades remaining this month</p>
+                                        <p class="grades-remaining">{{ 3 - auth()->user()->gradesUsed() }} grades remaining</p>
                                     </div>
                                 </div>
                             </div>

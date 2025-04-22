@@ -99,58 +99,6 @@
     </div>
 </div>
 
-<div class="calendar-sources">
-    <h3>Connected Calendars</h3>
-    <div class="calendar-source-list">
-        <div class="calendar-source-item">
-            <div class="source-color" style="background-color: var(--primary-purple);"></div>
-            <div class="source-name">Work Calendar</div>
-            <div class="source-actions">
-                <button class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></button>
-                <button class="btn btn-sm btn-outline-danger"><i class="fas fa-unlink"></i></button>
-            </div>
-        </div>
-        
-        <div class="calendar-source-item">
-            <div class="source-color" style="background-color: var(--primary-teal);"></div>
-            <div class="source-name">Personal Calendar</div>
-            <div class="source-actions">
-                <button class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></button>
-                <button class="btn btn-sm btn-outline-danger"><i class="fas fa-unlink"></i></button>
-            </div>
-        </div>
-        
-        <div class="calendar-source-item">
-            <div class="source-color" style="background-color: var(--accent-yellow);"></div>
-            <div class="source-name">Family Calendar</div>
-            <div class="source-actions">
-                <button class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></button>
-                <button class="btn btn-sm btn-outline-danger"><i class="fas fa-unlink"></i></button>
-            </div>
-        </div>
-        
-        <div class="calendar-source-add">
-            <button class="btn btn-primary"><i class="fas fa-plus"></i> Connect New Calendar</button>
-        </div>
-    </div>
-</div>
-
-@if(!auth()->user()->subscribed())
-<div class="grades-remaining-info mt-4">
-    <div class="card">
-        <div class="card-body text-center">
-            <h4>Free Plan</h4>
-            <p>You have used {{ auth()->user()->gradesUsed() }} of 3 free calendar grades.</p>
-            <div class="progress mb-3">
-                <div class="progress-bar bg-primary" role="progressbar" style="width: {{ (auth()->user()->gradesUsed() / 3) * 100 }}%" 
-                    aria-valuenow="{{ auth()->user()->gradesUsed() }}" aria-valuemin="0" aria-valuemax="3"></div>
-            </div>
-            <a href="{{ route('subscription') }}" class="btn btn-primary">Upgrade for Unlimited Grades</a>
-        </div>
-    </div>
-</div>
-@endif
-
 @endsection
 
 @section('styles')
@@ -216,50 +164,6 @@
         width: 15px;
         height: 15px;
         border-radius: 3px;
-    }
-    
-    .calendar-sources {
-        margin-top: 30px;
-    }
-    
-    .calendar-source-list {
-        margin-top: 15px;
-    }
-    
-    .calendar-source-item {
-        display: flex;
-        align-items: center;
-        padding: 15px;
-        background-color: rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-        margin-bottom: 10px;
-    }
-    
-    .source-color {
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        margin-right: 15px;
-    }
-    
-    .source-name {
-        flex: 1;
-        font-weight: bold;
-    }
-    
-    .source-actions {
-        display: flex;
-        gap: 5px;
-    }
-    
-    .calendar-source-add {
-        margin-top: 20px;
-        text-align: center;
-    }
-    
-    .grades-remaining-info .progress {
-        height: 10px;
-        border-radius: 5px;
     }
     
     @media (max-width: 768px) {
