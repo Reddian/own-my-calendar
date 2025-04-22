@@ -51,6 +51,69 @@
     
     <div class="card mb-4">
         <div class="card-body">
+            <h3 class="card-title">Google Calendar Integration</h3>
+            
+            <div class="google-calendar-integration">
+                <p class="mb-4">Connect your Google Calendar to sync events and manage your schedule in one place.</p>
+                
+                @if(false) <!-- Replace with actual connection check -->
+                <div class="connected-calendars mb-4">
+                    <h5>Connected Calendars</h5>
+                    
+                    <div class="calendar-list">
+                        <div class="calendar-item">
+                            <div class="calendar-info">
+                                <div class="calendar-name">Work Calendar</div>
+                                <div class="calendar-email">user@company.com</div>
+                            </div>
+                            <div class="calendar-actions">
+                                <button class="btn btn-sm btn-outline-danger disconnect-calendar-btn">Disconnect</button>
+                            </div>
+                        </div>
+                        
+                        <div class="calendar-item">
+                            <div class="calendar-info">
+                                <div class="calendar-name">Personal Calendar</div>
+                                <div class="calendar-email">user@gmail.com</div>
+                            </div>
+                            <div class="calendar-actions">
+                                <button class="btn btn-sm btn-outline-danger disconnect-calendar-btn">Disconnect</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @else
+                <div class="no-calendars-connected text-center mb-4">
+                    <div class="no-calendars-icon mb-3">
+                        <i class="fas fa-calendar-times fa-4x text-muted"></i>
+                    </div>
+                    <p>You don't have any Google Calendars connected yet.</p>
+                </div>
+                @endif
+                
+                <div class="text-center">
+                    <button id="connect-google-btn" class="btn btn-primary">
+                        <i class="fab fa-google me-2"></i> Connect Google Calendar
+                    </button>
+                </div>
+                
+                @if(false) <!-- Replace with actual connection check -->
+                <div class="calendar-permissions mt-4">
+                    <h5>Calendar Permissions</h5>
+                    <p class="text-muted">Own My Calendar has the following permissions:</p>
+                    <ul class="permissions-list">
+                        <li><i class="fas fa-check text-success"></i> View your calendar events</li>
+                        <li><i class="fas fa-check text-success"></i> See information about your calendars</li>
+                        <li><i class="fas fa-times text-muted"></i> Create or modify events (read-only access)</li>
+                    </ul>
+                </div>
+                @endif
+            </div>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-body">
             <h3 class="card-title">Notification Settings</h3>
             
             <form class="settings-form">
@@ -90,42 +153,6 @@
                 
                 <button type="submit" class="btn btn-primary">Save Notification Settings</button>
             </form>
-        </div>
-    </div>
-    
-    <div class="card mb-4">
-        <div class="card-body">
-            <h3 class="card-title">Google Calendar Integration</h3>
-            
-            <div class="connected-calendars mb-4">
-                <h5>Connected Calendars</h5>
-                
-                <div class="calendar-list">
-                    <div class="calendar-item">
-                        <div class="calendar-info">
-                            <div class="calendar-name">Work Calendar</div>
-                            <div class="calendar-email">user@company.com</div>
-                        </div>
-                        <div class="calendar-actions">
-                            <button class="btn btn-sm btn-outline-danger">Disconnect</button>
-                        </div>
-                    </div>
-                    
-                    <div class="calendar-item">
-                        <div class="calendar-info">
-                            <div class="calendar-name">Personal Calendar</div>
-                            <div class="calendar-email">user@gmail.com</div>
-                        </div>
-                        <div class="calendar-actions">
-                            <button class="btn btn-sm btn-outline-danger">Disconnect</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <button class="btn btn-primary mt-3">
-                    <i class="fas fa-plus"></i> Connect New Calendar
-                </button>
-            </div>
         </div>
     </div>
     
@@ -189,6 +216,30 @@
         </div>
     </div>
 </div>
+
+<!-- Google Calendar Auth Modal -->
+<div class="modal fade" id="googleAuthModal" tabindex="-1" aria-labelledby="googleAuthModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="googleAuthModalLabel">Connect Google Calendar</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-4">
+                    <img src="{{ asset('images/google-calendar-logo.png') }}" alt="Google Calendar" width="80">
+                </div>
+                <p>You'll be redirected to Google to authorize access to your calendar. Own My Calendar will only have read-only access to your events.</p>
+                <div class="d-grid gap-2">
+                    <button id="proceed-google-auth" class="btn btn-primary">
+                        <i class="fab fa-google me-2"></i> Continue to Google
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('styles')
@@ -200,6 +251,11 @@
     
     .settings-form {
         max-width: 500px;
+    }
+    
+    /* Google Calendar Integration */
+    .google-calendar-integration {
+        padding: 10px 0;
     }
     
     .calendar-list {
@@ -225,6 +281,25 @@
         color: #666;
     }
     
+    .no-calendars-icon {
+        color: #ccc;
+    }
+    
+    .permissions-list {
+        list-style: none;
+        padding-left: 0;
+    }
+    
+    .permissions-list li {
+        margin-bottom: 8px;
+    }
+    
+    .permissions-list i {
+        margin-right: 10px;
+        width: 16px;
+    }
+    
+    /* Subscription Styles */
     .subscription-info {
         padding: 15px 0;
     }
@@ -255,5 +330,102 @@
     .benefits-list i {
         margin-right: 10px;
     }
+    
+    /* Connect Button */
+    #connect-google-btn {
+        padding: 10px 20px;
+        background: linear-gradient(to right, var(--primary-purple), var(--primary-teal));
+        border: none;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    #connect-google-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
 </style>
+@endsection
+
+@section('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Google Calendar Connection
+        const connectGoogleBtn = document.getElementById('connect-google-btn');
+        const googleAuthModal = new bootstrap.Modal(document.getElementById('googleAuthModal'));
+        const proceedGoogleAuthBtn = document.getElementById('proceed-google-auth');
+        
+        if (connectGoogleBtn) {
+            connectGoogleBtn.addEventListener('click', function() {
+                googleAuthModal.show();
+            });
+        }
+        
+        if (proceedGoogleAuthBtn) {
+            proceedGoogleAuthBtn.addEventListener('click', function() {
+                // Show loading state
+                proceedGoogleAuthBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Redirecting...';
+                proceedGoogleAuthBtn.disabled = true;
+                
+                // Redirect to Google OAuth
+                fetch('/google-calendar/redirect')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.auth_url) {
+                            window.location.href = data.auth_url;
+                        } else {
+                            // Handle error
+                            proceedGoogleAuthBtn.innerHTML = '<i class="fab fa-google me-2"></i> Continue to Google';
+                            proceedGoogleAuthBtn.disabled = false;
+                            alert('Failed to connect to Google. Please try again.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error connecting to Google Calendar:', error);
+                        proceedGoogleAuthBtn.innerHTML = '<i class="fab fa-google me-2"></i> Continue to Google';
+                        proceedGoogleAuthBtn.disabled = false;
+                        alert('Failed to connect to Google. Please try again.');
+                    });
+            });
+        }
+        
+        // Disconnect Calendar
+        const disconnectBtns = document.querySelectorAll('.disconnect-calendar-btn');
+        disconnectBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (confirm('Are you sure you want to disconnect this calendar?')) {
+                    // Show loading state
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    btn.disabled = true;
+                    
+                    // Call disconnect endpoint
+                    fetch('/google-calendar/disconnect', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Reload page to show updated state
+                            window.location.reload();
+                        } else {
+                            // Handle error
+                            btn.innerHTML = 'Disconnect';
+                            btn.disabled = false;
+                            alert('Failed to disconnect calendar. Please try again.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error disconnecting calendar:', error);
+                        btn.innerHTML = 'Disconnect';
+                        btn.disabled = false;
+                        alert('Failed to disconnect calendar. Please try again.');
+                    });
+                }
+            });
+        });
+    });
+</script>
 @endsection

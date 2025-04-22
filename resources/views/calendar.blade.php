@@ -169,29 +169,56 @@
         </div>
     </div>
     
-    <!-- Calendar Grading Interface (Week View Only) -->
-    <div class="calendar-grading">
-        <h3>Grade Your Week</h3>
-        <div class="grading-form">
-            <div class="form-group">
-                <label>How productive was your week?</label>
-                <div class="rating">
-                    <button class="rating-star" data-value="1"><i class="fas fa-star"></i></button>
-                    <button class="rating-star" data-value="2"><i class="fas fa-star"></i></button>
-                    <button class="rating-star" data-value="3"><i class="fas fa-star"></i></button>
-                    <button class="rating-star" data-value="4"><i class="fas fa-star"></i></button>
-                    <button class="rating-star" data-value="5"><i class="fas fa-star"></i></button>
+    <!-- Calendar Grading Button (Week View Only) -->
+    <div class="calendar-grading-action">
+        <button id="grade-calendar-btn" class="btn btn-primary btn-lg">
+            <i class="fas fa-check-circle"></i> Grade This Week
+        </button>
+    </div>
+    
+    <!-- Calendar Grade Result Modal -->
+    <div class="modal fade" id="gradeResultModal" tabindex="-1" aria-labelledby="gradeResultModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="gradeResultModalLabel">Your Calendar Grade</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="grade-result">
+                        <div class="grade-header">
+                            <div class="grade-letter">B+</div>
+                            <div class="grade-score">87<span>/100</span></div>
+                        </div>
+                        
+                        <div class="grade-summary">
+                            <p>Your calendar is well-organized but has some room for improvement.</p>
+                        </div>
+                        
+                        <div class="grade-recommendations">
+                            <h4>Recommendations</h4>
+                            <ul class="recommendations-list">
+                                <li>
+                                    <div class="recommendation-title">Add buffer time between meetings</div>
+                                    <div class="recommendation-description">Your back-to-back meetings on Tuesday could lead to burnout. Try adding 15-minute buffers.</div>
+                                </li>
+                                <li>
+                                    <div class="recommendation-title">Schedule focused work blocks</div>
+                                    <div class="recommendation-description">Add 90-minute blocks of uninterrupted time for deep work.</div>
+                                </li>
+                                <li>
+                                    <div class="recommendation-title">Balance your meeting load</div>
+                                    <div class="recommendation-description">Thursday has too many meetings. Consider spreading them throughout the week.</div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary">Save Recommendations</button>
                 </div>
             </div>
-            <div class="form-group">
-                <label>What went well?</label>
-                <textarea class="form-control" rows="2" placeholder="Enter what went well this week..."></textarea>
-            </div>
-            <div class="form-group">
-                <label>What could be improved?</label>
-                <textarea class="form-control" rows="2" placeholder="Enter areas for improvement..."></textarea>
-            </div>
-            <button class="btn btn-primary submit-grade">Submit Grade</button>
         </div>
     </div>
     
@@ -207,22 +234,6 @@
         <div class="legend-item">
             <div class="legend-color" style="background-color: var(--accent-yellow);"></div>
             <span>Presentations</span>
-        </div>
-    </div>
-</div>
-
-<!-- Google Calendar Connection Modal -->
-<div class="modal fade" id="connectGoogleModal" tabindex="-1" aria-labelledby="connectGoogleModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="connectGoogleModalLabel">Connect Google Calendar</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>Connect your Google Calendar to sync events and manage your schedule in one place.</p>
-                <button id="connectGoogleBtn" class="btn btn-primary">Connect Google Calendar</button>
-            </div>
         </div>
     </div>
 </div>
@@ -417,51 +428,93 @@
         opacity: 0.8;
     }
     
-    /* Calendar Grading Interface */
-    .calendar-grading {
+    /* Calendar Grading Action */
+    .calendar-grading-action {
         margin-top: 30px;
-        padding: 20px;
-        background-color: rgba(255, 255, 255, 0.05);
-        border-radius: 10px;
+        text-align: center;
     }
     
-    .calendar-grading h3 {
+    #grade-calendar-btn {
+        padding: 12px 30px;
+        font-size: 18px;
+        background: linear-gradient(to right, var(--primary-purple), var(--primary-teal));
+        border: none;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    #grade-calendar-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    /* Grade Result Modal Styling */
+    .grade-header {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 40px;
         margin-bottom: 20px;
+    }
+    
+    .grade-letter {
+        font-size: 72px;
+        font-weight: bold;
+        color: var(--primary-purple);
+        background: linear-gradient(to right, var(--primary-purple), var(--primary-teal));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    
+    .grade-score {
+        font-size: 48px;
+        font-weight: bold;
+    }
+    
+    .grade-score span {
+        font-size: 24px;
+        opacity: 0.7;
+    }
+    
+    .grade-summary {
         text-align: center;
+        font-size: 18px;
+        margin-bottom: 30px;
+        padding: 0 20px;
+    }
+    
+    .grade-recommendations {
+        background-color: rgba(0, 0, 0, 0.05);
+        border-radius: 10px;
+        padding: 20px;
+    }
+    
+    .grade-recommendations h4 {
+        margin-bottom: 15px;
         color: var(--primary-purple);
     }
     
-    .grading-form {
-        max-width: 600px;
-        margin: 0 auto;
+    .recommendations-list {
+        list-style: none;
+        padding: 0;
     }
     
-    .form-group {
-        margin-bottom: 20px;
+    .recommendations-list li {
+        margin-bottom: 15px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
     
-    .rating {
-        display: flex;
-        gap: 10px;
-        margin-top: 10px;
+    .recommendations-list li:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
     }
     
-    .rating-star {
-        background: none;
-        border: none;
-        color: #ccc;
-        font-size: 24px;
-        cursor: pointer;
-        transition: color 0.2s;
-    }
-    
-    .rating-star:hover, .rating-star.active {
+    .recommendation-title {
+        font-weight: bold;
+        margin-bottom: 5px;
         color: var(--primary-teal);
-    }
-    
-    .submit-grade {
-        width: 100%;
-        margin-top: 10px;
     }
     
     /* Calendar Legend */
@@ -537,13 +590,13 @@
         const monthView = document.querySelector('.month-view');
         const weekView = document.querySelector('.week-view');
         const dayView = document.querySelector('.day-view');
-        const calendarGrading = document.querySelector('.calendar-grading');
+        const calendarGradingAction = document.querySelector('.calendar-grading-action');
         
         monthViewBtn.addEventListener('click', function() {
             monthView.style.display = 'block';
             weekView.style.display = 'none';
             dayView.style.display = 'none';
-            calendarGrading.style.display = 'none';
+            calendarGradingAction.style.display = 'none';
             
             monthViewBtn.classList.add('active');
             monthViewBtn.classList.remove('btn-outline-primary');
@@ -562,7 +615,7 @@
             monthView.style.display = 'none';
             weekView.style.display = 'block';
             dayView.style.display = 'none';
-            calendarGrading.style.display = 'block';
+            calendarGradingAction.style.display = 'block';
             
             monthViewBtn.classList.remove('active');
             monthViewBtn.classList.add('btn-outline-primary');
@@ -581,7 +634,7 @@
             monthView.style.display = 'none';
             weekView.style.display = 'none';
             dayView.style.display = 'block';
-            calendarGrading.style.display = 'none';
+            calendarGradingAction.style.display = 'none';
             
             monthViewBtn.classList.remove('active');
             monthViewBtn.classList.add('btn-outline-primary');
@@ -596,51 +649,26 @@
             dayViewBtn.classList.add('btn-primary');
         });
         
-        // Rating stars
-        const ratingStars = document.querySelectorAll('.rating-star');
-        ratingStars.forEach(star => {
-            star.addEventListener('click', function() {
-                const value = this.getAttribute('data-value');
-                
-                // Reset all stars
-                ratingStars.forEach(s => s.classList.remove('active'));
-                
-                // Activate stars up to the clicked one
-                for (let i = 0; i < value; i++) {
-                    ratingStars[i].classList.add('active');
-                }
-            });
-        });
+        // Grade Calendar Button
+        const gradeCalendarBtn = document.getElementById('grade-calendar-btn');
+        const gradeResultModal = new bootstrap.Modal(document.getElementById('gradeResultModal'));
         
-        // Connect Google Calendar
-        const connectGoogleBtn = document.getElementById('connectGoogleBtn');
-        if (connectGoogleBtn) {
-            connectGoogleBtn.addEventListener('click', function() {
-                // This would normally redirect to Google OAuth
-                fetch('/google-calendar/redirect')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.auth_url) {
-                            window.location.href = data.auth_url;
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error connecting to Google Calendar:', error);
-                    });
+        if (gradeCalendarBtn) {
+            gradeCalendarBtn.addEventListener('click', function() {
+                // Show loading state
+                gradeCalendarBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Grading...';
+                gradeCalendarBtn.disabled = true;
+                
+                // Simulate API call to OpenAI for grading
+                setTimeout(function() {
+                    // Reset button state
+                    gradeCalendarBtn.innerHTML = '<i class="fas fa-check-circle"></i> Grade This Week';
+                    gradeCalendarBtn.disabled = false;
+                    
+                    // Show grade result modal
+                    gradeResultModal.show();
+                }, 2000);
             });
-        }
-        
-        // Add Google Calendar connect button to navbar
-        const navbarRight = document.querySelector('.navbar-nav.ms-auto');
-        if (navbarRight) {
-            const connectBtn = document.createElement('li');
-            connectBtn.className = 'nav-item';
-            connectBtn.innerHTML = `
-                <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#connectGoogleModal">
-                    <i class="fab fa-google"></i> Connect Calendar
-                </button>
-            `;
-            navbarRight.appendChild(connectBtn);
         }
     });
 </script>
