@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Own My Calendar Grader",
+  "version": "1.0.0",
+  "description": "Grade your Google Calendar based on productivity rules",
+  "icons": {
+    "16": "src/icons/icon16.png",
+    "48": "src/icons/icon48.png",
+    "128": "src/icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "src/popup.html",
+    "default_icon": {
+      "16": "src/icons/icon16.png",
+      "48": "src/icons/icon48.png",
+      "128": "src/icons/icon128.png"
+    }
+  },
+  "permissions": [
+    "activeTab",
+    "storage",
+    "identity"
+  ],
+  "host_permissions": [
+    "*://calendar.google.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["*://calendar.google.com/*"],
+      "js": ["src/content.js"],
+      "css": ["src/content.css"]
+    }
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  }
+}
