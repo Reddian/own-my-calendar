@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -42,4 +43,40 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    /**
+     * Get the user's subscription.
+     */
+    public function subscription(): HasOne
+    {
+        return $this->hasOne(Subscription::class)->latest();
+    }
+
+    /**
+     * Determine if the user has an active subscription.
+     *
+     * @return bool
+     */
+    public function subscribed(): bool
+    {
+        if (!$this->subscription) {
+            return false;
+        }
+        
+        return $this->subscription->isActive() && !$this->subscription->expired();
+    }
+
+    /**
+     * Get the number of grades used by the user.
+     *
+     * @return int
+     */
+    public function gradesUsed(): int
+    {
+        if (!$this->subscription) {
+            return 0;
+        }
+        
+        return $this->subscription->grades_used;
+    }
 }
