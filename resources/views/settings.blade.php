@@ -148,39 +148,55 @@
         <div class="card-body">
             <h3 class="card-title">Notification Settings</h3>
             
-            <form class="settings-form">
+            <form class="settings-form" action="{{ route('notification.update-settings') }}" method="POST">
+                @csrf
+                @method('PUT')
+                
                 <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" id="weekly-grade-email" checked>
-                    <label class="form-check-label" for="weekly-grade-email">
+                    <input class="form-check-input @error('weekly_grade_email') is-invalid @enderror" type="checkbox" id="weekly_grade_email" name="weekly_grade_email" value="1" {{ $notificationSettings->weekly_grade_email ?? true ? 'checked' : '' }}>
+                    <label class="form-check-label" for="weekly_grade_email">
                         Weekly Grade Email
                     </label>
                     <div class="form-text">Receive your calendar grade and recommendations every week</div>
+                    @error('weekly_grade_email')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
                 </div>
                 
                 <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" id="planning-reminder" checked>
-                    <label class="form-check-label" for="planning-reminder">
+                    <input class="form-check-input @error('planning_reminder') is-invalid @enderror" type="checkbox" id="planning_reminder" name="planning_reminder" value="1" {{ $notificationSettings->planning_reminder ?? true ? 'checked' : '' }}>
+                    <label class="form-check-label" for="planning_reminder">
                         Weekly Planning Reminder
                     </label>
                     <div class="form-text">Get a reminder to plan your week</div>
+                    @error('planning_reminder')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
                 </div>
                 
                 <div class="form-group mb-3">
-                    <label for="reminder-day" class="form-label">Reminder Day</label>
-                    <select class="form-control" id="reminder-day">
-                        <option>Sunday</option>
-                        <option>Monday</option>
-                        <option>Tuesday</option>
-                        <option>Wednesday</option>
-                        <option>Thursday</option>
-                        <option>Friday</option>
-                        <option>Saturday</option>
+                    <label for="reminder_day" class="form-label">Reminder Day</label>
+                    <select class="form-control @error('reminder_day') is-invalid @enderror" id="reminder_day" name="reminder_day">
+                        @php
+                            $days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                            $selectedDay = $notificationSettings->reminder_day ?? 'Sunday';
+                        @endphp
+                        
+                        @foreach($days as $day)
+                            <option value="{{ $day }}" {{ $selectedDay == $day ? 'selected' : '' }}>{{ $day }}</option>
+                        @endforeach
                     </select>
+                    @error('reminder_day')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
                 </div>
                 
                 <div class="form-group mb-3">
-                    <label for="reminder-time" class="form-label">Reminder Time</label>
-                    <input type="time" class="form-control" id="reminder-time" value="18:00">
+                    <label for="reminder_time" class="form-label">Reminder Time</label>
+                    <input type="time" class="form-control @error('reminder_time') is-invalid @enderror" id="reminder_time" name="reminder_time" value="{{ $notificationSettings->reminder_time ?? '18:00' }}">
+                    @error('reminder_time')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
                 </div>
                 
                 <button type="submit" class="btn btn-primary">Save Notification Settings</button>

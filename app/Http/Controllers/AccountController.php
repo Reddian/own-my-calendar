@@ -2,21 +2,34 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\NotificationSetting;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
 
 class AccountController extends Controller
 {
     /**
-     * Show the account settings page.
+     * Create a new controller instance.
      *
-     * @return \Illuminate\View\View
+     * @return void
+     */
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
+
+    /**
+     * Show the settings page.
+     *
+     * @return \Illuminate\Contracts\Support\Renderable
      */
     public function index()
     {
-        return view('settings');
+        $user = Auth::user();
+        $notificationSettings = NotificationSetting::where('user_id', $user->id)->first();
+        
+        return view('settings', compact('notificationSettings'));
     }
 
     /**
@@ -27,20 +40,15 @@ class AccountController extends Controller
      */
     public function update(Request $request)
     {
-        $user = Auth::user();
-        
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => [
-                'required',
-                'string',
-                'email',
-                'max:255',
-                Rule::unique('users')->ignore($user->id),
-            ],
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email,' . Auth::id(),
         ]);
         
-        $user->update($validated);
+        $user = Auth::user();
+        $user->name = $validated['name'];
+        $user->email = $validated['email'];
+        $user->save();
         
         return redirect()->route('settings')->with('success', 'Account information updated successfully!');
     }
@@ -54,14 +62,14 @@ class AccountController extends Controller
     public function updatePassword(Request $request)
     {
         $validated = $request->validate([
-            'current_password' => ['required', 'current_password'],
-            'new_password' => ['required', 'string', 'min:8', 'confirmed'],
+            'current_password' => 'required|current_password',
+            'new_password' => 'required|string|min:8|confirmed',
         ]);
         
         $user = Auth::user();
-        $user->password = Hash::make($validated['new_password']);
+        $user->password = bcrypt($validated['new_password']);
         $user->save();
         
-        return redirect()->route('settings')->with('success', 'Password changed successfully!');
+        return redirect()->route('settings')->with('success', 'Password updated successfully!');
     }
 }

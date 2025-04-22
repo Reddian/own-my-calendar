@@ -5,6 +5,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GoogleCalendarController;
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\NotificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -38,6 +39,9 @@ Route::get('/privacy', [DashboardController::class, 'privacy'])->name('privacy')
 // Account routes
 Route::put('/account/update', [AccountController::class, 'update'])->name('account.update');
 Route::put('/account/update-password', [AccountController::class, 'updatePassword'])->name('account.update-password');
+
+// Notification routes
+Route::put('/notification/update-settings', [NotificationController::class, 'updateSettings'])->name('notification.update-settings');
 
 // Google Calendar routes
 Route::get('/google-calendar/redirect', [GoogleCalendarController::class, 'redirect']);
