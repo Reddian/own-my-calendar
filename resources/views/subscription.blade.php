@@ -4,6 +4,28 @@
 <div class="container">
     <div class="row justify-content-center">
         <div class="col-md-10">
+            <!-- Alert Messages -->
+            @if (session('success'))
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                {{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            @endif
+            
+            @if (session('error'))
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ session('error') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            @endif
+            
+            @if (session('info'))
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                {{ session('info') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            @endif
+            
             <div class="card subscription-card">
                 <div class="card-header">
                     <h1 class="text-center">Upgrade to Premium</h1>
@@ -43,7 +65,16 @@
                                 <div class="plan-card premium">
                                     <div class="plan-header">
                                         <h2>Premium Plan</h2>
-                                        <div class="price">$9<span>/month</span></div>
+                                        <div class="price-options">
+                                            <div class="price-option monthly active" data-plan="monthly">
+                                                <div class="price">$9<span>/month</span></div>
+                                                <div class="price-note">Billed monthly</div>
+                                            </div>
+                                            <div class="price-option yearly" data-plan="yearly">
+                                                <div class="price">$89<span>/year</span></div>
+                                                <div class="price-note">Save $19 per year</div>
+                                            </div>
+                                        </div>
                                     </div>
                                     <div class="plan-features">
                                         <ul>
@@ -55,7 +86,7 @@
                                         </ul>
                                     </div>
                                     <div class="plan-footer">
-                                        <button class="btn btn-primary btn-lg btn-block subscribe-btn">Upgrade Now</button>
+                                        <button id="checkout-button" class="btn btn-primary btn-lg btn-block subscribe-btn" data-plan="monthly">Upgrade Now</button>
                                     </div>
                                 </div>
                             </div>
@@ -153,6 +184,21 @@
         </div>
     </div>
 </div>
+
+<!-- Loading Spinner Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-labelledby="loadingModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center py-4">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <h5>Processing your subscription...</h5>
+                <p class="text-muted">Please don't close this window. You'll be redirected to Stripe to complete your payment.</p>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('styles')
@@ -213,6 +259,32 @@
         margin-bottom: 10px;
     }
     
+    .price-options {
+        display: flex;
+        justify-content: center;
+        margin-top: 15px;
+        border: 1px solid #e0e0e0;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .price-option {
+        flex: 1;
+        padding: 10px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .price-option.active {
+        background-color: rgba(126, 87, 255, 0.1);
+        font-weight: bold;
+    }
+    
+    .price-option:not(.active):hover {
+        background-color: rgba(126, 87, 255, 0.05);
+    }
+    
     .price {
         font-size: 2.5rem;
         font-weight: bold;
@@ -222,6 +294,11 @@
     .price span {
         font-size: 1rem;
         font-weight: normal;
+    }
+    
+    .price-note {
+        font-size: 0.8rem;
+        color: #666;
     }
     
     .plan-features {
@@ -263,6 +340,30 @@
         border: none;
         padding: 12px;
         font-size: 1.1rem;
+        position: relative;
+        z-index: 1;
+        overflow: hidden;
+    }
+    
+    .subscribe-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(to right, var(--primary-teal), var(--primary-purple));
+        transition: left 0.3s ease;
+        z-index: -1;
+    }
+    
+    .subscribe-btn:hover {
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        transform: translateY(-2px);
+    }
+    
+    .subscribe-btn:hover::before {
+        left: 0;
     }
     
     .subscription-benefits h2, .subscription-faq h2 {
@@ -303,16 +404,88 @@
 @endsection
 
 @section('scripts')
+<script src="https://js.stripe.com/v3/"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // This is a placeholder for subscription processing
-        // In a real implementation, this would connect to Stripe or another payment processor
-        const subscribeBtn = document.querySelector('.subscribe-btn');
-        if (subscribeBtn) {
-            subscribeBtn.addEventListener('click', function() {
-                alert('This would connect to a payment processor in a production environment. For now, consider yourself upgraded to Premium!');
+        // Initialize Stripe
+        const stripe = Stripe('{{ config('services.stripe.public') }}');
+        
+        // Handle plan selection
+        const monthlyOption = document.querySelector('.price-option.monthly');
+        const yearlyOption = document.querySelector('.price-option.yearly');
+        const checkoutButton = document.getElementById('checkout-button');
+        
+        monthlyOption.addEventListener('click', function() {
+            monthlyOption.classList.add('active');
+            yearlyOption.classList.remove('active');
+            checkoutButton.setAttribute('data-plan', 'monthly');
+        });
+        
+        yearlyOption.addEventListener('click', function() {
+            yearlyOption.classList.add('active');
+            monthlyOption.classList.remove('active');
+            checkoutButton.setAttribute('data-plan', 'yearly');
+        });
+        
+        // Handle checkout button click
+        checkoutButton.addEventListener('click', function() {
+            const plan = this.getAttribute('data-plan');
+            
+            // Show loading modal
+            const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+            loadingModal.show();
+            
+            // Create checkout session
+            fetch('{{ route('checkout.create-session') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    plan: plan
+                })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(session) {
+                if (session.id) {
+                    // Redirect to Stripe Checkout
+                    return stripe.redirectToCheckout({ sessionId: session.id });
+                } else {
+                    throw new Error('Failed to create checkout session');
+                }
+            })
+            .then(function(result) {
+                // If redirectToCheckout fails due to a Stripe error
+                if (result.error) {
+                    throw new Error(result.error.message);
+                }
+            })
+            .catch(function(error) {
+                // Hide loading modal
+                loadingModal.hide();
+                
+                // Show error alert
+                const alertHtml = `
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        ${error.message || 'An error occurred. Please try again.'}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `;
+                document.querySelector('.subscription-card').insertAdjacentHTML('beforebegin', alertHtml);
             });
-        }
+        });
+        
+        // Auto-dismiss alerts after 5 seconds
+        setTimeout(function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(function(alert) {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
     });
 </script>
 @endsection
