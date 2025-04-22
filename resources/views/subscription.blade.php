@@ -56,7 +56,6 @@
                                     </div>
                                     <div class="plan-footer">
                                         <button class="btn btn-primary btn-lg btn-block subscribe-btn">Upgrade Now</button>
-                                        <p class="trial-note">Includes 7-day free trial</p>
                                     </div>
                                 </div>
                             </div>
@@ -114,12 +113,12 @@
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="headingTwo">
                                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
-                                        How does the 7-day free trial work?
+                                        When will I be charged?
                                     </button>
                                 </h2>
                                 <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#subscriptionFAQ">
                                     <div class="accordion-body">
-                                        When you subscribe to the Premium plan, you'll get a 7-day free trial. You won't be charged until the trial period ends. You can cancel anytime during the trial period and you won't be charged.
+                                        Your subscription will begin immediately upon sign-up. You'll be charged the monthly fee at the start of each billing cycle.
                                     </div>
                                 </div>
                             </div>
@@ -264,12 +263,6 @@
         border: none;
         padding: 12px;
         font-size: 1.1rem;
-    }
-    
-    .trial-note {
-        margin-top: 10px;
-        font-size: 0.9rem;
-        color: #666;
     }
     
     .subscription-benefits h2, .subscription-faq h2 {
