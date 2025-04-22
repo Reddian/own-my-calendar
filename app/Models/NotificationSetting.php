@@ -17,10 +17,10 @@ class NotificationSetting extends Model
      */
     protected $fillable = [
         'user_id',
-        'weekly_grade_email',
-        'planning_reminder',
-        'reminder_day',
-        'reminder_time',
+        'weekly_grade',
+        'weekly_reminder',
+        'weekly_reminder_day',
+        'weekly_reminder_time',
     ];
 
     /**
@@ -29,8 +29,8 @@ class NotificationSetting extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'weekly_grade_email' => 'boolean',
-        'planning_reminder' => 'boolean',
+        'weekly_grade' => 'boolean',
+        'weekly_reminder' => 'boolean',
     ];
 
     /**
