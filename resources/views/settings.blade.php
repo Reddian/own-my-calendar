@@ -1,0 +1,259 @@
+@extends('layouts.dashboard')
+
+@section('content')
+<h1 class="page-title">Settings</h1>
+
+<div class="settings-container">
+    <div class="card mb-4">
+        <div class="card-body">
+            <h3 class="card-title">Account Settings</h3>
+            
+            <form class="settings-form">
+                <div class="form-group mb-3">
+                    <label for="email" class="form-label">Email Address</label>
+                    <input type="email" class="form-control" id="email" value="user@example.com">
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="name" class="form-label">Full Name</label>
+                    <input type="text" class="form-control" id="name" value="John Doe">
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Update Account</button>
+            </form>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-body">
+            <h3 class="card-title">Change Password</h3>
+            
+            <form class="settings-form">
+                <div class="form-group mb-3">
+                    <label for="current-password" class="form-label">Current Password</label>
+                    <input type="password" class="form-control" id="current-password">
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="new-password" class="form-label">New Password</label>
+                    <input type="password" class="form-control" id="new-password">
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="confirm-password" class="form-label">Confirm New Password</label>
+                    <input type="password" class="form-control" id="confirm-password">
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Change Password</button>
+            </form>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-body">
+            <h3 class="card-title">Notification Settings</h3>
+            
+            <form class="settings-form">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="weekly-grade-email" checked>
+                    <label class="form-check-label" for="weekly-grade-email">
+                        Weekly Grade Email
+                    </label>
+                    <div class="form-text">Receive your calendar grade and recommendations every week</div>
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="planning-reminder" checked>
+                    <label class="form-check-label" for="planning-reminder">
+                        Weekly Planning Reminder
+                    </label>
+                    <div class="form-text">Get a reminder to plan your week</div>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="reminder-day" class="form-label">Reminder Day</label>
+                    <select class="form-control" id="reminder-day">
+                        <option>Sunday</option>
+                        <option>Monday</option>
+                        <option>Tuesday</option>
+                        <option>Wednesday</option>
+                        <option>Thursday</option>
+                        <option>Friday</option>
+                        <option>Saturday</option>
+                    </select>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="reminder-time" class="form-label">Reminder Time</label>
+                    <input type="time" class="form-control" id="reminder-time" value="18:00">
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Save Notification Settings</button>
+            </form>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-body">
+            <h3 class="card-title">Google Calendar Integration</h3>
+            
+            <div class="connected-calendars mb-4">
+                <h5>Connected Calendars</h5>
+                
+                <div class="calendar-list">
+                    <div class="calendar-item">
+                        <div class="calendar-info">
+                            <div class="calendar-name">Work Calendar</div>
+                            <div class="calendar-email">user@company.com</div>
+                        </div>
+                        <div class="calendar-actions">
+                            <button class="btn btn-sm btn-outline-danger">Disconnect</button>
+                        </div>
+                    </div>
+                    
+                    <div class="calendar-item">
+                        <div class="calendar-info">
+                            <div class="calendar-name">Personal Calendar</div>
+                            <div class="calendar-email">user@gmail.com</div>
+                        </div>
+                        <div class="calendar-actions">
+                            <button class="btn btn-sm btn-outline-danger">Disconnect</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary mt-3">
+                    <i class="fas fa-plus"></i> Connect New Calendar
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-body">
+            <h3 class="card-title">Subscription</h3>
+            
+            @if(auth()->user()->subscribed())
+                <div class="subscription-info">
+                    <div class="subscription-status">
+                        <span class="badge bg-success">Active</span>
+                        <h5 class="mt-2">Premium Plan</h5>
+                        <p>Your subscription renews on May 22, 2025</p>
+                    </div>
+                    
+                    <div class="subscription-details">
+                        <div class="detail-item">
+                            <div class="detail-label">Plan</div>
+                            <div class="detail-value">Monthly ($9/month)</div>
+                        </div>
+                        
+                        <div class="detail-item">
+                            <div class="detail-label">Payment Method</div>
+                            <div class="detail-value">Visa ending in 4242</div>
+                        </div>
+                        
+                        <div class="detail-item">
+                            <div class="detail-label">Next Billing Date</div>
+                            <div class="detail-value">May 22, 2025</div>
+                        </div>
+                    </div>
+                    
+                    <div class="subscription-actions mt-4">
+                        <button class="btn btn-outline-primary">Update Payment Method</button>
+                        <button class="btn btn-outline-danger">Cancel Subscription</button>
+                    </div>
+                </div>
+            @else
+                <div class="subscription-upgrade">
+                    <h5>Free Plan</h5>
+                    <p>You have used {{ auth()->user()->gradesUsed() }} of 3 free calendar grades.</p>
+                    
+                    <div class="progress mb-3">
+                        <div class="progress-bar bg-primary" role="progressbar" style="width: {{ (auth()->user()->gradesUsed() / 3) * 100 }}%" 
+                            aria-valuenow="{{ auth()->user()->gradesUsed() }}" aria-valuemin="0" aria-valuemax="3"></div>
+                    </div>
+                    
+                    <div class="upgrade-benefits mb-4">
+                        <h5>Upgrade to Premium for:</h5>
+                        <ul class="benefits-list">
+                            <li><i class="fas fa-check text-success"></i> Unlimited calendar grades</li>
+                            <li><i class="fas fa-check text-success"></i> Weekly grade emails</li>
+                            <li><i class="fas fa-check text-success"></i> Planning reminders</li>
+                            <li><i class="fas fa-check text-success"></i> Detailed recommendations</li>
+                        </ul>
+                    </div>
+                    
+                    <a href="{{ route('subscription') }}" class="btn btn-primary">Upgrade to Premium - $9/month</a>
+                </div>
+            @endif
+        </div>
+    </div>
+</div>
+@endsection
+
+@section('styles')
+<style>
+    .settings-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .settings-form {
+        max-width: 500px;
+    }
+    
+    .calendar-list {
+        margin-top: 15px;
+    }
+    
+    .calendar-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+        background-color: rgba(0, 0, 0, 0.05);
+        border-radius: 8px;
+        margin-bottom: 10px;
+    }
+    
+    .calendar-name {
+        font-weight: bold;
+    }
+    
+    .calendar-email {
+        font-size: 14px;
+        color: #666;
+    }
+    
+    .subscription-info {
+        padding: 15px 0;
+    }
+    
+    .subscription-details {
+        margin-top: 20px;
+    }
+    
+    .detail-item {
+        display: flex;
+        margin-bottom: 10px;
+    }
+    
+    .detail-label {
+        width: 150px;
+        font-weight: bold;
+    }
+    
+    .benefits-list {
+        list-style: none;
+        padding-left: 0;
+    }
+    
+    .benefits-list li {
+        margin-bottom: 10px;
+    }
+    
+    .benefits-list i {
+        margin-right: 10px;
+    }
+</style>
+@endsection

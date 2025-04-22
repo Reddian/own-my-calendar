@@ -1,0 +1,277 @@
+@extends('layouts.dashboard')
+
+@section('content')
+<h1 class="page-title">Calendar</h1>
+
+<div class="calendar-container">
+    <div class="calendar-header">
+        <div class="calendar-navigation">
+            <button class="btn btn-outline-primary"><i class="fas fa-chevron-left"></i></button>
+            <h2>April 2025</h2>
+            <button class="btn btn-outline-primary"><i class="fas fa-chevron-right"></i></button>
+        </div>
+        <div class="calendar-view-options">
+            <button class="btn btn-primary active">Month</button>
+            <button class="btn btn-outline-primary">Week</button>
+            <button class="btn btn-outline-primary">Day</button>
+        </div>
+    </div>
+    
+    <div class="calendar-grid">
+        <!-- Calendar days header -->
+        <div class="calendar-day-header">Sun</div>
+        <div class="calendar-day-header">Mon</div>
+        <div class="calendar-day-header">Tue</div>
+        <div class="calendar-day-header">Wed</div>
+        <div class="calendar-day-header">Thu</div>
+        <div class="calendar-day-header">Fri</div>
+        <div class="calendar-day-header">Sat</div>
+        
+        <!-- Calendar days -->
+        <!-- Week 1 -->
+        <div class="calendar-day prev-month">30</div>
+        <div class="calendar-day prev-month">31</div>
+        <div class="calendar-day">1</div>
+        <div class="calendar-day">2</div>
+        <div class="calendar-day">3</div>
+        <div class="calendar-day">4</div>
+        <div class="calendar-day">5</div>
+        
+        <!-- Week 2 -->
+        <div class="calendar-day">6</div>
+        <div class="calendar-day">7</div>
+        <div class="calendar-day">8</div>
+        <div class="calendar-day">9</div>
+        <div class="calendar-day">10</div>
+        <div class="calendar-day">11</div>
+        <div class="calendar-day">12</div>
+        
+        <!-- Week 3 -->
+        <div class="calendar-day">13</div>
+        <div class="calendar-day">14</div>
+        <div class="calendar-day">15</div>
+        <div class="calendar-day">16</div>
+        <div class="calendar-day">17</div>
+        <div class="calendar-day">18</div>
+        <div class="calendar-day">19</div>
+        
+        <!-- Week 4 -->
+        <div class="calendar-day">20</div>
+        <div class="calendar-day">21</div>
+        <div class="calendar-day today">22</div>
+        <div class="calendar-day has-events">
+            23
+            <div class="event-indicator" style="background-color: var(--primary-purple);">Team Meeting</div>
+        </div>
+        <div class="calendar-day">24</div>
+        <div class="calendar-day has-events">
+            25
+            <div class="event-indicator" style="background-color: var(--accent-yellow);">Client Presentation</div>
+        </div>
+        <div class="calendar-day">26</div>
+        
+        <!-- Week 5 -->
+        <div class="calendar-day">27</div>
+        <div class="calendar-day has-events">
+            28
+            <div class="event-indicator" style="background-color: var(--primary-teal);">Project Deadline</div>
+        </div>
+        <div class="calendar-day">29</div>
+        <div class="calendar-day">30</div>
+        <div class="calendar-day next-month">1</div>
+        <div class="calendar-day next-month">2</div>
+        <div class="calendar-day next-month">3</div>
+    </div>
+    
+    <div class="calendar-legend">
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: var(--primary-purple);"></div>
+            <span>Meetings</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: var(--primary-teal);"></div>
+            <span>Deadlines</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: var(--accent-yellow);"></div>
+            <span>Presentations</span>
+        </div>
+    </div>
+</div>
+
+<div class="calendar-sources">
+    <h3>Connected Calendars</h3>
+    <div class="calendar-source-list">
+        <div class="calendar-source-item">
+            <div class="source-color" style="background-color: var(--primary-purple);"></div>
+            <div class="source-name">Work Calendar</div>
+            <div class="source-actions">
+                <button class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></button>
+                <button class="btn btn-sm btn-outline-danger"><i class="fas fa-unlink"></i></button>
+            </div>
+        </div>
+        
+        <div class="calendar-source-item">
+            <div class="source-color" style="background-color: var(--primary-teal);"></div>
+            <div class="source-name">Personal Calendar</div>
+            <div class="source-actions">
+                <button class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></button>
+                <button class="btn btn-sm btn-outline-danger"><i class="fas fa-unlink"></i></button>
+            </div>
+        </div>
+        
+        <div class="calendar-source-item">
+            <div class="source-color" style="background-color: var(--accent-yellow);"></div>
+            <div class="source-name">Family Calendar</div>
+            <div class="source-actions">
+                <button class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></button>
+                <button class="btn btn-sm btn-outline-danger"><i class="fas fa-unlink"></i></button>
+            </div>
+        </div>
+        
+        <div class="calendar-source-add">
+            <button class="btn btn-primary"><i class="fas fa-plus"></i> Connect New Calendar</button>
+        </div>
+    </div>
+</div>
+
+@if(!auth()->user()->subscribed())
+<div class="grades-remaining-info mt-4">
+    <div class="card">
+        <div class="card-body text-center">
+            <h4>Free Plan</h4>
+            <p>You have used {{ auth()->user()->gradesUsed() }} of 3 free calendar grades.</p>
+            <div class="progress mb-3">
+                <div class="progress-bar bg-primary" role="progressbar" style="width: {{ (auth()->user()->gradesUsed() / 3) * 100 }}%" 
+                    aria-valuenow="{{ auth()->user()->gradesUsed() }}" aria-valuemin="0" aria-valuemax="3"></div>
+            </div>
+            <a href="{{ route('subscription') }}" class="btn btn-primary">Upgrade for Unlimited Grades</a>
+        </div>
+    </div>
+</div>
+@endif
+
+@endsection
+
+@section('styles')
+<style>
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 10px;
+    }
+    
+    .calendar-day-header {
+        text-align: center;
+        font-weight: bold;
+        padding: 10px;
+    }
+    
+    .calendar-day {
+        height: 100px;
+        border-radius: 10px;
+        padding: 10px;
+        background-color: rgba(255, 255, 255, 0.1);
+        position: relative;
+    }
+    
+    .calendar-day.prev-month,
+    .calendar-day.next-month {
+        opacity: 0.5;
+    }
+    
+    .calendar-day.today {
+        background-color: rgba(126, 87, 255, 0.2);
+        border: 2px solid var(--primary-purple);
+    }
+    
+    .calendar-day.has-events {
+        background-color: rgba(255, 255, 255, 0.2);
+    }
+    
+    .event-indicator {
+        font-size: 12px;
+        padding: 3px 6px;
+        border-radius: 4px;
+        margin-top: 5px;
+        color: white;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .calendar-legend {
+        display: flex;
+        gap: 20px;
+        margin-top: 20px;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .legend-color {
+        width: 15px;
+        height: 15px;
+        border-radius: 3px;
+    }
+    
+    .calendar-sources {
+        margin-top: 30px;
+    }
+    
+    .calendar-source-list {
+        margin-top: 15px;
+    }
+    
+    .calendar-source-item {
+        display: flex;
+        align-items: center;
+        padding: 15px;
+        background-color: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .source-color {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        margin-right: 15px;
+    }
+    
+    .source-name {
+        flex: 1;
+        font-weight: bold;
+    }
+    
+    .source-actions {
+        display: flex;
+        gap: 5px;
+    }
+    
+    .calendar-source-add {
+        margin-top: 20px;
+        text-align: center;
+    }
+    
+    .grades-remaining-info .progress {
+        height: 10px;
+        border-radius: 5px;
+    }
+    
+    @media (max-width: 768px) {
+        .calendar-day {
+            height: 60px;
+            font-size: 12px;
+        }
+        
+        .event-indicator {
+            font-size: 8px;
+            padding: 2px 4px;
+        }
+    }
+</style>
+@endsection

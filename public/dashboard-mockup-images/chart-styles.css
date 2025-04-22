@@ -1,0 +1,135 @@
+/* Chart.js styles for dashboard visualization */
+.chart-container {
+  position: relative;
+  width: 100%;
+  height: 300px;
+}
+
+/* Custom styling for Chart.js elements */
+.chart-legend {
+  display: flex;
+  justify-content: center;
+  margin-top: 15px;
+}
+
+.chart-legend-item {
+  display: flex;
+  align-items: center;
+  margin: 0 10px;
+  font-size: 12px;
+}
+
+.chart-legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+/* Animation for charts */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animated-chart {
+  animation: fadeIn 0.8s ease-out forwards;
+}
+
+/* Custom styling for calendar visualization */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  margin-top: 15px;
+}
+
+.calendar-day {
+  aspect-ratio: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 5px;
+  font-size: 14px;
+  position: relative;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.calendar-day.has-event::after {
+  content: '';
+  position: absolute;
+  bottom: 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--accent-yellow);
+}
+
+.calendar-day.today {
+  background-color: rgba(255, 255, 255, 0.3);
+  font-weight: bold;
+}
+
+/* Progress indicators */
+.progress-container {
+  width: 100%;
+  height: 8px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+.progress-bar {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--primary-purple) 0%, var(--primary-teal) 100%);
+}
+
+/* Task completion visualization */
+.task-completion {
+  display: flex;
+  align-items: center;
+  margin-top: 15px;
+}
+
+.completion-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: conic-gradient(var(--primary-teal) 0% var(--percentage), rgba(255, 255, 255, 0.1) var(--percentage) 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  margin-right: 20px;
+}
+
+.completion-circle::before {
+  content: '';
+  position: absolute;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.completion-percentage {
+  position: relative;
+  z-index: 1;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.completion-details {
+  flex: 1;
+}
+
+.completion-title {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.completion-stats {
+  font-size: 12px;
+  opacity: 0.8;
+}

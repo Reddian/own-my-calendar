@@ -1,0 +1,86 @@
+/* Custom Login Page Styling */
+body {
+    background-color: #f8f9fa;
+    font-family: 'Nunito', sans-serif;
+}
+
+.navbar {
+    background-color: #4a6fdc !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand, .nav-link {
+    color: white !important;
+}
+
+.card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+}
+
+.card-header {
+    background-color: #4a6fdc;
+    color: white;
+    font-weight: bold;
+    padding: 1rem;
+    border-bottom: none;
+}
+
+.form-control {
+    border-radius: 5px;
+    padding: 10px 15px;
+    border: 1px solid #ced4da;
+    margin-bottom: 15px;
+}
+
+.form-control:focus {
+    border-color: #4a6fdc;
+    box-shadow: 0 0 0 0.2rem rgba(74, 111, 220, 0.25);
+}
+
+.btn-primary {
+    background-color: #4a6fdc;
+    border-color: #4a6fdc;
+    border-radius: 5px;
+    padding: 10px 20px;
+    font-weight: bold;
+    width: 100%;
+    margin-bottom: 15px;
+}
+
+.btn-primary:hover {
+    background-color: #3a5fc6;
+    border-color: #3a5fc6;
+}
+
+.btn-link {
+    color: #4a6fdc;
+}
+
+.form-check-input:checked {
+    background-color: #4a6fdc;
+    border-color: #4a6fdc;
+}
+
+/* Input icons */
+.input-group-text {
+    background-color: transparent;
+    border-right: none;
+}
+
+.input-group .form-control {
+    border-left: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .card {
+        margin: 0 10px;
+    }
+    
+    .col-md-8 {
+        padding: 0;
+    }
+}

@@ -1,0 +1,55 @@
+/* Custom Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+/* Feeling Passionate font needs to be added via @font-face since it's not on Google Fonts */
+@font-face {
+  font-family: 'Feeling Passionate';
+  src: url('../fonts/FeelingPassionate.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Font assignments */
+body {
+  font-family: 'Poppins', sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6, .script-font {
+  font-family: 'Feeling Passionate', cursive;
+}
+
+.navbar-brand {
+  font-family: 'Feeling Passionate', cursive;
+  font-size: 1.5rem;
+}
+
+.card-header {
+  font-family: 'Feeling Passionate', cursive;
+  font-size: 1.8rem;
+}
+
+.btn {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 500;
+}
+
+.form-label {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 500;
+}
+
+/* Logo styling */
+.navbar-brand img {
+  height: 40px;
+  margin-right: 10px;
+}
+
+.logo-text-own-my {
+  font-family: 'Feeling Passionate', cursive;
+}
+
+.logo-text-calendar {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+}

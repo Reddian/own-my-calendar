@@ -1,0 +1,20 @@
+.form-control {
+    background-color: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    color: white !important; /* Force white text color */
+    transition: all 0.3s ease;
+    caret-color: white; /* Make cursor white too */
+}
+
+/* Ensure text remains white even when focused or active */
+.form-control:focus,
+.form-control:active {
+    color: white !important;
+    background-color: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 10px rgba(126, 87, 255, 0.3);
+}
+
+.form-control::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+}

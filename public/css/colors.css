@@ -1,0 +1,52 @@
+/* Color palette extracted from the Own My Calendar logo */
+:root {
+  --primary-purple: #7B68EE;  /* Left side of calendar gradient */
+  --primary-blue: #4A90E2;    /* Middle of calendar gradient */
+  --primary-teal: #5CD9B6;    /* Right side of calendar gradient */
+  --accent-blue: #2D4B6E;     /* Eyes and smile color */
+  --text-black: #000000;      /* Text color */
+  --white: #FFFFFF;           /* Background color */
+  --light-gray: #F8F9FA;      /* Light background color */
+  --border-gray: #E0E0E0;     /* Border color */
+  
+  /* Gradient definitions */
+  --primary-gradient: linear-gradient(135deg, var(--primary-purple) 0%, var(--primary-blue) 50%, var(--primary-teal) 100%);
+  --button-gradient: linear-gradient(135deg, var(--primary-purple) 0%, var(--primary-blue) 100%);
+}
+
+/* Updated theme colors */
+.navbar {
+  background: var(--primary-gradient) !important;
+}
+
+.card-header {
+  background: var(--primary-gradient);
+  color: var(--white);
+}
+
+.btn-primary {
+  background: var(--button-gradient);
+  border-color: var(--primary-blue);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #6A57DD 0%, #3980D1 100%);
+  border-color: #3980D1;
+}
+
+.input-group-text {
+  color: var(--primary-blue);
+}
+
+a {
+  color: var(--primary-blue);
+}
+
+a:hover {
+  color: var(--accent-blue);
+}
+
+.form-check-input:checked {
+  background-color: var(--primary-blue);
+  border-color: var(--primary-blue);
+}
