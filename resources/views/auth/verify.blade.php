@@ -29,7 +29,7 @@
     <div class="login-container">
         <!-- Logo -->
         <div class="logo-container">
-            <img src="{{ secure_asset('images/OwnMyCalendarLogoLight.png') }}" alt="Own My Calendar" class="logo-image">
+            <img src="{{ asset('images/OwnMyCalendarLogoLight.png') }}" alt="Own My Calendar" class="logo-image">
         </div>
 
         <div class="verify-email-content">
@@ -41,8 +41,8 @@
 
             <p class="verify-text">{{ __('Before proceeding, please check your email for a verification link.') }}</p>
             <p class="verify-text">{{ __('If you did not receive the email') }},</p>
-            
-            <form class="resend-form" method="POST" action="{{ secure_url('email/resend') }}">
+
+            <form class="resend-form" method="POST" action="{{ url('email/resend') }}">
                 @csrf
                 <button type="submit" class="btn-login">
                     {{ __('Resend Verification Email') }}

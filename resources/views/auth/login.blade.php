@@ -29,10 +29,10 @@
     <div class="login-container">
         <!-- Logo -->
         <div class="logo-container">
-            <img src="{{ secure_asset('images/OwnMyCalendarLogoLight.png') }}" alt="Own My Calendar" class="logo-image">
+            <img src="{{ asset('images/OwnMyCalendarLogoLight.png') }}" alt="Own My Calendar" class="logo-image">
         </div>
 
-        <form method="POST" action="{{ secure_url('login') }}" class="login-form">
+        <form method="POST" action="{{ url('login') }}" class="login-form">
             @csrf
 
             <div class="form-group">
@@ -76,7 +76,7 @@
                         </a>
                     </div>
                 @endif
-                
+
                 @if (Route::has('register'))
                     <div class="register-link">
                         <span>Don't have an account?</span>

@@ -5,24 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'Own My Calendar') }}</title>
-    
+
     <!-- Fonts -->
     <link rel="dns-prefetch" href="//fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=Nunito" rel="stylesheet">
-    
+    <link href="//fonts.bunny.net/css?family=Nunito" rel="stylesheet">
+
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
+    <link href="//cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+    <script src="//cdn.jsdelivr.net/npm/chart.js"></script>
+
     <!-- Custom CSS -->
-    <link href="{{ secure_asset('css/fonts.css') }}" rel="stylesheet">
-    <link href="{{ secure_asset('css/dashboard.css') }}" rel="stylesheet">
-    
+    <link href="{{ asset('css/fonts.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/dashboard.css') }}" rel="stylesheet">
+
     @yield('styles')
 </head>
 <body>
@@ -35,50 +35,50 @@
                 <line x1="3" y1="18" x2="21" y2="18"></line>
             </svg>
         </button>
-        
+
         <!-- Menu overlay for closing when clicking outside -->
         <div class="menu-overlay"></div>
-        
+
         <!-- Mobile header with logo -->
         <div class="mobile-header">
             <div class="logo-container">
-                <img src="{{ secure_asset('upload/OwnMyCalendarLogoLight.png') }}" alt="Own My Calendar">
+                <img src="{{ asset('upload/OwnMyCalendarLogoLight.png') }}" alt="Own My Calendar">
             </div>
         </div>
-        
+
         <!-- Main content -->
         <div class="dashboard-container">
             <!-- Sidebar -->
             <div class="sidebar">
                 <div class="logo-container">
-                    <img src="{{ secure_asset('upload/OwnMyCalendarLogoLight.png') }}" alt="Own My Calendar">
+                    <img src="{{ asset('upload/OwnMyCalendarLogoLight.png') }}" alt="Own My Calendar">
                 </div>
-                
+
                 <div class="nav-item {{ request()->is('home') || request()->is('/') ? 'active' : '' }}">
                     <i class="fas fa-home"></i>
                     <span><a href="{{ route('home') }}">Dashboard</a></span>
                 </div>
-                
+
                 <div class="nav-item {{ request()->is('calendar*') ? 'active' : '' }}">
                     <i class="fas fa-calendar-alt"></i>
                     <span><a href="{{ route('calendar') }}">Calendar</a></span>
                 </div>
-                
+
                 <div class="nav-item {{ request()->is('history*') ? 'active' : '' }}">
                     <i class="fas fa-history"></i>
                     <span><a href="{{ route('history') }}">History</a></span>
                 </div>
-                
+
                 <div class="nav-item {{ request()->is('extension*') ? 'active' : '' }}">
                     <i class="fas fa-puzzle-piece"></i>
                     <span><a href="{{ route('extension') }}">Chrome Extension</a></span>
                 </div>
-                
+
                 <div class="nav-item {{ request()->is('settings*') ? 'active' : '' }}">
                     <i class="fas fa-cog"></i>
                     <span><a href="{{ route('settings') }}">Settings</a></span>
                 </div>
-                
+
                 <div class="nav-item mt-auto">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>
@@ -91,7 +91,7 @@
                     </form>
                 </div>
             </div>
-            
+
             <!-- Main Content -->
             <div class="main-content">
                 @if(!auth()->user()->subscribed() && request()->route()->getName() != 'subscription')
@@ -103,10 +103,10 @@
                     <a href="{{ route('subscription') }}" class="btn btn-primary">Upgrade Now</a>
                 </div>
                 @endif
-                
+
                 @yield('content')
             </div>
-            
+
             <!-- Footer -->
             <footer class="app-footer">
                 <div class="footer-content">
@@ -121,10 +121,10 @@
             </footer>
         </div>
     </div>
-    
+
     <!-- Bootstrap JS Bundle with Popper -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
+    <script src="//cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
     <script>
         // Dashboard functionality
         document.addEventListener('DOMContentLoaded', function() {
@@ -132,21 +132,21 @@
             const menuToggle = document.querySelector('.mobile-menu-toggle');
             const sidebar = document.querySelector('.sidebar');
             const menuOverlay = document.querySelector('.menu-overlay');
-            
+
             // Function to open menu
             function openMenu() {
                 sidebar.classList.add('active');
                 menuOverlay.classList.add('active');
                 menuToggle.classList.add('hidden');
             }
-            
+
             // Function to close menu
             function closeMenu() {
                 sidebar.classList.remove('active');
                 menuOverlay.classList.remove('active');
                 menuToggle.classList.remove('hidden');
             }
-            
+
             // Toggle menu when hamburger icon is clicked
             if (menuToggle && sidebar) {
                 menuToggle.addEventListener('click', function() {
@@ -157,7 +157,7 @@
                     }
                 });
             }
-            
+
             // Close menu when clicking outside (on overlay)
             if (menuOverlay) {
                 menuOverlay.addEventListener('click', function() {
@@ -166,7 +166,7 @@
             }
         });
     </script>
-    
+
     @yield('scripts')
 </body>
 </html>

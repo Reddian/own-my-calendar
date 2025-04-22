@@ -29,7 +29,7 @@
     <div class="login-container">
         <!-- Logo -->
         <div class="logo-container">
-            <img src="{{ secure_asset('images/OwnMyCalendarLogoLight.png') }}" alt="Own My Calendar" class="logo-image">
+            <img src="{{ asset('images/OwnMyCalendarLogoLight.png') }}" alt="Own My Calendar" class="logo-image">
         </div>
 
         @if (session('status'))
@@ -38,7 +38,7 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ secure_url('password/email') }}" class="login-form">
+        <form method="POST" action="{{ url('password/email') }}" class="login-form">
             @csrf
 
             <div class="form-group">
