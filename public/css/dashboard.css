@@ -393,14 +393,51 @@ body {
     font-size: 16px;
 }
 
+/* Button styles with improved hover effect */
 .btn-primary {
     background-color: var(--primary-purple);
     border-color: var(--primary-purple);
+    color: white;
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
+}
+
+.btn-primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-purple), var(--primary-teal));
+    transition: all 0.4s ease;
+    z-index: -1;
 }
 
 .btn-primary:hover {
-    background-color: darken(var(--primary-purple), 10%);
-    border-color: darken(var(--primary-purple), 10%);
+    color: white;
+    border-color: var(--primary-teal);
+    box-shadow: 0 5px 15px rgba(67, 198, 185, 0.4);
+}
+
+.btn-primary:hover::before {
+    left: 0;
+}
+
+/* Alternate button hover style for buttons that need different effects */
+.btn-outline-primary {
+    color: var(--primary-purple);
+    border-color: var(--primary-purple);
+    background-color: transparent;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-primary:hover {
+    background: linear-gradient(90deg, var(--primary-purple), var(--primary-teal));
+    color: white;
+    border-color: transparent;
 }
 
 /* History table */
@@ -518,6 +555,38 @@ body {
     font-size: 14px;
     color: #666;
     margin-left: 5px;
+}
+
+/* Subscription page specific button styles */
+.subscribe-btn {
+    background: linear-gradient(90deg, var(--primary-purple), var(--primary-teal)) !important;
+    border: none !important;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+    transition: all 0.3s ease;
+}
+
+.subscribe-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-teal), var(--primary-purple));
+    opacity: 0;
+    z-index: -1;
+    transition: opacity 0.3s ease;
+}
+
+.subscribe-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 7px 14px rgba(126, 87, 255, 0.3), 0 3px 6px rgba(67, 198, 185, 0.2);
+}
+
+.subscribe-btn:hover::before {
+    opacity: 1;
 }
 
 /* Responsive */
