@@ -1,7 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\GoogleCalendarController;
+use App\Http\Controllers\AccountController;
 
 /*
 |--------------------------------------------------------------------------
@@ -20,25 +23,23 @@ Route::get('/', function () {
 
 Auth::routes();
 
-Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+Route::get('/home', [HomeController::class, 'index'])->name('home');
 
 // Dashboard routes
-Route::get('/dashboard', [DashboardController::class, 'home'])->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 Route::get('/calendar', [DashboardController::class, 'calendar'])->name('calendar');
 Route::get('/history', [DashboardController::class, 'history'])->name('history');
 Route::get('/extension', [DashboardController::class, 'extension'])->name('extension');
-Route::get('/settings', [DashboardController::class, 'settings'])->name('settings');
+Route::get('/settings', [AccountController::class, 'index'])->name('settings');
+Route::get('/subscription', [DashboardController::class, 'subscription'])->name('subscription');
+Route::get('/terms', [DashboardController::class, 'terms'])->name('terms');
+Route::get('/privacy', [DashboardController::class, 'privacy'])->name('privacy');
 
-// Placeholder routes for footer links
-Route::get('/terms', function() {
-    return view('terms');
-})->name('terms');
+// Account routes
+Route::put('/account/update', [AccountController::class, 'update'])->name('account.update');
+Route::put('/account/update-password', [AccountController::class, 'updatePassword'])->name('account.update-password');
 
-Route::get('/privacy', function() {
-    return view('privacy');
-})->name('privacy');
-
-// Placeholder route for subscription
-Route::get('/subscription', function() {
-    return view('subscription');
-})->name('subscription');
+// Google Calendar routes
+Route::get('/google-calendar/redirect', [GoogleCalendarController::class, 'redirect']);
+Route::get('/google-calendar/callback', [GoogleCalendarController::class, 'callback']);
+Route::post('/google-calendar/disconnect', [GoogleCalendarController::class, 'disconnect']);
