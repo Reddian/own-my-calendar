@@ -2,334 +2,178 @@
 
 namespace App\Services;
 
-use App\Models\Subscription;
 use App\Models\User;
+use App\Models\Subscription;
+use Stripe\Stripe;
+use Stripe\Checkout\Session;
+use Stripe\Exception\ApiErrorException;
 use Illuminate\Support\Facades\Log;
-use Stripe\StripeClient;
-use Exception;
 
 class StripeService
 {
-    protected $stripe;
-    protected $apiKey;
-    protected $webhookSecret;
-    protected $priceId;
-
+    /**
+     * Initialize Stripe with the API key.
+     */
     public function __construct()
     {
-        $this->apiKey = config('services.stripe.secret');
-        $this->webhookSecret = config('services.stripe.webhook_secret');
-        $this->priceId = config('services.stripe.price_id');
-        
-        // Only initialize Stripe if we have an API key
-        if ($this->apiKey) {
-            $this->stripe = new StripeClient($this->apiKey);
-        }
+        Stripe::setApiKey(config('services.stripe.secret'));
     }
 
     /**
-     * Create a checkout session for subscription
+     * Create a checkout session for subscription.
      *
      * @param User $user
-     * @return array
+     * @param string $plan
+     * @param string $successUrl
+     * @param string $cancelUrl
+     * @return string|null
      */
-    public function createCheckoutSession(User $user)
+    public function createCheckoutSession(User $user, string $plan, string $successUrl, string $cancelUrl): ?string
     {
         try {
-            if (!$this->stripe) {
-                throw new Exception('Stripe API key not configured');
-            }
+            // Determine price ID based on plan
+            $priceId = $this->getPriceIdForPlan($plan);
             
-            $session = $this->stripe->checkout->sessions->create([
+            if (!$priceId) {
+                Log::error('Invalid plan selected: ' . $plan);
+                return null;
+            }
+
+            $session = Session::create([
                 'payment_method_types' => ['card'],
                 'customer_email' => $user->email,
-                'line_items' => [
-                    [
-                        'price' => $this->priceId,
-                        'quantity' => 1,
-                    ],
-                ],
+                'line_items' => [[
+                    'price' => $priceId,
+                    'quantity' => 1,
+                ]],
                 'mode' => 'subscription',
-                'success_url' => config('app.url') . '/subscription/success?session_id={CHECKOUT_SESSION_ID}',
-                'cancel_url' => config('app.url') . '/subscription/cancel',
+                'success_url' => $successUrl,
+                'cancel_url' => $cancelUrl,
                 'metadata' => [
                     'user_id' => $user->id,
+                    'plan' => $plan
                 ],
             ]);
 
-            return [
-                'success' => true,
-                'session_id' => $session->id,
-                'checkout_url' => $session->url,
-            ];
-        } catch (Exception $e) {
-            Log::error('Stripe checkout session creation error: ' . $e->getMessage());
-            return [
-                'success' => false,
-                'error' => $e->getMessage(),
-            ];
+            return $session->id;
+        } catch (ApiErrorException $e) {
+            Log::error('Stripe API Error: ' . $e->getMessage());
+            return null;
         }
     }
 
     /**
-     * Handle webhook events from Stripe
+     * Get the Stripe price ID for the given plan.
      *
-     * @param string $payload
-     * @param string $sigHeader
-     * @return bool
+     * @param string $plan
+     * @return string|null
      */
-    public function handleWebhook($payload, $sigHeader)
+    private function getPriceIdForPlan(string $plan): ?string
     {
-        try {
-            if (!$this->stripe || !$this->webhookSecret) {
-                throw new Exception('Stripe not properly configured');
-            }
-            
-            $event = \Stripe\Webhook::constructEvent(
-                $payload, $sigHeader, $this->webhookSecret
-            );
+        // These would be stored in the .env file in a real application
+        $prices = [
+            'monthly' => env('STRIPE_PRICE_MONTHLY'),
+            'yearly' => env('STRIPE_PRICE_YEARLY'),
+        ];
 
-            // Handle the event
-            switch ($event->type) {
-                case 'checkout.session.completed':
-                    return $this->handleCheckoutSessionCompleted($event->data->object);
-                
-                case 'customer.subscription.created':
-                    return $this->handleSubscriptionCreated($event->data->object);
-                
-                case 'customer.subscription.updated':
-                    return $this->handleSubscriptionUpdated($event->data->object);
-                
-                case 'customer.subscription.deleted':
-                    return $this->handleSubscriptionDeleted($event->data->object);
-                
-                default:
-                    Log::info('Unhandled event type: ' . $event->type);
-                    return true;
-            }
-        } catch (Exception $e) {
-            Log::error('Stripe webhook error: ' . $e->getMessage());
-            return false;
-        }
+        return $prices[$plan] ?? null;
     }
 
     /**
-     * Handle checkout.session.completed event
+     * Handle the checkout session completion.
      *
-     * @param object $session
+     * @param string $sessionId
      * @return bool
      */
-    protected function handleCheckoutSessionCompleted($session)
+    public function handleCheckoutSessionCompleted(string $sessionId): bool
     {
         try {
+            $session = Session::retrieve($sessionId);
             $userId = $session->metadata->user_id;
-            $user = User::find($userId);
-
-            if (!$user) {
-                Log::error('User not found for checkout session: ' . $session->id);
-                return false;
-            }
-
-            // The subscription will be created by the customer.subscription.created event
-            Log::info('Checkout session completed for user: ' . $userId);
-            return true;
-        } catch (Exception $e) {
-            Log::error('Error handling checkout session completed: ' . $e->getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Handle customer.subscription.created event
-     *
-     * @param object $subscription
-     * @return bool
-     */
-    protected function handleSubscriptionCreated($subscription)
-    {
-        try {
-            if (!$this->stripe) {
-                throw new Exception('Stripe not properly configured');
-            }
+            $plan = $session->metadata->plan;
             
-            $customer = $this->stripe->customers->retrieve($subscription->customer);
-            $user = User::where('email', $customer->email)->first();
-
+            $user = User::find($userId);
             if (!$user) {
-                Log::error('User not found for subscription: ' . $subscription->id);
+                Log::error('User not found for checkout session: ' . $sessionId);
                 return false;
             }
 
-            // Create or update subscription record
-            Subscription::updateOrCreate(
+            // Create or update subscription
+            $subscription = Subscription::updateOrCreate(
                 ['user_id' => $user->id],
                 [
-                    'stripe_id' => $subscription->id,
-                    'stripe_status' => $subscription->status,
-                    'stripe_price' => $subscription->items->data[0]->price->id,
-                    'quantity' => $subscription->items->data[0]->quantity,
-                    'trial_ends_at' => $subscription->trial_end ? date('Y-m-d H:i:s', $subscription->trial_end) : null,
+                    'stripe_id' => $session->subscription,
+                    'stripe_status' => 'active',
+                    'stripe_price' => $session->amount_total,
+                    'grades_used' => 0,
+                    'grades_limit' => $plan === 'yearly' ? 999999 : 999999, // Unlimited for both plans
                     'ends_at' => null,
-                    'grades_limit' => PHP_INT_MAX, // Unlimited grades for paid subscription
                 ]
             );
 
-            Log::info('Subscription created for user: ' . $user->id);
             return true;
-        } catch (Exception $e) {
-            Log::error('Error handling subscription created: ' . $e->getMessage());
+        } catch (ApiErrorException $e) {
+            Log::error('Stripe API Error in handleCheckoutSessionCompleted: ' . $e->getMessage());
             return false;
         }
     }
 
     /**
-     * Handle customer.subscription.updated event
-     *
-     * @param object $subscription
-     * @return bool
-     */
-    protected function handleSubscriptionUpdated($subscription)
-    {
-        try {
-            $subscriptionRecord = Subscription::where('stripe_id', $subscription->id)->first();
-
-            if (!$subscriptionRecord) {
-                Log::error('Subscription not found: ' . $subscription->id);
-                return false;
-            }
-
-            $subscriptionRecord->update([
-                'stripe_status' => $subscription->status,
-                'stripe_price' => $subscription->items->data[0]->price->id,
-                'quantity' => $subscription->items->data[0]->quantity,
-                'trial_ends_at' => $subscription->trial_end ? date('Y-m-d H:i:s', $subscription->trial_end) : null,
-                'ends_at' => $subscription->cancel_at ? date('Y-m-d H:i:s', $subscription->cancel_at) : null,
-            ]);
-
-            Log::info('Subscription updated: ' . $subscription->id);
-            return true;
-        } catch (Exception $e) {
-            Log::error('Error handling subscription updated: ' . $e->getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Handle customer.subscription.deleted event
-     *
-     * @param object $subscription
-     * @return bool
-     */
-    protected function handleSubscriptionDeleted($subscription)
-    {
-        try {
-            $subscriptionRecord = Subscription::where('stripe_id', $subscription->id)->first();
-
-            if (!$subscriptionRecord) {
-                Log::error('Subscription not found: ' . $subscription->id);
-                return false;
-            }
-
-            $subscriptionRecord->update([
-                'stripe_status' => $subscription->status,
-                'ends_at' => date('Y-m-d H:i:s', $subscription->ended_at),
-                'grades_limit' => 3, // Reset to free tier limit
-            ]);
-
-            Log::info('Subscription deleted: ' . $subscription->id);
-            return true;
-        } catch (Exception $e) {
-            Log::error('Error handling subscription deleted: ' . $e->getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Cancel a subscription
+     * Cancel a subscription.
      *
      * @param User $user
-     * @return array
+     * @return bool
      */
-    public function cancelSubscription(User $user)
+    public function cancelSubscription(User $user): bool
     {
         try {
-            if (!$this->stripe) {
-                throw new Exception('Stripe not properly configured');
-            }
+            $subscription = $user->subscription;
             
-            $subscription = Subscription::where('user_id', $user->id)
-                ->where('stripe_status', 'active')
-                ->first();
-
             if (!$subscription || !$subscription->stripe_id) {
-                return [
-                    'success' => false,
-                    'error' => 'No active subscription found',
-                ];
+                return false;
             }
 
-            $stripeSubscription = $this->stripe->subscriptions->cancel(
-                $subscription->stripe_id,
-                ['prorate' => true]
-            );
+            $stripeSubscription = \Stripe\Subscription::retrieve($subscription->stripe_id);
+            $stripeSubscription->cancel();
 
+            // Update local subscription
             $subscription->update([
-                'stripe_status' => $stripeSubscription->status,
-                'ends_at' => date('Y-m-d H:i:s', $stripeSubscription->cancel_at),
+                'stripe_status' => 'canceled',
+                'ends_at' => now()->addDays(30), // Subscription remains active until the end of the billing period
             ]);
 
-            return [
-                'success' => true,
-                'message' => 'Subscription cancelled successfully',
-            ];
-        } catch (Exception $e) {
-            Log::error('Error cancelling subscription: ' . $e->getMessage());
-            return [
-                'success' => false,
-                'error' => $e->getMessage(),
-            ];
+            return true;
+        } catch (ApiErrorException $e) {
+            Log::error('Stripe API Error in cancelSubscription: ' . $e->getMessage());
+            return false;
         }
     }
 
     /**
-     * Get subscription details for a user
+     * Get subscription details from Stripe.
      *
-     * @param User $user
-     * @return array
+     * @param string $subscriptionId
+     * @return array|null
      */
-    public function getSubscriptionDetails(User $user)
+    public function getSubscriptionDetails(string $subscriptionId): ?array
     {
         try {
-            $subscription = Subscription::where('user_id', $user->id)->first();
-
-            if (!$subscription) {
-                return [
-                    'success' => true,
-                    'subscription' => null,
-                    'plan' => 'free',
-                    'grades_used' => 0,
-                    'grades_limit' => 3,
-                    'active' => false,
-                ];
-            }
-
+            $subscription = \Stripe\Subscription::retrieve($subscriptionId);
+            
             return [
-                'success' => true,
-                'subscription' => $subscription,
-                'plan' => $subscription->isActive() && !$subscription->onTrial() ? 'premium' : 'free',
-                'grades_used' => $subscription->grades_used,
-                'grades_limit' => $subscription->grades_limit,
-                'active' => $subscription->isActive(),
-                'trial' => $subscription->onTrial(),
-                'canceled' => $subscription->canceled(),
-                'expired' => $subscription->expired(),
+                'id' => $subscription->id,
+                'status' => $subscription->status,
+                'current_period_end' => $subscription->current_period_end,
+                'cancel_at_period_end' => $subscription->cancel_at_period_end,
+                'plan' => [
+                    'id' => $subscription->plan->id,
+                    'amount' => $subscription->plan->amount,
+                    'interval' => $subscription->plan->interval,
+                ]
             ];
-        } catch (Exception $e) {
-            Log::error('Error getting subscription details: ' . $e->getMessage());
-            return [
-                'success' => false,
-                'error' => $e->getMessage(),
-            ];
+        } catch (ApiErrorException $e) {
+            Log::error('Stripe API Error in getSubscriptionDetails: ' . $e->getMessage());
+            return null;
         }
     }
 }

@@ -1,289 +1,291 @@
 @extends('layouts.dashboard')
 
 @section('content')
-<h1 class="page-title">Settings</h1>
-
-@if(session('success'))
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        {{ session('success') }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-@endif
-
-@if(session('error'))
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        {{ session('error') }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-@endif
-
-<div class="settings-container">
-    <div class="card mb-4">
-        <div class="card-body">
-            <h3 class="card-title">Account Settings</h3>
-
-            <form class="settings-form" action="{{ route('account.update') }}" method="POST">
-                @csrf
-                @method('PUT')
-
-                <div class="form-group mb-3">
-                    <label for="email" class="form-label">Email Address</label>
-                    <input type="email" class="form-control @error('email') is-invalid @enderror" id="email" name="email" value="{{ auth()->user()->email }}">
-                    @error('email')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
-
-                <div class="form-group mb-3">
-                    <label for="name" class="form-label">Full Name</label>
-                    <input type="text" class="form-control @error('name') is-invalid @enderror" id="name" name="name" value="{{ auth()->user()->name }}">
-                    @error('name')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
-
-                <button type="submit" class="btn btn-primary">Update Account</button>
-            </form>
-        </div>
-    </div>
-
-    <div class="card mb-4">
-        <div class="card-body">
-            <h3 class="card-title">Change Password</h3>
-
-            <form class="settings-form" action="{{ route('account.update-password') }}" method="POST">
-                @csrf
-                @method('PUT')
-
-                <div class="form-group mb-3">
-                    <label for="current_password" class="form-label">Current Password</label>
-                    <input type="password" class="form-control @error('current_password') is-invalid @enderror" id="current_password" name="current_password">
-                    @error('current_password')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
-
-                <div class="form-group mb-3">
-                    <label for="new_password" class="form-label">New Password</label>
-                    <input type="password" class="form-control @error('new_password') is-invalid @enderror" id="new_password" name="new_password">
-                    @error('new_password')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
-
-                <div class="form-group mb-3">
-                    <label for="new_password_confirmation" class="form-label">Confirm New Password</label>
-                    <input type="password" class="form-control" id="new_password_confirmation" name="new_password_confirmation">
-                </div>
-
-                <button type="submit" class="btn btn-primary">Change Password</button>
-            </form>
-        </div>
-    </div>
-
-    <div class="card mb-4">
-        <div class="card-body">
-            <h3 class="card-title">Google Calendar Integration</h3>
-
-            <div class="google-calendar-integration">
-                <p class="mb-4">Connect your Google Calendar to sync events and manage your schedule in one place.</p>
-
-                @if(false) <!-- Replace with actual connection check -->
-                <div class="connected-calendars mb-4">
-                    <h5>Connected Calendars</h5>
-
-                    <div class="calendar-list">
-                        <div class="calendar-item">
-                            <div class="calendar-info">
-                                <div class="calendar-name">Work Calendar</div>
-                                <div class="calendar-email">user@company.com</div>
-                            </div>
-                            <div class="calendar-actions">
-                                <button class="btn btn-sm btn-outline-danger disconnect-calendar-btn">Disconnect</button>
-                            </div>
-                        </div>
-
-                        <div class="calendar-item">
-                            <div class="calendar-info">
-                                <div class="calendar-name">Personal Calendar</div>
-                                <div class="calendar-email">user@gmail.com</div>
-                            </div>
-                            <div class="calendar-actions">
-                                <button class="btn btn-sm btn-outline-danger disconnect-calendar-btn">Disconnect</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                @else
-                <div class="no-calendars-connected text-center mb-4">
-                    <div class="no-calendars-icon mb-3">
-                        <i class="fas fa-calendar-times fa-4x text-muted"></i>
-                    </div>
-                    <p>You don't have any Google Calendars connected yet.</p>
-                </div>
-                @endif
-
-                <div class="text-center">
-                    <button id="connect-google-btn" class="btn btn-primary">
-                        <i class="fab fa-google me-2"></i> Connect Google Calendar
-                    </button>
-                </div>
-
-                @if(false) <!-- Replace with actual connection check -->
-                <div class="calendar-permissions mt-4">
-                    <h5>Calendar Permissions</h5>
-                    <p class="text-muted">Own My Calendar has the following permissions:</p>
-                    <ul class="permissions-list">
-                        <li><i class="fas fa-check text-success"></i> View your calendar events</li>
-                        <li><i class="fas fa-check text-success"></i> See information about your calendars</li>
-                        <li><i class="fas fa-times text-muted"></i> Create or modify events (read-only access)</li>
-                    </ul>
-                </div>
-                @endif
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <!-- Alert Messages -->
+            @if (session('success'))
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                {{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
-        </div>
-    </div>
-
-    <div class="card mb-4">
-        <div class="card-body">
-            <h3 class="card-title">Notification Settings</h3>
-
-            <form class="settings-form" action="{{ route('notification.update-settings') }}" method="POST">
-                @csrf
-                @method('PUT')
-
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input @error('weekly_grade') is-invalid @enderror" type="checkbox" id="weekly_grade" name="weekly_grade" value="1" {{ $notificationSettings->weekly_grade ?? true ? 'checked' : '' }}>
-                    <label class="form-check-label" for="weekly_grade">
-                        Weekly Grade Email
-                    </label>
-                    <div class="form-text">Receive your calendar grade and recommendations every week</div>
-                    @error('weekly_grade')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
-
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input @error('weekly_reminder') is-invalid @enderror" type="checkbox" id="weekly_reminder" name="weekly_reminder" value="1" {{ $notificationSettings->weekly_reminder ?? true ? 'checked' : '' }}>
-                    <label class="form-check-label" for="weekly_reminder">
-                        Weekly Planning Reminder
-                    </label>
-                    <div class="form-text">Get a reminder to plan your week</div>
-                    @error('weekly_reminder')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
-
-                <div class="form-group mb-3">
-                    <label for="weekly_reminder_day" class="form-label">Reminder Day</label>
-                    <select class="form-control @error('weekly_reminder_day') is-invalid @enderror" id="weekly_reminder_day" name="weekly_reminder_day">
-                        @php
-                            $days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                            $selectedDay = $notificationSettings->weekly_reminder_day ?? 'Sunday';
-                        @endphp
-
-                        @foreach($days as $day)
-                            <option value="{{ $day }}" {{ $selectedDay == $day ? 'selected' : '' }}>{{ $day }}</option>
-                        @endforeach
-                    </select>
-                    @error('weekly_reminder_day')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
-
-                <div class="form-group mb-3">
-                    <label for="weekly_reminder_time" class="form-label">Reminder Time</label>
-                    <input type="time" class="form-control @error('weekly_reminder_time') is-invalid @enderror" id="weekly_reminder_time" name="weekly_reminder_time" value="{{ $notificationSettings->reminder_time ?? '18:00' }}">
-                    @error('weekly_reminder_time')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
-
-                <button type="submit" class="btn btn-primary">Save Notification Settings</button>
-            </form>
-        </div>
-    </div>
-
-    <div class="card mb-4">
-        <div class="card-body">
-            <h3 class="card-title">Subscription</h3>
-
-            @if(auth()->user()->subscribed())
-                <div class="subscription-info">
-                    <div class="subscription-status">
-                        <span class="badge bg-success">Active</span>
-                        <h5 class="mt-2">Premium Plan</h5>
-                        <p>Your subscription renews on May 22, 2025</p>
-                    </div>
-
-                    <div class="subscription-details">
-                        <div class="detail-item">
-                            <div class="detail-label">Plan</div>
-                            <div class="detail-value">Monthly ($9/month)</div>
-                        </div>
-
-                        <div class="detail-item">
-                            <div class="detail-label">Payment Method</div>
-                            <div class="detail-value">Visa ending in 4242</div>
-                        </div>
-
-                        <div class="detail-item">
-                            <div class="detail-label">Next Billing Date</div>
-                            <div class="detail-value">May 22, 2025</div>
-                        </div>
-                    </div>
-
-                    <div class="subscription-actions mt-4">
-                        <button class="btn btn-outline-primary">Update Payment Method</button>
-                        <button class="btn btn-outline-danger">Cancel Subscription</button>
-                    </div>
-                </div>
-            @else
-                <div class="subscription-upgrade">
-                    <h5>Free Plan</h5>
-                    <p>You have used {{ auth()->user()->gradesUsed() }} of 3 free calendar grades.</p>
-
-                    <div class="progress mb-3">
-                        <div class="progress-bar bg-primary" role="progressbar" style="width: {{ (auth()->user()->gradesUsed() / 3) * 100 }}%"
-                            aria-valuenow="{{ auth()->user()->gradesUsed() }}" aria-valuemin="0" aria-valuemax="3"></div>
-                    </div>
-
-                    <div class="upgrade-benefits mb-4">
-                        <h5>Upgrade to Premium for:</h5>
-                        <ul class="benefits-list">
-                            <li><i class="fas fa-check text-success"></i> Unlimited calendar grades</li>
-                            <li><i class="fas fa-check text-success"></i> Weekly grade emails</li>
-                            <li><i class="fas fa-check text-success"></i> Planning reminders</li>
-                            <li><i class="fas fa-check text-success"></i> Detailed recommendations</li>
-                        </ul>
-                    </div>
-
-                    <a href="{{ route('subscription') }}" class="btn btn-primary">Upgrade to Premium - $9/month</a>
-                </div>
             @endif
+            
+            @if (session('error'))
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ session('error') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            @endif
+            
+            @if (session('info'))
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                {{ session('info') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            @endif
+            
+            <div class="card">
+                <div class="card-header">
+                    <h1>Settings</h1>
+                </div>
+                <div class="card-body">
+                    <ul class="nav nav-tabs" id="settingsTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="account-tab" data-bs-toggle="tab" data-bs-target="#account" type="button" role="tab" aria-controls="account" aria-selected="true">Account</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications" type="button" role="tab" aria-controls="notifications" aria-selected="false">Notifications</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="subscription-tab" data-bs-toggle="tab" data-bs-target="#subscription" type="button" role="tab" aria-controls="subscription" aria-selected="false">Subscription</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="calendar-tab" data-bs-toggle="tab" data-bs-target="#calendar" type="button" role="tab" aria-controls="calendar" aria-selected="false">Calendar Integration</button>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content p-3" id="settingsTabsContent">
+                        <!-- Account Settings -->
+                        <div class="tab-pane fade show active" id="account" role="tabpanel" aria-labelledby="account-tab">
+                            <h3>Account Information</h3>
+                            <form action="{{ route('account.update') }}" method="POST">
+                                @csrf
+                                @method('PUT')
+                                
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">Name</label>
+                                    <input type="text" class="form-control @error('name') is-invalid @enderror" id="name" name="name" value="{{ old('name', auth()->user()->name) }}">
+                                    @error('name')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">Email</label>
+                                    <input type="email" class="form-control @error('email') is-invalid @enderror" id="email" name="email" value="{{ old('email', auth()->user()->email) }}">
+                                    @error('email')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary">Update Account</button>
+                            </form>
+                            
+                            <hr class="my-4">
+                            
+                            <h3>Change Password</h3>
+                            <form action="{{ route('account.password') }}" method="POST">
+                                @csrf
+                                @method('PUT')
+                                
+                                <div class="mb-3">
+                                    <label for="current_password" class="form-label">Current Password</label>
+                                    <input type="password" class="form-control @error('current_password') is-invalid @enderror" id="current_password" name="current_password">
+                                    @error('current_password')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="password" class="form-label">New Password</label>
+                                    <input type="password" class="form-control @error('password') is-invalid @enderror" id="password" name="password">
+                                    @error('password')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="password_confirmation" class="form-label">Confirm New Password</label>
+                                    <input type="password" class="form-control" id="password_confirmation" name="password_confirmation">
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary">Update Password</button>
+                            </form>
+                        </div>
+                        
+                        <!-- Notification Settings -->
+                        <div class="tab-pane fade" id="notifications" role="tabpanel" aria-labelledby="notifications-tab">
+                            <h3>Notification Preferences</h3>
+                            <form action="{{ route('notifications.update') }}" method="POST">
+                                @csrf
+                                @method('PUT')
+                                
+                                <div class="mb-3 form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="weekly_grade_email" name="weekly_grade_email" value="1" {{ old('weekly_grade_email', $notificationSettings->weekly_grade_email ?? true) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="weekly_grade_email">Send me weekly grade emails</label>
+                                </div>
+                                
+                                <div class="mb-3 form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="planning_reminder" name="planning_reminder" value="1" {{ old('planning_reminder', $notificationSettings->planning_reminder ?? true) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="planning_reminder">Send me weekly planning reminders</label>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="reminder_day" class="form-label">Reminder Day</label>
+                                    <select class="form-select" id="reminder_day" name="reminder_day">
+                                        <option value="Sunday" {{ old('reminder_day', $notificationSettings->reminder_day ?? 'Sunday') == 'Sunday' ? 'selected' : '' }}>Sunday</option>
+                                        <option value="Monday" {{ old('reminder_day', $notificationSettings->reminder_day ?? 'Sunday') == 'Monday' ? 'selected' : '' }}>Monday</option>
+                                        <option value="Tuesday" {{ old('reminder_day', $notificationSettings->reminder_day ?? 'Sunday') == 'Tuesday' ? 'selected' : '' }}>Tuesday</option>
+                                        <option value="Wednesday" {{ old('reminder_day', $notificationSettings->reminder_day ?? 'Sunday') == 'Wednesday' ? 'selected' : '' }}>Wednesday</option>
+                                        <option value="Thursday" {{ old('reminder_day', $notificationSettings->reminder_day ?? 'Sunday') == 'Thursday' ? 'selected' : '' }}>Thursday</option>
+                                        <option value="Friday" {{ old('reminder_day', $notificationSettings->reminder_day ?? 'Sunday') == 'Friday' ? 'selected' : '' }}>Friday</option>
+                                        <option value="Saturday" {{ old('reminder_day', $notificationSettings->reminder_day ?? 'Sunday') == 'Saturday' ? 'selected' : '' }}>Saturday</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="reminder_time" class="form-label">Reminder Time</label>
+                                    <input type="time" class="form-control" id="reminder_time" name="reminder_time" value="{{ old('reminder_time', $notificationSettings->reminder_time ?? '18:00') }}">
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary">Save Notification Settings</button>
+                            </form>
+                        </div>
+                        
+                        <!-- Subscription Settings -->
+                        <div class="tab-pane fade" id="subscription" role="tabpanel" aria-labelledby="subscription-tab">
+                            <h3>Subscription Status</h3>
+                            
+                            <div class="card mb-4">
+                                <div class="card-body">
+                                    @if(auth()->user()->subscribed())
+                                        <div class="subscription-status active">
+                                            <div class="status-icon">
+                                                <i class="fas fa-check-circle"></i>
+                                            </div>
+                                            <div class="status-details">
+                                                <h4>Premium Plan</h4>
+                                                <p>Your subscription is active.</p>
+                                                <p class="text-muted">Next billing date: {{ auth()->user()->subscription && auth()->user()->subscription->ends_at ? auth()->user()->subscription->ends_at->format('F j, Y') : 'N/A' }}</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mt-4">
+                                            <form action="{{ route('checkout.cancel-subscription') }}" method="POST" id="cancelSubscriptionForm">
+                                                @csrf
+                                                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelSubscriptionModal">
+                                                    Cancel Subscription
+                                                </button>
+                                            </form>
+                                        </div>
+                                    @else
+                                        <div class="subscription-status inactive">
+                                            <div class="status-icon">
+                                                <i class="fas fa-info-circle"></i>
+                                            </div>
+                                            <div class="status-details">
+                                                <h4>Free Plan</h4>
+                                                <p>You are currently on the free plan.</p>
+                                                <p class="text-muted">{{ 3 - auth()->user()->gradesUsed() }} grades remaining</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mt-4">
+                                            <a href="{{ route('subscription') }}" class="btn btn-primary">Upgrade to Premium</a>
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                            
+                            @if(auth()->user()->subscribed())
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5>Subscription Benefits</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul class="subscription-benefits">
+                                            <li><i class="fas fa-check text-success"></i> Connect unlimited calendars</li>
+                                            <li><i class="fas fa-check text-success"></i> Unlimited calendar grades</li>
+                                            <li><i class="fas fa-check text-success"></i> Advanced AI recommendations</li>
+                                            <li><i class="fas fa-check text-success"></i> Priority support</li>
+                                            <li><i class="fas fa-check text-success"></i> Detailed analytics</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                        
+                        <!-- Calendar Integration Settings -->
+                        <div class="tab-pane fade" id="calendar" role="tabpanel" aria-labelledby="calendar-tab">
+                            <h3>Google Calendar Integration</h3>
+                            
+                            <div class="card mb-4">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h5>Connect Your Calendar</h5>
+                                            <p class="text-muted">Connect your Google Calendar to start grading and improving your schedule.</p>
+                                        </div>
+                                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#connectCalendarModal">
+                                            Connect Calendar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="connected-calendars">
+                                <h5>Connected Calendars</h5>
+                                
+                                <!-- This would be populated dynamically with actual connected calendars -->
+                                <div class="alert alert-info">
+                                    No calendars connected yet. Click the "Connect Calendar" button to get started.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Google Calendar Auth Modal -->
-<div class="modal fade" id="googleAuthModal" tabindex="-1" aria-labelledby="googleAuthModalLabel" aria-hidden="true">
+<!-- Cancel Subscription Modal -->
+<div class="modal fade" id="cancelSubscriptionModal" tabindex="-1" aria-labelledby="cancelSubscriptionModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="googleAuthModalLabel">Connect Google Calendar</h5>
+                <h5 class="modal-title" id="cancelSubscriptionModalLabel">Cancel Subscription</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="text-center mb-4">
-                    <img src="{{ asset('images/google-calendar-logo.png') }}" alt="Google Calendar" width="80">
+                <p>Are you sure you want to cancel your subscription?</p>
+                <p>You will still have access to premium features until the end of your current billing period.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Keep Subscription</button>
+                <button type="button" class="btn btn-danger" id="confirmCancelSubscription">Yes, Cancel Subscription</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Connect Calendar Modal -->
+<div class="modal fade" id="connectCalendarModal" tabindex="-1" aria-labelledby="connectCalendarModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="connectCalendarModalLabel">Connect Google Calendar</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>To connect your Google Calendar, you'll need to authorize Own My Calendar to access your calendar data.</p>
+                <p>We only request read access to your calendar events to provide grading and recommendations.</p>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> Your calendar data is only used for grading and recommendations. We never share your data with third parties.
                 </div>
-                <p>You'll be redirected to Google to authorize access to your calendar. Own My Calendar will only have read-only access to your events.</p>
-                <div class="d-grid gap-2">
-                    <button id="proceed-google-auth" class="btn btn-primary">
-                        <i class="fab fa-google me-2"></i> Continue to Google
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                
+                @if(!auth()->user()->subscribed() && auth()->user()->gradesUsed() >= 3)
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> You've used all your free grades. Upgrade to Premium for unlimited grades.
                 </div>
+                @endif
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="{{ route('google.redirect') }}" class="btn btn-primary">Connect with Google</a>
             </div>
         </div>
     </div>
@@ -292,104 +294,49 @@
 
 @section('styles')
 <style>
-    .settings-container {
-        max-width: 800px;
-        margin: 0 auto;
-    }
-
-    .settings-form {
-        max-width: 500px;
-    }
-
-    /* Google Calendar Integration */
-    .google-calendar-integration {
-        padding: 10px 0;
-    }
-
-    .calendar-list {
-        margin-top: 15px;
-    }
-
-    .calendar-item {
+    .subscription-status {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        padding: 15px;
-        background-color: rgba(0, 0, 0, 0.05);
-        border-radius: 8px;
-        margin-bottom: 10px;
     }
-
-    .calendar-name {
-        font-weight: bold;
+    
+    .status-icon {
+        font-size: 2.5rem;
+        margin-right: 1rem;
     }
-
-    .calendar-email {
-        font-size: 14px;
-        color: #666;
+    
+    .subscription-status.active .status-icon {
+        color: var(--primary-teal);
     }
-
-    .no-calendars-icon {
-        color: #ccc;
+    
+    .subscription-status.inactive .status-icon {
+        color: #6c757d;
     }
-
-    .permissions-list {
+    
+    .status-details h4 {
+        margin-bottom: 0.25rem;
+        color: var(--primary-purple);
+    }
+    
+    .subscription-benefits {
         list-style: none;
         padding-left: 0;
     }
-
-    .permissions-list li {
-        margin-bottom: 8px;
+    
+    .subscription-benefits li {
+        margin-bottom: 0.5rem;
     }
-
-    .permissions-list i {
-        margin-right: 10px;
-        width: 16px;
+    
+    .subscription-benefits i {
+        margin-right: 0.5rem;
     }
-
-    /* Subscription Styles */
-    .subscription-info {
-        padding: 15px 0;
+    
+    .nav-tabs .nav-link {
+        color: #495057;
     }
-
-    .subscription-details {
-        margin-top: 20px;
-    }
-
-    .detail-item {
-        display: flex;
-        margin-bottom: 10px;
-    }
-
-    .detail-label {
-        width: 150px;
-        font-weight: bold;
-    }
-
-    .benefits-list {
-        list-style: none;
-        padding-left: 0;
-    }
-
-    .benefits-list li {
-        margin-bottom: 10px;
-    }
-
-    .benefits-list i {
-        margin-right: 10px;
-    }
-
-    /* Connect Button */
-    #connect-google-btn {
-        padding: 10px 20px;
-        background: linear-gradient(to right, var(--primary-purple), var(--primary-teal));
-        border: none;
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    #connect-google-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    
+    .nav-tabs .nav-link.active {
+        color: var(--primary-purple);
+        font-weight: 600;
     }
 </style>
 @endsection
@@ -397,92 +344,39 @@
 @section('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Handle subscription cancellation
+        const confirmCancelBtn = document.getElementById('confirmCancelSubscription');
+        const cancelForm = document.getElementById('cancelSubscriptionForm');
+        
+        if (confirmCancelBtn && cancelForm) {
+            confirmCancelBtn.addEventListener('click', function() {
+                // Show loading state
+                confirmCancelBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+                confirmCancelBtn.disabled = true;
+                
+                // Submit the form
+                cancelForm.submit();
+            });
+        }
+        
         // Auto-dismiss alerts after 5 seconds
         setTimeout(function() {
-            const alerts = document.querySelectorAll('.alert');
+            const alerts = document.querySelectorAll('.alert.alert-success, .alert.alert-info, .alert.alert-danger');
             alerts.forEach(function(alert) {
                 const bsAlert = new bootstrap.Alert(alert);
                 bsAlert.close();
             });
         }, 5000);
-
-        // Google Calendar Connection
-        const connectGoogleBtn = document.getElementById('connect-google-btn');
-        const googleAuthModal = new bootstrap.Modal(document.getElementById('googleAuthModal'));
-        const proceedGoogleAuthBtn = document.getElementById('proceed-google-auth');
-
-        if (connectGoogleBtn) {
-            connectGoogleBtn.addEventListener('click', function() {
-                googleAuthModal.show();
-            });
+        
+        // Activate tab based on hash in URL
+        const hash = window.location.hash;
+        if (hash) {
+            const tab = document.querySelector(`a[href="${hash}"]`);
+            if (tab) {
+                const bsTab = new bootstrap.Tab(tab);
+                bsTab.show();
+            }
         }
-
-        if (proceedGoogleAuthBtn) {
-            proceedGoogleAuthBtn.addEventListener('click', function() {
-                // Show loading state
-                proceedGoogleAuthBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Redirecting...';
-                proceedGoogleAuthBtn.disabled = true;
-
-                // Redirect to Google OAuth
-                fetch('/google-calendar/redirect')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.auth_url) {
-                            window.location.href = data.auth_url;
-                        } else {
-                            // Handle error
-                            proceedGoogleAuthBtn.innerHTML = '<i class="fab fa-google me-2"></i> Continue to Google';
-                            proceedGoogleAuthBtn.disabled = false;
-                            alert('Failed to connect to Google. Please try again.');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error connecting to Google Calendar:', error);
-                        proceedGoogleAuthBtn.innerHTML = '<i class="fab fa-google me-2"></i> Continue to Google';
-                        proceedGoogleAuthBtn.disabled = false;
-                        alert('Failed to connect to Google. Please try again.');
-                    });
-            });
-        }
-
-        // Disconnect Calendar
-        const disconnectBtns = document.querySelectorAll('.disconnect-calendar-btn');
-        disconnectBtns.forEach(btn => {
-            btn.addEventListener('click', function() {
-                if (confirm('Are you sure you want to disconnect this calendar?')) {
-                    // Show loading state
-                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                    btn.disabled = true;
-
-                    // Call disconnect endpoint
-                    fetch('/google-calendar/disconnect', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                        }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            // Reload page to show updated state
-                            window.location.reload();
-                        } else {
-                            // Handle error
-                            btn.innerHTML = 'Disconnect';
-                            btn.disabled = false;
-                            alert('Failed to disconnect calendar. Please try again.');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error disconnecting calendar:', error);
-                        btn.innerHTML = 'Disconnect';
-                        btn.disabled = false;
-                        alert('Failed to disconnect calendar. Please try again.');
-                    });
-                }
-            });
-        });
     });
 </script>
 @endsection
