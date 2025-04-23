@@ -30,6 +30,8 @@ Auth::routes();
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Add home route that points to the same controller method as dashboard
+    Route::get('/home', [DashboardController::class, 'index'])->name('home');
     Route::get('/calendar', [DashboardController::class, 'calendar'])->name('calendar');
     Route::get('/history', [DashboardController::class, 'history'])->name('history');
     Route::get('/extension', [DashboardController::class, 'extension'])->name('extension');
