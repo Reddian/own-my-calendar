@@ -26,10 +26,12 @@ class GoogleCalendarController extends Controller
     {
         try {
             $authUrl = $this->googleCalendarService->getAuthUrl();
-            return response()->json(['auth_url' => $authUrl]);
+            
+            // Instead of returning JSON, redirect directly to Google's auth URL
+            return redirect()->away($authUrl);
         } catch (\Exception $e) {
             Log::error('Google Calendar redirect error: ' . $e->getMessage());
-            return response()->json(['error' => 'Failed to generate Google authorization URL'], 500);
+            return redirect()->route('settings')->with('error', 'Failed to generate Google authorization URL: ' . $e->getMessage());
         }
     }
 
@@ -43,19 +45,24 @@ class GoogleCalendarController extends Controller
     {
         try {
             if ($request->has('error')) {
-                return response()->json(['error' => 'Google authorization was denied: ' . $request->get('error')], 400);
+                return redirect()->route('settings')
+                    ->with('error', 'Google authorization was denied: ' . $request->get('error'));
             }
 
             if (!$request->has('code')) {
-                return response()->json(['error' => 'Authorization code is missing'], 400);
+                return redirect()->route('settings')
+                    ->with('error', 'Authorization code is missing');
             }
 
             $this->googleCalendarService->handleAuthCallback($request->get('code'));
             
-            return response()->json(['success' => true, 'message' => 'Google Calendar connected successfully']);
+            // Redirect to settings page with success message
+            return redirect()->route('settings')
+                ->with('success', 'Google Calendar connected successfully');
         } catch (\Exception $e) {
             Log::error('Google Calendar callback error: ' . $e->getMessage());
-            return response()->json(['error' => 'Failed to connect Google Calendar: ' . $e->getMessage()], 500);
+            return redirect()->route('settings')
+                ->with('error', 'Failed to connect Google Calendar: ' . $e->getMessage());
         }
     }
 
