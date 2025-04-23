@@ -65,15 +65,23 @@
                                 <div class="plan-card premium">
                                     <div class="plan-header">
                                         <h2>Premium Plan</h2>
-                                        <div class="price-options">
-                                            <div class="price-option monthly active" data-plan="monthly">
-                                                <div class="price">$9<span>/month</span></div>
-                                                <div class="price-note">Billed monthly</div>
+                                        <div class="billing-toggle">
+                                            <div class="toggle-container">
+                                                <span id="monthly-label" class="toggle-label active">Monthly</span>
+                                                <label class="switch">
+                                                    <input type="checkbox" id="billing-toggle">
+                                                    <span class="slider round"></span>
+                                                </label>
+                                                <span id="yearly-label" class="toggle-label">Yearly</span>
                                             </div>
-                                            <div class="price-option yearly" data-plan="yearly">
-                                                <div class="price">$89<span>/year</span></div>
-                                                <div class="price-note">Save $19 per year</div>
-                                            </div>
+                                        </div>
+                                        <div id="monthly-price" class="price-display active">
+                                            <div class="price">$9<span>/month</span></div>
+                                            <div class="price-note">Billed monthly</div>
+                                        </div>
+                                        <div id="yearly-price" class="price-display">
+                                            <div class="price">$89<span>/year</span></div>
+                                            <div class="price-note">Save $19 per year</div>
                                         </div>
                                     </div>
                                     <div class="plan-features">
@@ -259,30 +267,90 @@
         margin-bottom: 10px;
     }
     
-    .price-options {
+    /* New toggle switch styles */
+    .billing-toggle {
+        margin: 20px 0;
+    }
+    
+    .toggle-container {
         display: flex;
+        align-items: center;
         justify-content: center;
-        margin-top: 15px;
-        border: 1px solid #e0e0e0;
-        border-radius: 10px;
-        overflow: hidden;
     }
     
-    .price-option {
-        flex: 1;
-        padding: 10px;
-        text-align: center;
+    .toggle-label {
+        font-size: 0.9rem;
+        color: #666;
+        margin: 0 10px;
         cursor: pointer;
-        transition: all 0.3s ease;
     }
     
-    .price-option.active {
-        background-color: rgba(126, 87, 255, 0.1);
+    .toggle-label.active {
+        color: var(--primary-purple);
         font-weight: bold;
     }
     
-    .price-option:not(.active):hover {
-        background-color: rgba(126, 87, 255, 0.05);
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 24px;
+    }
+    
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+    }
+    
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 16px;
+        width: 16px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: .4s;
+    }
+    
+    input:checked + .slider {
+        background: linear-gradient(to right, var(--primary-purple), var(--primary-teal));
+    }
+    
+    input:focus + .slider {
+        box-shadow: 0 0 1px var(--primary-purple);
+    }
+    
+    input:checked + .slider:before {
+        transform: translateX(26px);
+    }
+    
+    .slider.round {
+        border-radius: 34px;
+    }
+    
+    .slider.round:before {
+        border-radius: 50%;
+    }
+    
+    .price-display {
+        display: none;
+    }
+    
+    .price-display.active {
+        display: block;
     }
     
     .price {
@@ -410,21 +478,45 @@
         // Initialize Stripe
         const stripe = Stripe('{{ config('services.stripe.public') }}');
         
-        // Handle plan selection
-        const monthlyOption = document.querySelector('.price-option.monthly');
-        const yearlyOption = document.querySelector('.price-option.yearly');
+        // Handle plan selection with toggle switch
+        const billingToggle = document.getElementById('billing-toggle');
+        const monthlyLabel = document.getElementById('monthly-label');
+        const yearlyLabel = document.getElementById('yearly-label');
+        const monthlyPrice = document.getElementById('monthly-price');
+        const yearlyPrice = document.getElementById('yearly-price');
         const checkoutButton = document.getElementById('checkout-button');
         
-        monthlyOption.addEventListener('click', function() {
-            monthlyOption.classList.add('active');
-            yearlyOption.classList.remove('active');
-            checkoutButton.setAttribute('data-plan', 'monthly');
+        // Set initial state
+        checkoutButton.setAttribute('data-plan', 'monthly');
+        
+        // Toggle between monthly and yearly
+        billingToggle.addEventListener('change', function() {
+            if (this.checked) {
+                // Yearly
+                monthlyLabel.classList.remove('active');
+                yearlyLabel.classList.add('active');
+                monthlyPrice.classList.remove('active');
+                yearlyPrice.classList.add('active');
+                checkoutButton.setAttribute('data-plan', 'yearly');
+            } else {
+                // Monthly
+                yearlyLabel.classList.remove('active');
+                monthlyLabel.classList.add('active');
+                yearlyPrice.classList.remove('active');
+                monthlyPrice.classList.add('active');
+                checkoutButton.setAttribute('data-plan', 'monthly');
+            }
         });
         
-        yearlyOption.addEventListener('click', function() {
-            yearlyOption.classList.add('active');
-            monthlyOption.classList.remove('active');
-            checkoutButton.setAttribute('data-plan', 'yearly');
+        // Click handlers for labels to improve UX
+        monthlyLabel.addEventListener('click', function() {
+            billingToggle.checked = false;
+            billingToggle.dispatchEvent(new Event('change'));
+        });
+        
+        yearlyLabel.addEventListener('click', function() {
+            billingToggle.checked = true;
+            billingToggle.dispatchEvent(new Event('change'));
         });
         
         // Handle checkout button click
