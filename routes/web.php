@@ -47,6 +47,13 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/checkout/create-session', [CheckoutController::class, 'createCheckoutSession'])->name('checkout.create-session');
     Route::get('/checkout/success', [CheckoutController::class, 'success'])->name('checkout.success');
     Route::post('/checkout/cancel-subscription', [CheckoutController::class, 'cancelSubscription'])->name('checkout.cancel-subscription');
+    
+    // Google Calendar routes
+    Route::get('/google/redirect', [GoogleCalendarController::class, 'redirectToGoogle'])->name('google.redirect');
+    Route::get('/google/callback', [GoogleCalendarController::class, 'handleGoogleCallback'])->name('google.callback');
+    Route::get('/google/check-connection', [GoogleCalendarController::class, 'checkConnection'])->name('google.check-connection');
+    Route::get('/google/events', [GoogleCalendarController::class, 'getEvents'])->name('google.events');
+    Route::post('/google/disconnect', [GoogleCalendarController::class, 'disconnect'])->name('google.disconnect');
 });
 
 // Terms and Privacy routes
