@@ -3,12 +3,15 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentDate = new Date();
     let currentMonth = currentDate.getMonth();
     let currentYear = currentDate.getFullYear();
+    let currentView = 'week'; // Default view
     
     // DOM elements
-    const prevMonthBtn = document.querySelector('.prev-month-btn');
-    const nextMonthBtn = document.querySelector('.next-month-btn');
-    const monthTitle = document.querySelector('.month-title');
+    const prevBtn = document.querySelector('.prev-month-btn');
+    const nextBtn = document.querySelector('.next-month-btn');
+    const titleElement = document.querySelector('.month-title');
     const calendarGrid = document.querySelector('.calendar-grid');
+    const weekHeader = document.querySelector('.week-header');
+    const dayHeader = document.querySelector('.day-header').querySelector('h3');
     
     // Month names
     const monthNames = [
@@ -17,7 +20,8 @@ document.addEventListener('DOMContentLoaded', function() {
     ];
     
     // Day names
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayNamesShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     
     // View buttons
     const monthViewBtn = document.getElementById('month-view');
@@ -32,23 +36,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize calendar
     updateCalendar();
     
-    // Event listeners for month navigation
-    prevMonthBtn.addEventListener('click', function() {
-        currentMonth--;
-        if (currentMonth < 0) {
-            currentMonth = 11;
-            currentYear--;
-        }
-        updateCalendar();
+    // Event listeners for navigation
+    prevBtn.addEventListener('click', function() {
+        navigatePrevious();
     });
     
-    nextMonthBtn.addEventListener('click', function() {
-        currentMonth++;
-        if (currentMonth > 11) {
-            currentMonth = 0;
-            currentYear++;
-        }
-        updateCalendar();
+    nextBtn.addEventListener('click', function() {
+        navigateNext();
     });
     
     // Event listeners for view switching
@@ -73,10 +67,65 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Function to update the calendar
+    // Function to navigate to previous period based on current view
+    function navigatePrevious() {
+        if (currentView === 'month') {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+        } else if (currentView === 'week') {
+            // Move back one week (7 days)
+            currentDate.setDate(currentDate.getDate() - 7);
+            currentMonth = currentDate.getMonth();
+            currentYear = currentDate.getFullYear();
+        } else if (currentView === 'day') {
+            // Move back one day
+            currentDate.setDate(currentDate.getDate() - 1);
+            currentMonth = currentDate.getMonth();
+            currentYear = currentDate.getFullYear();
+        }
+        updateCalendar();
+    }
+    
+    // Function to navigate to next period based on current view
+    function navigateNext() {
+        if (currentView === 'month') {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+        } else if (currentView === 'week') {
+            // Move forward one week (7 days)
+            currentDate.setDate(currentDate.getDate() + 7);
+            currentMonth = currentDate.getMonth();
+            currentYear = currentDate.getFullYear();
+        } else if (currentView === 'day') {
+            // Move forward one day
+            currentDate.setDate(currentDate.getDate() + 1);
+            currentMonth = currentDate.getMonth();
+            currentYear = currentDate.getFullYear();
+        }
+        updateCalendar();
+    }
+    
+    // Function to update the calendar based on current view
     function updateCalendar() {
-        // Update month title
-        monthTitle.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+        if (currentView === 'month') {
+            updateMonthView();
+        } else if (currentView === 'week') {
+            updateWeekView();
+        } else if (currentView === 'day') {
+            updateDayView();
+        }
+    }
+    
+    // Function to update month view
+    function updateMonthView() {
+        // Update title
+        titleElement.textContent = `${monthNames[currentMonth]} ${currentYear}`;
         
         // Get first day of month and number of days in month
         const firstDay = new Date(currentYear, currentMonth, 1).getDay();
@@ -153,6 +202,69 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Function to update week view
+    function updateWeekView() {
+        // Get the start of the week (Sunday)
+        const startOfWeek = new Date(currentDate);
+        startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+        
+        // Get the end of the week (Saturday)
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        
+        // Update title to show week range
+        const startMonth = monthNames[startOfWeek.getMonth()].substring(0, 3);
+        const endMonth = monthNames[endOfWeek.getMonth()].substring(0, 3);
+        
+        if (startOfWeek.getMonth() === endOfWeek.getMonth()) {
+            // Same month
+            titleElement.textContent = `${startMonth} ${startOfWeek.getDate()} - ${endOfWeek.getDate()}, ${endOfWeek.getFullYear()}`;
+        } else {
+            // Different months
+            titleElement.textContent = `${startMonth} ${startOfWeek.getDate()} - ${endMonth} ${endOfWeek.getDate()}, ${endOfWeek.getFullYear()}`;
+        }
+        
+        // Update week header with correct dates
+        const weekDays = weekHeader.querySelectorAll('.week-day');
+        const today = new Date();
+        
+        for (let i = 0; i < 7; i++) {
+            const day = new Date(startOfWeek);
+            day.setDate(startOfWeek.getDate() + i);
+            
+            const dayElement = weekDays[i + 1]; // +1 because first element is time-column
+            if (dayElement) {
+                // Clear existing classes
+                dayElement.className = 'week-day';
+                
+                // Check if this is today
+                if (day.getDate() === today.getDate() && 
+                    day.getMonth() === today.getMonth() && 
+                    day.getFullYear() === today.getFullYear()) {
+                    dayElement.classList.add('today');
+                }
+                
+                // Update day text
+                dayElement.innerHTML = `${dayNamesShort[i]}<br>${day.getDate()}`;
+            }
+        }
+    }
+    
+    // Function to update day view
+    function updateDayView() {
+        // Format the day header
+        const dayOfWeek = dayNames[currentDate.getDay()];
+        const month = monthNames[currentDate.getMonth()];
+        const day = currentDate.getDate();
+        const year = currentDate.getFullYear();
+        
+        // Update title and day header
+        titleElement.textContent = `${dayOfWeek}, ${month} ${day}`;
+        dayHeader.textContent = `${dayOfWeek}, ${month} ${day}, ${year}`;
+        
+        // In a real app, you would update the events for this day here
+    }
+    
     // Helper function to create a day element
     function createDayElement(day, classes) {
         const dayElement = document.createElement('div');
@@ -163,6 +275,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to set active view
     function setActiveView(view) {
+        currentView = view;
+        
         // Update button states
         monthViewBtn.classList.remove('active', 'btn-primary');
         weekViewBtn.classList.remove('active', 'btn-primary');
@@ -191,5 +305,8 @@ document.addEventListener('DOMContentLoaded', function() {
             dayViewBtn.classList.remove('btn-outline-primary');
             dayViewBtn.classList.add('active', 'btn-primary');
         }
+        
+        // Update calendar for the selected view
+        updateCalendar();
     }
 });
