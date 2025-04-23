@@ -33,6 +33,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const weekView = document.querySelector('.week-view');
     const dayView = document.querySelector('.day-view');
     
+    // Grade calendar button
+    const gradeCalendarBtn = document.getElementById('grade-calendar-btn');
+    
     // Initialize calendar
     updateCalendar();
     
@@ -58,12 +61,10 @@ document.addEventListener('DOMContentLoaded', function() {
         setActiveView('day');
     });
     
-    // Grade calendar button
-    const gradeCalendarBtn = document.getElementById('grade-calendar-btn');
+    // Grade calendar button event listener
     if (gradeCalendarBtn) {
         gradeCalendarBtn.addEventListener('click', function() {
-            const gradeResultModal = new bootstrap.Modal(document.getElementById('gradeResultModal'));
-            gradeResultModal.show();
+            gradeCurrentWeek();
         });
     }
     
@@ -308,5 +309,133 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Update calendar for the selected view
         updateCalendar();
+    }
+    
+    // Function to grade the current week using OpenAI
+    function gradeCurrentWeek() {
+        // Show loading state in the button
+        const originalButtonText = gradeCalendarBtn.innerHTML;
+        gradeCalendarBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Grading...';
+        gradeCalendarBtn.disabled = true;
+        
+        // Get the start and end dates of the current week
+        const startOfWeek = new Date(currentDate);
+        startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+        
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        
+        // Format dates for API
+        const startDate = formatDate(startOfWeek);
+        const endDate = formatDate(endOfWeek);
+        
+        // Get CSRF token
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        // Make API call to grade calendar
+        fetch('/calendar/grade', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify({
+                start_date: startDate,
+                end_date: endDate
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Reset button state
+            gradeCalendarBtn.innerHTML = originalButtonText;
+            gradeCalendarBtn.disabled = false;
+            
+            // Update the modal with the grading results
+            updateGradeResultModal(data.grade);
+            
+            // Show the modal
+            const gradeResultModal = new bootstrap.Modal(document.getElementById('gradeResultModal'));
+            gradeResultModal.show();
+        })
+        .catch(error => {
+            console.error('Error grading calendar:', error);
+            
+            // Reset button state
+            gradeCalendarBtn.innerHTML = originalButtonText;
+            gradeCalendarBtn.disabled = false;
+            
+            // Show error message
+            alert('Failed to grade calendar. Please make sure your Google Calendar is connected and try again.');
+        });
+    }
+    
+    // Helper function to format date as YYYY-MM-DD
+    function formatDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+    
+    // Function to update the grade result modal with data from API
+    function updateGradeResultModal(gradeData) {
+        // Get modal elements
+        const gradeLetter = document.querySelector('.grade-letter');
+        const gradeScore = document.querySelector('.grade-score');
+        const gradeSummary = document.querySelector('.grade-summary p');
+        const recommendationsList = document.querySelector('.recommendations-list');
+        
+        // Calculate letter grade based on overall grade
+        const letterGrade = calculateLetterGrade(gradeData.overall_grade);
+        
+        // Update modal content
+        gradeLetter.textContent = letterGrade;
+        gradeScore.innerHTML = `${Math.round(gradeData.overall_grade)}<span>/100</span>`;
+        
+        // Update summary
+        if (gradeData.strengths) {
+            gradeSummary.textContent = gradeData.strengths.split('.')[0] + '.';
+        }
+        
+        // Clear existing recommendations
+        recommendationsList.innerHTML = '';
+        
+        // Add new recommendations
+        if (gradeData.recommendations) {
+            const recommendations = gradeData.recommendations.split('.');
+            recommendations.forEach(recommendation => {
+                const trimmedRecommendation = recommendation.trim();
+                if (trimmedRecommendation) {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <div class="recommendation-title">${trimmedRecommendation}</div>
+                        <div class="recommendation-description">${gradeData.improvement_areas ? gradeData.improvement_areas.split('.')[0] + '.' : ''}</div>
+                    `;
+                    recommendationsList.appendChild(li);
+                }
+            });
+        }
+    }
+    
+    // Helper function to calculate letter grade
+    function calculateLetterGrade(score) {
+        if (score >= 97) return 'A+';
+        if (score >= 93) return 'A';
+        if (score >= 90) return 'A-';
+        if (score >= 87) return 'B+';
+        if (score >= 83) return 'B';
+        if (score >= 80) return 'B-';
+        if (score >= 77) return 'C+';
+        if (score >= 73) return 'C';
+        if (score >= 70) return 'C-';
+        if (score >= 67) return 'D+';
+        if (score >= 63) return 'D';
+        if (score >= 60) return 'D-';
+        return 'F';
     }
 });

@@ -56,6 +56,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/google/check-connection', [GoogleCalendarController::class, 'checkConnection'])->name('google.check-connection');
     Route::get('/google/events', [GoogleCalendarController::class, 'getEvents'])->name('google.events');
     Route::post('/google/disconnect', [GoogleCalendarController::class, 'disconnect'])->name('google.disconnect');
+    
+    // Calendar grading routes
+    Route::post('/calendar/grade', [AIGradingController::class, 'gradeCalendar'])->name('calendar.grade');
+    Route::get('/calendar/grades', [CalendarGradeController::class, 'index'])->name('calendar.grades.index');
+    Route::get('/calendar/grades/current-week', [CalendarGradeController::class, 'getCurrentWeekGrade'])->name('calendar.grades.current-week');
+    Route::get('/calendar/grades/{id}', [CalendarGradeController::class, 'show'])->name('calendar.grades.show');
 });
 
 // Terms and Privacy routes
