@@ -22,7 +22,7 @@ class DashboardController extends Controller
      *
      * @return \Illuminate\Contracts\Support\Renderable
      */
-    public function home()
+    public function index()
     {
         return view('home');
     }
@@ -65,5 +65,15 @@ class DashboardController extends Controller
     public function settings()
     {
         return view('settings');
+    }
+
+    /**
+     * Show the subscription page.
+     *
+     * @return \Illuminate\Contracts\Support\Renderable
+     */
+    public function subscription()
+    {
+        return view('subscription');
     }
 }
