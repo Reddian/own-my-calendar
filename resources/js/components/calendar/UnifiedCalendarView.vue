@@ -1,174 +1,218 @@
 &lt;template&gt;
   &lt;div class="unified-calendar-view"&gt;
-    &lt;div class="calendar-container"&gt;
-      &lt;div class="calendar-header"&gt;
-        &lt;div class="date-navigation"&gt;
-          &lt;button @click="previousWeek" class="nav-button"&gt;
-            &lt;i class="fas fa-chevron-left"&gt;&lt;/i&gt;
-          &lt;/button&gt;
-          &lt;h2&gt;{{ formattedDateRange }}&lt;/h2&gt;
-          &lt;button @click="nextWeek" class="nav-button"&gt;
-            &lt;i class="fas fa-chevron-right"&gt;&lt;/i&gt;
-          &lt;/button&gt;
-        &lt;/div&gt;
-        &lt;div class="view-controls"&gt;
-          &lt;button @click="setView('week')" :class="{ active: currentView === 'week' }" class="view-button"&gt;Week&lt;/button&gt;
-          &lt;button @click="setView('month')" :class="{ active: currentView === 'month' }" class="view-button"&gt;Month&lt;/button&gt;
-        &lt;/div&gt;
+    &lt;div class="calendar-header"&gt;
+      &lt;div class="date-navigation"&gt;
+        &lt;button @click="previousWeek" class="btn-nav"&gt;
+          &lt;i class="fas fa-chevron-left"&gt;&lt;/i&gt;
+        &lt;/button&gt;
+        &lt;h2&gt;{{ formattedDateRange }}&lt;/h2&gt;
+        &lt;button @click="nextWeek" class="btn-nav"&gt;
+          &lt;i class="fas fa-chevron-right"&gt;&lt;/i&gt;
+        &lt;/button&gt;
       &lt;/div&gt;
-      
-      &lt;div v-if="isLoading" class="loading-indicator"&gt;
-        &lt;p&gt;Loading your calendar data...&lt;/p&gt;
+      &lt;div class="view-controls"&gt;
+        &lt;button 
+          @click="setView('week')" 
+          class="btn-view"
+          :class="{ active: currentView === 'week' }"
+        &gt;
+          Week
+        &lt;/button&gt;
+        &lt;button 
+          @click="setView('month')" 
+          class="btn-view"
+          :class="{ active: currentView === 'month' }"
+        &gt;
+          Month
+        &lt;/button&gt;
       &lt;/div&gt;
-      
-      &lt;div v-else-if="!hasCalendars" class="no-calendars"&gt;
-        &lt;div class="empty-state"&gt;
-          &lt;i class="fas fa-calendar-alt empty-icon"&gt;&lt;/i&gt;
-          &lt;h3&gt;No Calendars Connected&lt;/h3&gt;
-          &lt;p&gt;Connect your Google Calendars to view and grade your schedule.&lt;/p&gt;
-          &lt;button @click="navigateToCalendarManager" class="btn-connect"&gt;
-            Manage Calendars
-          &lt;/button&gt;
-        &lt;/div&gt;
+    &lt;/div&gt;
+    
+    &lt;div v-if="isLoading" class="loading-indicator"&gt;
+      &lt;p&gt;Loading your calendar...&lt;/p&gt;
+    &lt;/div&gt;
+    
+    &lt;div v-else-if="!hasCalendars" class="no-calendars"&gt;
+      &lt;div class="empty-state"&gt;
+        &lt;i class="fas fa-calendar-alt empty-icon"&gt;&lt;/i&gt;
+        &lt;h3&gt;No Calendars Connected&lt;/h3&gt;
+        &lt;p&gt;Connect your Google Calendars to view and grade your schedule.&lt;/p&gt;
+        &lt;router-link to="/settings" class="btn-connect"&gt;
+          Connect Calendar
+        &lt;/router-link&gt;
       &lt;/div&gt;
-      
-      &lt;div v-else class="calendar-grid"&gt;
-        &lt;!-- Week View --&gt;
+    &lt;/div&gt;
+    
+    &lt;div v-else class="calendar-container"&gt;
+      &lt;div class="calendar-content"&gt;
         &lt;div v-if="currentView === 'week'" class="week-view"&gt;
-          &lt;div class="time-column"&gt;
-            &lt;div class="day-header"&gt;&lt;/div&gt;
-            &lt;div v-for="hour in hours" :key="hour" class="time-slot"&gt;
-              {{ formatHour(hour) }}
+          &lt;div class="day-headers"&gt;
+            &lt;div class="time-column-header"&gt;&lt;/div&gt;
+            &lt;div 
+              v-for="day in weekDays" 
+              :key="day.date" 
+              class="day-header"
+              :class="{ 'today': isToday(day.date) }"
+            &gt;
+              &lt;div class="day-name"&gt;{{ day.name }}&lt;/div&gt;
+              &lt;div class="day-number"&gt;{{ day.number }}&lt;/div&gt;
             &lt;/div&gt;
           &lt;/div&gt;
           
-          &lt;div v-for="day in weekDays" :key="day.date" class="day-column"&gt;
-            &lt;div class="day-header" :class="{ 'today': isToday(day.date) }"&gt;
-              &lt;div class="day-name"&gt;{{ day.dayName }}&lt;/div&gt;
-              &lt;div class="day-number"&gt;{{ day.dayNumber }}&lt;/div&gt;
+          &lt;div class="week-grid"&gt;
+            &lt;div class="time-column"&gt;
+              &lt;div 
+                v-for="hour in hours" 
+                :key="hour" 
+                class="hour-marker"
+              &gt;
+                {{ formatHour(hour) }}
+              &lt;/div&gt;
             &lt;/div&gt;
             
-            &lt;div class="day-events"&gt;
-              &lt;div v-for="hour in hours" :key="hour" class="time-slot"&gt;
-                &lt;!-- Events will be positioned absolutely within these slots --&gt;
-              &lt;/div&gt;
-              
+            &lt;div 
+              v-for="day in weekDays" 
+              :key="day.date" 
+              class="day-column"
+              :class="{ 'today': isToday(day.date) }"
+            &gt;
               &lt;div 
                 v-for="event in getEventsForDay(day.date)" 
-                :key="event.id" 
-                class="calendar-event"
-                :style="getEventStyle(event, day.date)"
-                :class="{ 'all-day-event': event.all_day }"
+                :key="`${day.date}-${event.id}`"
+                class="event-item"
+                :style="[
+                  getEventStyle(event, day.date),
+                  { backgroundColor: event.calendar_color || '#4285F4' }
+                ]"
               &gt;
-                &lt;div class="event-content" :style="{ backgroundColor: event.calendar_color || '#4285F4' }"&gt;
-                  &lt;div class="event-time" v-if="!event.all_day"&gt;
-                    {{ formatEventTime(event) }}
-                  &lt;/div&gt;
+                &lt;div class="event-time" v-if="!event.all_day"&gt;
+                  {{ formatEventTime(event) }}
+                &lt;/div&gt;
+                &lt;div class="event-title"&gt;{{ event.title }}&lt;/div&gt;
+                &lt;div class="event-calendar"&gt;{{ event.calendar_name }}&lt;/div&gt;
+              &lt;/div&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+        
+        &lt;div v-else class="month-view"&gt;
+          &lt;div class="month-header"&gt;
+            &lt;div 
+              v-for="name in dayNames" 
+              :key="name" 
+              class="day-name"
+            &gt;
+              {{ name }}
+            &lt;/div&gt;
+          &lt;/div&gt;
+          
+          &lt;div class="month-grid"&gt;
+            &lt;div 
+              v-for="day in monthDays" 
+              :key="day.date" 
+              class="month-day"
+              :class="{ 
+                'other-month': !day.currentMonth,
+                'today': isToday(day.date)
+              }"
+            &gt;
+              &lt;div class="day-number"&gt;{{ day.number }}&lt;/div&gt;
+              
+              &lt;div class="day-events"&gt;
+                &lt;div 
+                  v-for="event in getEventsForDay(day.date)" 
+                  :key="`${day.date}-${event.id}`"
+                  class="month-event"
+                  :style="{ backgroundColor: event.calendar_color || '#4285F4' }"
+                &gt;
                   &lt;div class="event-title"&gt;{{ event.title }}&lt;/div&gt;
-                  &lt;div class="event-calendar"&gt;{{ event.calendar_name }}&lt;/div&gt;
                 &lt;/div&gt;
               &lt;/div&gt;
             &lt;/div&gt;
           &lt;/div&gt;
         &lt;/div&gt;
+      &lt;/div&gt;
+      
+      &lt;div class="grades-sidebar"&gt;
+        &lt;div class="sidebar-header"&gt;
+          &lt;h3&gt;Calendar Grade&lt;/h3&gt;
+          &lt;button 
+            @click="gradeCalendar" 
+            class="btn-grade"
+            :disabled="isGrading || !canGrade"
+          &gt;
+            Grade My Calendar
+          &lt;/button&gt;
+        &lt;/div&gt;
         
-        &lt;!-- Month View --&gt;
-        &lt;div v-else-if="currentView === 'month'" class="month-view"&gt;
-          &lt;div v-for="dayName in dayNames" :key="dayName" class="day-header"&gt;
-            {{ dayName }}
+        &lt;div v-if="isGrading" class="grading-progress"&gt;
+          &lt;p&gt;Analyzing your calendar...&lt;/p&gt;
+          &lt;div class="progress-bar"&gt;
+            &lt;div class="progress-fill"&gt;&lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+        
+        &lt;div v-else-if="!currentGrade" class="no-grade"&gt;
+          &lt;p&gt;Grade your calendar to see how well your schedule aligns with your goals.&lt;/p&gt;
+          
+          &lt;div v-if="!canGrade" class="upgrade-notice"&gt;
+            &lt;p&gt;You've reached your free grading limit. &lt;router-link to="/subscription" class="upgrade-link"&gt;Upgrade&lt;/router-link&gt; to grade more frequently.&lt;/p&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+        
+        &lt;div v-else class="grade-results"&gt;
+          &lt;div class="overall-grade"&gt;
+            &lt;div 
+              class="grade-circle"
+              :class="`grade-${currentGrade.letter.toLowerCase()}`"
+            &gt;
+              {{ currentGrade.letter }}
+            &lt;/div&gt;
+            &lt;div class="grade-label"&gt;{{ currentGrade.score }}/100&lt;/div&gt;
           &lt;/div&gt;
           
-          &lt;div 
-            v-for="day in monthDays" 
-            :key="day.date" 
-            class="month-day"
-            :class="{ 
-              'other-month': !day.isCurrentMonth, 
-              'today': isToday(day.date),
-              'has-events': getEventsForDay(day.date).length > 0
-            }"
-          &gt;
-            &lt;div class="day-number"&gt;{{ day.dayNumber }}&lt;/div&gt;
+          &lt;div class="grade-details"&gt;
+            &lt;h4&gt;Summary&lt;/h4&gt;
+            &lt;p&gt;{{ currentGrade.summary }}&lt;/p&gt;
             
-            &lt;div class="day-events-mini"&gt;
-              &lt;div 
-                v-for="(event, index) in getEventsForDay(day.date).slice(0, 3)" 
-                :key="event.id" 
-                class="month-event"
-                :style="{ backgroundColor: event.calendar_color || '#4285F4' }"
-              &gt;
-                {{ event.title }}
-              &lt;/div&gt;
-              
-              &lt;div v-if="getEventsForDay(day.date).length > 3" class="more-events"&gt;
-                +{{ getEventsForDay(day.date).length - 3 }} more
-              &lt;/div&gt;
+            &lt;h4&gt;Strengths&lt;/h4&gt;
+            &lt;ul&gt;
+              &lt;li v-for="(strength, index) in currentGrade.strengths" :key="`strength-${index}`"&gt;
+                {{ strength }}
+              &lt;/li&gt;
+            &lt;/ul&gt;
+            
+            &lt;h4&gt;Areas for Improvement&lt;/h4&gt;
+            &lt;ul&gt;
+              &lt;li v-for="(improvement, index) in currentGrade.improvements" :key="`improvement-${index}`"&gt;
+                {{ improvement }}
+              &lt;/li&gt;
+            &lt;/ul&gt;
+            
+            &lt;div class="recommendations"&gt;
+              &lt;h4&gt;Recommendations&lt;/h4&gt;
+              &lt;p v-for="(recommendation, index) in currentGrade.recommendations" :key="`recommendation-${index}`"&gt;
+                {{ recommendation }}
+              &lt;/p&gt;
             &lt;/div&gt;
           &lt;/div&gt;
-        &lt;/div&gt;
-      &lt;/div&gt;
-    &lt;/div&gt;
-    
-    &lt;div class="grades-sidebar"&gt;
-      &lt;div class="sidebar-header"&gt;
-        &lt;h3&gt;Calendar Grade&lt;/h3&gt;
-        &lt;button @click="gradeCalendar" class="btn-grade" :disabled="isGrading || !canGrade"&gt;
-          {{ isGrading ? 'Grading...' : 'Grade Now' }}
-        &lt;/button&gt;
-      &lt;/div&gt;
-      
-      &lt;div v-if="isGrading" class="grading-progress"&gt;
-        &lt;p&gt;Analyzing your calendar...&lt;/p&gt;
-        &lt;div class="progress-bar"&gt;
-          &lt;div class="progress-fill"&gt;&lt;/div&gt;
-        &lt;/div&gt;
-      &lt;/div&gt;
-      
-      &lt;div v-else-if="!currentGrade" class="no-grade"&gt;
-        &lt;p&gt;No grade available for this week.&lt;/p&gt;
-        &lt;p v-if="!canGrade" class="upgrade-notice"&gt;
-          You've used all your free grades. 
-          &lt;router-link to="/subscription" class="upgrade-link"&gt;Upgrade to Premium&lt;/router-link&gt; 
-          for unlimited grades.
-        &lt;/p&gt;
-      &lt;/div&gt;
-      
-      &lt;div v-else class="grade-results"&gt;
-        &lt;div class="overall-grade"&gt;
-          &lt;div class="grade-circle" :class="gradeClass"&gt;
-            {{ currentGrade.overall_grade }}
-          &lt;/div&gt;
-          &lt;div class="grade-label"&gt;Overall Grade&lt;/div&gt;
-        &lt;/div&gt;
-        
-        &lt;div class="grade-details"&gt;
-          &lt;h4&gt;Strengths&lt;/h4&gt;
-          &lt;ul class="strengths-list"&gt;
-            &lt;li v-for="(strength, index) in currentGrade.strengths" :key="'strength-'+index"&gt;
-              {{ strength }}
-            &lt;/li&gt;
-          &lt;/ul&gt;
           
-          &lt;h4&gt;Areas for Improvement&lt;/h4&gt;
-          &lt;ul class="improvements-list"&gt;
-            &lt;li v-for="(improvement, index) in currentGrade.improvements" :key="'improvement-'+index"&gt;
-              {{ improvement }}
-            &lt;/li&gt;
-          &lt;/ul&gt;
-          
-          &lt;h4&gt;Recommendations&lt;/h4&gt;
-          &lt;div class="recommendations"&gt;
-            &lt;p v-for="(recommendation, index) in currentGrade.recommendations" :key="'rec-'+index"&gt;
-              {{ recommendation }}
-            &lt;/p&gt;
-          &lt;/div&gt;
-        &lt;/div&gt;
-        
-        &lt;div class="rule-grades"&gt;
-          &lt;h4&gt;Calendar Rules Grades&lt;/h4&gt;
-          &lt;div v-for="(ruleGrade, rule) in currentGrade.rule_grades" :key="rule" class="rule-grade-item"&gt;
-            &lt;div class="rule-letter"&gt;{{ rule }}&lt;/div&gt;
-            &lt;div class="rule-grade" :class="getRuleGradeClass(ruleGrade)"&gt;{{ ruleGrade }}&lt;/div&gt;
+          &lt;div class="rule-grades"&gt;
+            &lt;h4&gt;Grading Criteria&lt;/h4&gt;
+            &lt;div 
+              v-for="(rule, index) in currentGrade.rules" 
+              :key="`rule-${index}`"
+              class="rule-grade-item"
+            &gt;
+              &lt;div class="rule-letter"&gt;{{ String.fromCharCode(65 + index) }}&lt;/div&gt;
+              &lt;div class="rule-name"&gt;{{ rule.name }}&lt;/div&gt;
+              &lt;div 
+                class="rule-grade"
+                :class="`grade-${rule.grade.toLowerCase()}`"
+              &gt;
+                {{ rule.grade }}
+              &lt;/div&gt;
+            &lt;/div&gt;
           &lt;/div&gt;
         &lt;/div&gt;
       &lt;/div&gt;
@@ -177,8 +221,7 @@
 &lt;/template&gt;
 
 &lt;script&gt;
-import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
 import dayjs from 'dayjs';
 
@@ -186,7 +229,6 @@ export default {
   name: 'UnifiedCalendarView',
   
   setup() {
-    const router = useRouter();
     const events = ref([]);
     const calendars = ref([]);
     const currentGrade = ref(null);
@@ -195,13 +237,12 @@ export default {
     const canGrade = ref(true);
     const error = ref(null);
     
-    // Calendar view state
     const currentView = ref('week');
     const currentDate = ref(dayjs());
-    const hours = ref(Array.from({ length: 24 }, (_, i) => i));
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     
-    // Computed properties
+    const hours = Array.from({ length: 24 }, (_, i) => i);
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    
     const hasCalendars = computed(() => calendars.value.length > 0);
     
     const weekDays = computed(() => {
@@ -210,8 +251,8 @@ export default {
         const date = startOfWeek.add(i, 'day');
         return {
           date: date.format('YYYY-MM-DD'),
-          dayName: date.format('ddd'),
-          dayNumber: date.format('D')
+          name: dayNames[i],
+          number: date.date()
         };
       });
     });
@@ -221,23 +262,34 @@ export default {
       const startOfGrid = startOfMonth.startOf('week');
       const endOfMonth = currentDate.value.endOf('month');
       const endOfGrid = endOfMonth.endOf('week');
-      const totalDays = endOfGrid.diff(startOfGrid, 'day') + 1;
       
-      return Array.from({ length: totalDays }, (_, i) => {
-        const date = startOfGrid.add(i, 'day');
-        return {
-          date: date.format('YYYY-MM-DD'),
-          dayNumber: date.format('D'),
-          isCurrentMonth: date.month() === currentDate.value.month()
-        };
-      });
+      const days = [];
+      let day = startOfGrid;
+      
+      while (day.isBefore(endOfGrid) || day.isSame(endOfGrid, 'day')) {
+        days.push({
+          date: day.format('YYYY-MM-DD'),
+          number: day.date(),
+          currentMonth: day.month() === currentDate.value.month()
+        });
+        day = day.add(1, 'day');
+      }
+      
+      return days;
     });
     
     const formattedDateRange = computed(() => {
       if (currentView.value === 'week') {
         const startOfWeek = currentDate.value.startOf('week');
         const endOfWeek = currentDate.value.endOf('week');
-        return `${startOfWeek.format('MMM D')} - ${endOfWeek.format('MMM D, YYYY')}`;
+        
+        if (startOfWeek.month() === endOfWeek.month()) {
+          return `${startOfWeek.format('MMM D')} - ${endOfWeek.format('D, YYYY')}`;
+        } else if (startOfWeek.year() === endOfWeek.year()) {
+          return `${startOfWeek.format('MMM D')} - ${endOfWeek.format('MMM D, YYYY')}`;
+        } else {
+          return `${startOfWeek.format('MMM D, YYYY')} - ${endOfWeek.format('MMM D, YYYY')}`;
+        }
       } else {
         return currentDate.value.format('MMMM YYYY');
       }
@@ -245,16 +297,10 @@ export default {
     
     const gradeClass = computed(() => {
       if (!currentGrade.value) return '';
-      
-      const grade = currentGrade.value.overall_grade;
-      if (grade === 'A' || grade === 'A-' || grade === 'A+') return 'grade-a';
-      if (grade === 'B' || grade === 'B-' || grade === 'B+') return 'grade-b';
-      if (grade === 'C' || grade === 'C-' || grade === 'C+') return 'grade-c';
-      if (grade === 'D' || grade === 'D-' || grade === 'D+') return 'grade-d';
-      return 'grade-f';
+      return `grade-${currentGrade.value.letter.toLowerCase()}`;
     });
     
-    // Methods
+    // Fetch user's calendars
     const fetchCalendars = async () => {
       try {
         const response = await axios.get('/api/calendars');
@@ -269,6 +315,7 @@ export default {
       }
     };
     
+    // Fetch events for the current view
     const fetchEvents = async () => {
       isLoading.value = true;
       try {
@@ -300,27 +347,19 @@ export default {
       }
     };
     
+    // Fetch current grade
     const fetchCurrentGrade = async () => {
       try {
-        const startDate = currentDate.value.startOf('week').format('YYYY-MM-DD');
-        const endDate = currentDate.value.endOf('week').format('YYYY-MM-DD');
-        
-        const response = await axios.post('/api/grades/date-range', {
-          start_date: startDate,
-          end_date: endDate
-        });
-        
-        if (response.data.success && response.data.grades.length > 0) {
-          currentGrade.value = response.data.grades[0];
-        } else {
-          currentGrade.value = null;
+        const response = await axios.get('/api/grades/current-week');
+        if (response.data.success) {
+          currentGrade.value = response.data.grade;
         }
       } catch (err) {
-        console.error('Error fetching grade:', err);
-        currentGrade.value = null;
+        console.error('Error fetching current grade:', err);
       }
     };
     
+    // Check if user can grade calendar
     const checkGradeEligibility = async () => {
       try {
         const response = await axios.get('/api/subscription/can-grade');
@@ -331,26 +370,22 @@ export default {
       }
     };
     
+    // Grade calendar
     const gradeCalendar = async () => {
-      if (!canGrade.value || isGrading.value) return;
+      if (isGrading.value || !canGrade.value) return;
       
       isGrading.value = true;
       try {
-        const startDate = currentDate.value.startOf('week').format('YYYY-MM-DD');
-        const endDate = currentDate.value.endOf('week').format('YYYY-MM-DD');
-        
-        // First increment the grades used counter
-        await axios.post('/api/subscription/increment-grades');
-        
-        // Then request the AI grading
-        const response = await axios.post('/api/ai/grade-calendar', {
-          start_date: startDate,
-          end_date: endDate
-        });
+        const response = await axios.post('/api/ai/grade-calendar');
         
         if (response.data.success) {
           currentGrade.value = response.data.grade;
-          await checkGradeEligibility(); // Update eligibility after grading
+          
+          // Increment grades used
+          await axios.post('/api/subscription/increment-grades');
+          
+          // Check if user can still grade
+          await checkGradeEligibility();
         } else {
           error.value = response.data.error || 'Failed to grade calendar';
         }
@@ -417,27 +452,21 @@ export default {
       const duration = endHour - startHour;
       
       return {
-        gridRowStart: Math.floor(startHour) + 1,
-        gridRowEnd: 'span ' + Math.ceil(duration),
-        zIndex: 10
+        gridRow: `${Math.floor(startHour) + 1} / span ${Math.ceil(duration)}`,
+        zIndex: Math.floor(startHour)
       };
     };
     
-    const isToday = (date) => {
-      return date === dayjs().format('YYYY-MM-DD');
+    const isToday = (dateStr) => {
+      return dayjs().format('YYYY-MM-DD') === dateStr;
     };
     
-    const getRuleGradeClass = (grade) => {
-      if (grade === 'A' || grade === 'A-' || grade === 'A+') return 'grade-a';
-      if (grade === 'B' || grade === 'B-' || grade === 'B+') return 'grade-b';
-      if (grade === 'C' || grade === 'C-' || grade === 'C+') return 'grade-c';
-      if (grade === 'D' || grade === 'D-' || grade === 'D+') return 'grade-d';
-      return 'grade-f';
-    };
-    
-    const navigateToCalendarManager = () => {
-      router.push('/calendars');
-    };
+    // Watch for changes in calendars to trigger event fetch
+    watch(calendars, () => {
+      if (calendars.value.length > 0) {
+        fetchEvents();
+      }
+    });
     
     onMounted(() => {
       fetchCalendars();
@@ -472,8 +501,6 @@ export default {
       getEventStyle,
       isToday,
       gradeCalendar,
-      getRuleGradeClass,
-      navigateToCalendarManager
     };
   }
 };
@@ -483,302 +510,328 @@ export default {
 .unified-calendar-view {
   display: flex;
   gap: 1.5rem;
-  height: calc(100vh - 180px);
-  min-height: 600px;
   
-  .calendar-container {
+  .calendar-content {
     flex: 1;
     background-color: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+  }
+  
+  .calendar-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     
-    .calendar-header {
-      padding: 1rem;
-      border-bottom: 1px solid #eee;
+    .date-navigation {
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      gap: 1rem;
       
-      .date-navigation {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        
-        h2 {
-          margin: 0;
-          font-size: 1.2rem;
-          font-weight: 500;
-        }
-        
-        .nav-button {
-          background: none;
-          border: 1px solid #ddd;
-          border-radius: 50%;
-          width: 32px;
-          height: 32px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          
-          &:hover {
-            background-color: #f5f5f5;
-          }
-        }
+      h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        color: #333;
       }
       
-      .view-controls {
-        display: flex;
-        gap: 0.5rem;
+      .btn-nav {
+        background-color: transparent;
+        border: none;
+        color: #555;
+        font-size: 1rem;
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: 4px;
         
-        .view-button {
-          padding: 0.5rem 1rem;
-          border: 1px solid #ddd;
-          border-radius: 4px;
-          background: none;
-          cursor: pointer;
-          
-          &:hover {
-            background-color: #f5f5f5;
-          }
-          
-          &.active {
-            background-color: #4a90e2;
-            color: white;
-            border-color: #4a90e2;
-          }
+        &:hover {
+          background-color: #f5f5f5;
         }
       }
     }
     
-    .loading-indicator, .no-calendars {
-      flex: 1;
+    .view-controls {
       display: flex;
-      align-items: center;
-      justify-content: center;
+      gap: 0.5rem;
       
-      .empty-state {
-        text-align: center;
-        max-width: 400px;
+      .btn-view {
+        background-color: transparent;
+        border: 1px solid #ddd;
+        color: #555;
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        cursor: pointer;
         
-        .empty-icon {
-          font-size: 3rem;
-          color: #ccc;
-          margin-bottom: 1rem;
+        &:hover {
+          background-color: #f5f5f5;
         }
         
-        h3 {
-          margin-top: 0;
-          margin-bottom: 0.5rem;
-          font-size: 1.2rem;
-        }
-        
-        p {
-          margin-bottom: 1.5rem;
-          color: #666;
-        }
-        
-        .btn-connect {
-          padding: 0.75rem 1.5rem;
-          border-radius: 4px;
-          font-size: 1rem;
-          font-weight: 500;
-          cursor: pointer;
-          border: none;
+        &.active {
           background-color: #4a90e2;
           color: white;
+          border-color: #4a90e2;
+        }
+      }
+    }
+  }
+  
+  .loading-indicator {
+    padding: 2rem;
+    text-align: center;
+    color: #666;
+  }
+  
+  .no-calendars {
+    padding: 3rem 1.5rem;
+    
+    .empty-state {
+      text-align: center;
+      max-width: 400px;
+      margin: 0 auto;
+      
+      .empty-icon {
+        font-size: 3rem;
+        color: #ccc;
+        margin-bottom: 1rem;
+      }
+      
+      h3 {
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+        font-size: 1.2rem;
+        color: #333;
+      }
+      
+      p {
+        margin-bottom: 1.5rem;
+        color: #666;
+      }
+      
+      .btn-connect {
+        display: inline-block;
+        padding: 0.75rem 1.5rem;
+        background-color: #4a90e2;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        font-weight: 500;
+        
+        &:hover {
+          background-color: #3a80d2;
+        }
+      }
+    }
+  }
+  
+  .week-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    
+    .day-headers {
+      display: grid;
+      grid-template-columns: 60px repeat(7, 1fr);
+      border-bottom: 1px solid #eee;
+      
+      .day-header {
+        padding: 0.75rem;
+        text-align: center;
+        
+        &.today {
+          background-color: #e8f0fe;
           
-          &:hover {
-            background-color: #3a80d2;
+          .day-number {
+            background-color: #4a90e2;
+            color: white;
           }
+        }
+        
+        .day-name {
+          font-size: 0.85rem;
+          color: #666;
+          margin-bottom: 0.25rem;
+        }
+        
+        .day-number {
+          display: inline-block;
+          width: 28px;
+          height: 28px;
+          line-height: 28px;
+          border-radius: 50%;
+          font-weight: 500;
         }
       }
     }
     
-    .calendar-grid {
-      flex: 1;
-      overflow: auto;
+    .week-grid {
+      display: grid;
+      grid-template-columns: 60px repeat(7, 1fr);
+      height: 100%;
+      overflow-y: auto;
       
-      .week-view {
-        display: flex;
-        min-height: 100%;
+      .time-column {
+        border-right: 1px solid #eee;
         
-        .time-column {
-          width: 60px;
-          border-right: 1px solid #eee;
-          
-          .day-header {
-            height: 60px;
-            border-bottom: 1px solid #eee;
-          }
-          
-          .time-slot {
-            height: 60px;
-            padding: 0.25rem;
-            text-align: right;
-            color: #666;
-            font-size: 0.8rem;
-            border-bottom: 1px solid #f5f5f5;
-          }
-        }
-        
-        .day-column {
-          flex: 1;
-          min-width: 120px;
-          border-right: 1px solid #eee;
+        .hour-marker {
+          height: 60px;
+          padding: 0.25rem 0.5rem;
+          text-align: right;
+          font-size: 0.75rem;
+          color: #666;
           position: relative;
           
-          &:last-child {
-            border-right: none;
-          }
-          
-          .day-header {
-            height: 60px;
-            padding: 0.5rem;
-            text-align: center;
-            border-bottom: 1px solid #eee;
-            
-            &.today {
-              background-color: #e8f0fe;
-              
-              .day-number {
-                background-color: #4a90e2;
-                color: white;
-              }
-            }
-            
-            .day-name {
-              font-size: 0.9rem;
-              font-weight: 500;
-            }
-            
-            .day-number {
-              display: inline-block;
-              width: 24px;
-              height: 24px;
-              line-height: 24px;
-              border-radius: 50%;
-              margin-top: 0.25rem;
-            }
-          }
-          
-          .day-events {
-            position: relative;
-            
-            .time-slot {
-              height: 60px;
-              border-bottom: 1px solid #f5f5f5;
-            }
-            
-            .calendar-event {
-              position: absolute;
-              left: 0;
-              right: 0;
-              padding: 0 0.25rem;
-              z-index: 5;
-              
-              &.all-day-event {
-                top: 0;
-                height: 24px;
-              }
-              
-              .event-content {
-                height: 100%;
-                padding: 0.25rem 0.5rem;
-                border-radius: 4px;
-                color: white;
-                font-size: 0.8rem;
-                overflow: hidden;
-                
-                .event-time {
-                  font-weight: 500;
-                  margin-bottom: 0.25rem;
-                }
-                
-                .event-title {
-                  font-weight: 500;
-                  white-space: nowrap;
-                  overflow: hidden;
-                  text-overflow: ellipsis;
-                }
-                
-                .event-calendar {
-                  font-size: 0.7rem;
-                  opacity: 0.8;
-                }
-              }
-            }
+          &::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 8px;
+            height: 1px;
+            background-color: #eee;
           }
         }
       }
       
-      .month-view {
+      .day-column {
+        position: relative;
+        border-right: 1px solid #eee;
         display: grid;
-        grid-template-columns: repeat(7, 1fr);
+        grid-template-rows: repeat(24, 60px);
         
-        .day-header {
-          padding: 0.75rem;
-          text-align: center;
-          font-weight: 500;
-          border-bottom: 1px solid #eee;
+        &:last-child {
+          border-right: none;
         }
         
-        .month-day {
-          min-height: 100px;
-          border-right: 1px solid #eee;
-          border-bottom: 1px solid #eee;
+        &.today {
+          background-color: #f8f9fa;
+        }
+        
+        &::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-image: linear-gradient(#eee 1px, transparent 1px);
+          background-size: 100% 60px;
+          pointer-events: none;
+        }
+        
+        .event-item {
+          position: relative;
+          margin: 0 2px;
           padding: 0.5rem;
+          border-radius: 4px;
+          color: white;
+          overflow: hidden;
+          z-index: 1;
           
-          &:nth-child(7n) {
-            border-right: none;
+          .event-time {
+            font-size: 0.7rem;
+            margin-bottom: 0.25rem;
+            opacity: 0.9;
           }
           
-          &.other-month {
-            background-color: #f9f9f9;
-            color: #aaa;
+          .event-title {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
           
-          &.today {
-            background-color: #e8f0fe;
-            
-            .day-number {
-              background-color: #4a90e2;
-              color: white;
-            }
+          .event-calendar {
+            font-size: 0.7rem;
+            opacity: 0.9;
           }
-          
-          &.has-events {
-            .day-number {
-              font-weight: 500;
-            }
-          }
+        }
+      }
+    }
+  }
+  
+  .month-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    
+    .month-header {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      border-bottom: 1px solid #eee;
+      
+      .day-name {
+        padding: 0.75rem;
+        text-align: center;
+        font-size: 0.85rem;
+        color: #666;
+      }
+    }
+    
+    .month-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      grid-template-rows: repeat(6, 1fr);
+      flex: 1;
+      
+      .month-day {
+        border-right: 1px solid #eee;
+        border-bottom: 1px solid #eee;
+        padding: 0.5rem;
+        min-height: 100px;
+        
+        &:nth-child(7n) {
+          border-right: none;
+        }
+        
+        &:nth-last-child(-n+7) {
+          border-bottom: none;
+        }
+        
+        &.other-month {
+          background-color: #f9f9f9;
+          color: #aaa;
+        }
+        
+        &.today {
+          background-color: #e8f0fe;
           
           .day-number {
-            display: inline-block;
-            width: 24px;
-            height: 24px;
-            line-height: 24px;
-            text-align: center;
-            border-radius: 50%;
-            margin-bottom: 0.5rem;
+            background-color: #4a90e2;
+            color: white;
           }
+        }
+        
+        .day-number {
+          display: inline-block;
+          width: 24px;
+          height: 24px;
+          line-height: 24px;
+          text-align: center;
+          border-radius: 50%;
+          margin-bottom: 0.5rem;
+        }
+        
+        .day-events {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
           
-          .day-events-mini {
-            .month-event {
-              margin-bottom: 0.25rem;
-              padding: 0.15rem 0.35rem;
-              border-radius: 2px;
-              color: white;
-              font-size: 0.7rem;
+          .month-event {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            color: white;
+            font-size: 0.8rem;
+            
+            .event-title {
               white-space: nowrap;
               overflow: hidden;
               text-overflow: ellipsis;
-            }
-            
-            .more-events {
               font-size: 0.7rem;
               color: #666;
               text-align: center;
@@ -1006,7 +1059,6 @@ export default {
     }
   }
 }
-
 @keyframes progress {
   0% {
     transform: translateX(-100%);

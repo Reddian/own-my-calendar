@@ -1,144 +1,141 @@
 <?php
-
 namespace App\Services;
 
 use App\Models\GoogleCalendar;
-use App\Models\User;
-use Google_Client;
-use Google_Service_Calendar;
-use Google_Service_Calendar_Calendar;
-use Google_Service_Calendar_CalendarListEntry;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Exception;
+use Google_Client;
+use Google_Service_Calendar;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class MultiCalendarService
 {
     protected $client;
-
+    
     public function __construct()
     {
         $this->client = new Google_Client();
-        $this->client->setApplicationName('Own My Calendar');
-        $this->client->setScopes(Google_Service_Calendar::CALENDAR_READONLY);
-        $this->client->setAuthConfig(storage_path('app/google-calendar/credentials.json'));
+        $this->client->setApplicationName(config('services.google.application_name'));
+        $this->client->setClientId(config('services.google.client_id'));
+        $this->client->setClientSecret(config('services.google.client_secret'));
+        $this->client->setRedirectUri(config('services.google.redirect_uri'));
         $this->client->setAccessType('offline');
-        $this->client->setPrompt('select_account consent');
-        $this->client->setRedirectUri(config('app.url') . '/api/google/callback');
+        $this->client->setPrompt('consent');
+        $this->client->setScopes([
+            'https://www.googleapis.com/auth/calendar.readonly',
+            'https://www.googleapis.com/auth/calendar.events.readonly',
+        ]);
     }
-
+    
     /**
-     * Get the Google OAuth URL for authorization
+     * Get the Google OAuth authorization URL
      *
-     * @return string
+     * @return array
      */
     public function getAuthUrl()
     {
-        return $this->client->createAuthUrl();
+        try {
+            $authUrl = $this->client->createAuthUrl();
+            
+            return [
+                'success' => true,
+                'auth_url' => $authUrl
+            ];
+        } catch (Exception $e) {
+            Log::error('Error generating auth URL: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
     }
-
+    
     /**
-     * Exchange authorization code for access token
+     * Handle the OAuth callback and store the access token
      *
      * @param string $code
      * @return array
      */
-    public function handleAuthCallback($code)
+    public function handleCallback($code)
     {
-        $accessToken = $this->client->fetchAccessTokenWithAuthCode($code);
-        
-        if (isset($accessToken['access_token'])) {
-            // Set the access token on the client
-            $this->client->setAccessToken($accessToken);
+        try {
+            $accessToken = $this->client->fetchAccessTokenWithAuthCode($code);
             
-            // Get user's calendars
-            $calendars = $this->fetchUserCalendars();
-            
-            // Store calendars in database
-            $this->storeUserCalendars($calendars, $accessToken);
-            
-            return [
-                'success' => true,
-                'message' => 'Google Calendar connected successfully',
-                'calendars' => $calendars
-            ];
-        } else {
+            if (isset($accessToken['access_token'])) {
+                $this->client->setAccessToken($accessToken);
+                $service = new Google_Service_Calendar($this->client);
+                
+                // Get the list of calendars
+                $calendarList = $service->calendarList->listCalendarList();
+                
+                foreach ($calendarList->getItems() as $calendarListEntry) {
+                    // Check if this calendar already exists for the user
+                    $existingCalendar = GoogleCalendar::where('user_id', Auth::id())
+                        ->where('calendar_id', $calendarListEntry->getId())
+                        ->first();
+                    
+                    $expiresAt = Carbon::now()->addSeconds($accessToken['expires_in']);
+                    
+                    if ($existingCalendar) {
+                        // Update existing calendar
+                        $existingCalendar->update([
+                            'name' => $calendarListEntry->getSummary(),
+                            'description' => $calendarListEntry->getDescription(),
+                            'color' => $calendarListEntry->getBackgroundColor(),
+                            'is_primary' => $calendarListEntry->getPrimary() ?? false,
+                            'access_token' => $accessToken,
+                            'token_expires_at' => $expiresAt,
+                            'refresh_token' => $accessToken['refresh_token'] ?? $existingCalendar->refresh_token,
+                        ]);
+                    } else {
+                        // Create new calendar entry
+                        GoogleCalendar::create([
+                            'user_id' => Auth::id(),
+                            'calendar_id' => $calendarListEntry->getId(),
+                            'name' => $calendarListEntry->getSummary(),
+                            'description' => $calendarListEntry->getDescription(),
+                            'color' => $calendarListEntry->getBackgroundColor(),
+                            'is_primary' => $calendarListEntry->getPrimary() ?? false,
+                            'is_selected' => true, // Default to selected
+                            'is_visible' => true, // Default to visible
+                            'access_token' => $accessToken,
+                            'token_expires_at' => $expiresAt,
+                            'refresh_token' => $accessToken['refresh_token'] ?? null,
+                        ]);
+                    }
+                }
+                
+                return [
+                    'success' => true,
+                    'message' => 'Calendars connected successfully'
+                ];
+            } else {
+                return [
+                    'success' => false,
+                    'error' => 'Failed to get access token'
+                ];
+            }
+        } catch (Exception $e) {
+            Log::error('Error handling callback: ' . $e->getMessage());
             return [
                 'success' => false,
-                'error' => 'Failed to get access token'
+                'error' => $e->getMessage()
             ];
         }
     }
-
+    
     /**
-     * Fetch user's calendars from Google Calendar API
+     * Get all calendars for a user
      *
-     * @return array
+     * @param \App\Models\User $user
+     * @return \Illuminate\Database\Eloquent\Collection
      */
-    protected function fetchUserCalendars()
-    {
-        $service = new Google_Service_Calendar($this->client);
-        $calendarList = $service->calendarList->listCalendarList();
-        
-        $calendars = [];
-        foreach ($calendarList->getItems() as $calendarListEntry) {
-            $calendars[] = [
-                'calendar_id' => $calendarListEntry->getId(),
-                'name' => $calendarListEntry->getSummary(),
-                'description' => $calendarListEntry->getDescription(),
-                'color' => $calendarListEntry->getBackgroundColor(),
-                'is_primary' => $calendarListEntry->getPrimary() ?? false,
-            ];
-        }
-        
-        return $calendars;
-    }
-
-    /**
-     * Store user's calendars in database
-     *
-     * @param array $calendars
-     * @param array $accessToken
-     * @return void
-     */
-    protected function storeUserCalendars($calendars, $accessToken)
-    {
-        $userId = Auth::id();
-        $expiresAt = Carbon::now()->addSeconds($accessToken['expires_in']);
-        
-        foreach ($calendars as $calendar) {
-            GoogleCalendar::updateOrCreate(
-                [
-                    'user_id' => $userId,
-                    'calendar_id' => $calendar['calendar_id']
-                ],
-                [
-                    'name' => $calendar['name'],
-                    'description' => $calendar['description'],
-                    'color' => $calendar['color'],
-                    'is_primary' => $calendar['is_primary'],
-                    'is_selected' => true,
-                    'is_visible' => true,
-                    'access_token' => $accessToken,
-                    'token_expires_at' => $expiresAt,
-                    'refresh_token' => $accessToken['refresh_token'] ?? null,
-                ]
-            );
-        }
-    }
-
-    /**
-     * Get user's connected calendars
-     *
-     * @param User $user
-     * @return array
-     */
-    public function getUserCalendars(User $user)
+    public function getUserCalendars($user)
     {
         return GoogleCalendar::where('user_id', $user->id)->get();
     }
-
+    
     /**
      * Update calendar selection status
      *
@@ -176,7 +173,7 @@ class MultiCalendarService
             ];
         }
     }
-
+    
     /**
      * Update calendar visibility
      *
@@ -214,7 +211,7 @@ class MultiCalendarService
             ];
         }
     }
-
+    
     /**
      * Get events from selected calendars for a specific date range
      *
@@ -226,7 +223,7 @@ class MultiCalendarService
     {
         $userId = Auth::id();
         $selectedCalendars = GoogleCalendar::where('user_id', $userId)
-            ->where('is_selected', true)
+            ->where('is_visible', true)  // Changed from is_selected to is_visible to ensure events are shown for visible calendars
             ->get();
         
         if ($selectedCalendars->isEmpty()) {
@@ -296,7 +293,7 @@ class MultiCalendarService
             'events' => $allEvents
         ];
     }
-
+    
     /**
      * Format attendees from a Google Calendar event
      *
@@ -319,7 +316,7 @@ class MultiCalendarService
         
         return $attendees;
     }
-
+    
     /**
      * Refresh the access token for a calendar
      *
@@ -357,7 +354,7 @@ class MultiCalendarService
             return false;
         }
     }
-
+    
     /**
      * Disconnect a specific calendar
      *
@@ -392,7 +389,7 @@ class MultiCalendarService
             ];
         }
     }
-
+    
     /**
      * Disconnect all calendars for a user
      *

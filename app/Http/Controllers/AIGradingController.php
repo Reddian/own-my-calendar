@@ -1,10 +1,10 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Models\CalendarGrade;
+use App\Models\GoogleCalendar;
 use App\Models\UserProfile;
-use App\Services\GoogleCalendarService;
+use App\Services\MultiCalendarService;
 use App\Services\OpenAIService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,12 +13,12 @@ use Illuminate\Support\Facades\Log;
 
 class AIGradingController extends Controller
 {
-    protected $googleCalendarService;
+    protected $multiCalendarService;
     protected $openAIService;
 
-    public function __construct(GoogleCalendarService $googleCalendarService, OpenAIService $openAIService)
+    public function __construct(MultiCalendarService $multiCalendarService, OpenAIService $openAIService)
     {
-        $this->googleCalendarService = $googleCalendarService;
+        $this->multiCalendarService = $multiCalendarService;
         $this->openAIService = $openAIService;
         $this->middleware('auth:sanctum');
     }
@@ -32,15 +32,16 @@ class AIGradingController extends Controller
     public function gradeCalendar(Request $request)
     {
         try {
-            $validated = $request->validate([
-                'start_date' => 'required|date',
-                'end_date' => 'required|date|after_or_equal:start_date',
-            ]);
+            // Get current week dates if not provided
+            $now = Carbon::now();
+            $startDate = $request->input('start_date', $now->startOfWeek()->format('Y-m-d'));
+            $endDate = $request->input('end_date', $now->endOfWeek()->format('Y-m-d'));
 
-            // Check if Google Calendar is connected
-            if (!$this->googleCalendarService->hasValidToken()) {
+            // Check if user has any connected calendars
+            $hasCalendars = GoogleCalendar::where('user_id', Auth::id())->exists();
+            if (!$hasCalendars) {
                 return response()->json([
-                    'error' => 'Google Calendar is not connected. Please connect your calendar first.'
+                    'error' => 'No calendars connected. Please connect at least one calendar first.'
                 ], 400);
             }
 
@@ -52,25 +53,33 @@ class AIGradingController extends Controller
                 ], 400);
             }
 
-            // Fetch calendar events for the specified week
-            $events = $this->googleCalendarService->getEvents(
-                $validated['start_date'],
-                $validated['end_date']
+            // Fetch calendar events for the specified week from all selected calendars
+            $eventsResult = $this->multiCalendarService->getEventsFromSelectedCalendars(
+                $startDate,
+                $endDate
             );
+
+            if (!$eventsResult['success']) {
+                return response()->json([
+                    'error' => $eventsResult['error'] ?? 'Failed to fetch calendar events'
+                ], 400);
+            }
+
+            $events = $eventsResult['events'];
 
             // Grade the calendar using OpenAI
             $gradingResult = $this->openAIService->gradeCalendar(
                 $events,
                 $userProfile,
-                $validated['start_date'],
-                $validated['end_date']
+                $startDate,
+                $endDate
             );
 
             // Save the grade to the database
             $calendarGrade = CalendarGrade::create([
                 'user_id' => Auth::id(),
-                'week_start_date' => $validated['start_date'],
-                'week_end_date' => $validated['end_date'],
+                'week_start_date' => $startDate,
+                'week_end_date' => $endDate,
                 'overall_grade' => $gradingResult['overall_grade'],
                 'rule_grades' => $gradingResult['rule_grades'],
                 'strengths' => $gradingResult['strengths'],
