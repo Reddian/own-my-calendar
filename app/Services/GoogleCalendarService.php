@@ -21,7 +21,7 @@ class GoogleCalendarService
         $this->client->setAuthConfig(storage_path('app/google-calendar/credentials.json'));
         $this->client->setAccessType('offline');
         $this->client->setPrompt('select_account consent');
-        $this->client->setRedirectUri(config('app.url') . '/api/google/callback');
+        $this->client->setRedirectUri(config('app.url') . '/google/callback');
     }
 
     /**
@@ -44,7 +44,7 @@ class GoogleCalendarService
     {
         $accessToken = $this->client->fetchAccessTokenWithAuthCode($code);
         $this->storeToken($accessToken);
-        
+
         return $accessToken;
     }
 
@@ -58,7 +58,7 @@ class GoogleCalendarService
     {
         $userId = Auth::id();
         Cache::put("google_token_{$userId}", $accessToken, 60 * 24 * 30); // Store for 30 days
-        
+
         // In a production environment, you would store this in the database
         // associated with the user's account
     }
@@ -82,13 +82,13 @@ class GoogleCalendarService
     public function hasValidToken()
     {
         $token = $this->getStoredToken();
-        
+
         if (!$token) {
             return false;
         }
-        
+
         $this->client->setAccessToken($token);
-        
+
         if ($this->client->isAccessTokenExpired()) {
             if ($this->client->getRefreshToken()) {
                 try {
@@ -102,7 +102,7 @@ class GoogleCalendarService
             }
             return false;
         }
-        
+
         return true;
     }
 
@@ -118,31 +118,31 @@ class GoogleCalendarService
         if (!$this->hasValidToken()) {
             throw new \Exception('No valid Google Calendar token found');
         }
-        
+
         $service = new Google_Service_Calendar($this->client);
-        
+
         $startDateTime = Carbon::parse($startDate)->startOfDay()->toRfc3339String();
         $endDateTime = Carbon::parse($endDate)->endOfDay()->toRfc3339String();
-        
+
         $optParams = [
             'timeMin' => $startDateTime,
             'timeMax' => $endDateTime,
             'singleEvents' => true,
             'orderBy' => 'startTime',
         ];
-        
+
         try {
             $results = $service->events->listEvents('primary', $optParams);
             $events = [];
-            
+
             foreach ($results->getItems() as $event) {
                 $start = $event->start->dateTime ?? $event->start->date;
                 $end = $event->end->dateTime ?? $event->end->date;
-                
+
                 // Convert to Carbon instances for easier manipulation
                 $startCarbon = $start ? Carbon::parse($start) : null;
                 $endCarbon = $end ? Carbon::parse($end) : null;
-                
+
                 $events[] = [
                     'id' => $event->id,
                     'title' => $event->getSummary(),
@@ -156,7 +156,7 @@ class GoogleCalendarService
                     'color_id' => $event->getColorId(),
                 ];
             }
-            
+
             return $events;
         } catch (\Exception $e) {
             Log::error('Failed to fetch Google Calendar events: ' . $e->getMessage());
@@ -173,7 +173,7 @@ class GoogleCalendarService
     protected function formatAttendees($event)
     {
         $attendees = [];
-        
+
         if ($event->getAttendees()) {
             foreach ($event->getAttendees() as $person) {
                 $attendees[] = [
@@ -183,7 +183,7 @@ class GoogleCalendarService
                 ];
             }
         }
-        
+
         return $attendees;
     }
 
@@ -195,13 +195,13 @@ class GoogleCalendarService
     public function revokeAccess()
     {
         $token = $this->getStoredToken();
-        
+
         if (!$token) {
             return true; // Already no token
         }
-        
+
         $this->client->setAccessToken($token);
-        
+
         try {
             $this->client->revokeToken();
             $userId = Auth::id();

@@ -28,25 +28,25 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/profile', [UserProfileController::class, 'store']);
     Route::get('/profile/me', [UserProfileController::class, 'show']);
     Route::put('/profile/me', [UserProfileController::class, 'update']);
-    
+
     // Onboarding routes
     Route::get('/onboarding', [OnboardingController::class, 'index']);
     Route::post('/onboarding', [OnboardingController::class, 'store']);
-    
+
     // Calendar grade routes
     Route::get('/grades', [CalendarGradeController::class, 'index']);
     Route::post('/grades', [CalendarGradeController::class, 'store']);
     Route::get('/grades/current-week', [CalendarGradeController::class, 'getCurrentWeekGrade']);
     Route::get('/grades/{id}', [CalendarGradeController::class, 'show']);
     Route::post('/grades/date-range', [CalendarGradeController::class, 'getGradesByDateRange']);
-    
+
     // Google Calendar routes (Legacy - Single Calendar)
-    Route::get('/google/redirect', [GoogleCalendarController::class, 'redirectToGoogle']);
-    Route::get('/google/callback', [GoogleCalendarController::class, 'handleGoogleCallback']);
+//    Route::get('/google/redirect', [GoogleCalendarController::class, 'redirectToGoogle']);
+//    Route::get('/google/callback', [GoogleCalendarController::class, 'handleGoogleCallback']);
     Route::get('/google/check-connection', [GoogleCalendarController::class, 'checkConnection']);
     Route::post('/google/events', [GoogleCalendarController::class, 'getEvents']);
     Route::post('/google/disconnect', [GoogleCalendarController::class, 'disconnect']);
-    
+
     // Multiple Google Calendar routes
     Route::get('/calendars/auth', [MultiCalendarController::class, 'getAuthUrl']);
     Route::get('/calendars/callback', [MultiCalendarController::class, 'handleCallback']);
@@ -57,10 +57,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/calendars/disconnect', [MultiCalendarController::class, 'disconnectCalendar']);
     Route::post('/calendars/disconnect-all', [MultiCalendarController::class, 'disconnectAllCalendars']);
     Route::get('/calendars/check-connection', [MultiCalendarController::class, 'checkConnection']);
-    
+
     // AI Grading routes
     Route::post('/ai/grade-calendar', [AIGradingController::class, 'gradeCalendar']);
-    
+
     // Subscription routes
     Route::get('/subscription', [SubscriptionController::class, 'index']);
     Route::post('/subscription/checkout', [SubscriptionController::class, 'createCheckoutSession']);
