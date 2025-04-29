@@ -11,6 +11,7 @@ use App\Http\Controllers\AIGradingController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\StripeController;
+use App\Http\Controllers\ExtensionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -90,6 +91,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/stripe/payment-method', [StripeController::class, 'updatePaymentMethod']);
     Route::get('/stripe/payment-methods', [StripeController::class, 'getPaymentMethods']);
     Route::get('/stripe/subscription/status', [StripeController::class, 'getSubscriptionStatus']);
+
+    // Extension routes
+    Route::get('/extension/status', [ExtensionController::class, 'getStatus']);
+    Route::post('/extension/toggle', [ExtensionController::class, 'toggleConnection']);
+    Route::post('/extension/features', [ExtensionController::class, 'updateFeature']);
+    Route::post('/extension/settings', [ExtensionController::class, 'updateSetting']);
 });
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {

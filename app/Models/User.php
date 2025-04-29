@@ -79,4 +79,9 @@ class User extends Authenticatable
         
         return $this->subscription->grades_used;
     }
+
+    public function extension()
+    {
+        return $this->hasOne(Extension::class);
+    }
 }

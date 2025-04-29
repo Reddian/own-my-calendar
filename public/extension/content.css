@@ -1,0 +1,89 @@
+.own-my-calendar-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-left: 16px;
+}
+
+.grade-display {
+  display: flex;
+  align-items: center;
+}
+
+.grade-value {
+  font-size: 18px;
+  font-weight: bold;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.grade-excellent {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.grade-good {
+  background-color: #2196F3;
+  color: white;
+}
+
+.grade-fair {
+  background-color: #FFC107;
+  color: black;
+}
+
+.grade-poor {
+  background-color: #F44336;
+  color: white;
+}
+
+.grade-error {
+  background-color: #9E9E9E;
+  color: white;
+}
+
+.grade-button {
+  padding: 6px 12px;
+  background-color: #1a73e8;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.grade-button:hover:not(:disabled) {
+  background-color: #1557b0;
+}
+
+.grade-button:disabled {
+  background-color: #9E9E9E;
+  cursor: not-allowed;
+}
+
+.view-more-button {
+  padding: 6px 12px;
+  background-color: #f1f3f4;
+  border: none;
+  border-radius: 4px;
+  color: #202124;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.view-more-button:hover {
+  background-color: #e8eaed;
+}
+
+/* Ensure the container is visible in Google Calendar's header */
+[role="banner"] {
+  display: flex;
+  align-items: center;
+} 
