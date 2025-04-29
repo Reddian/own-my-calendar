@@ -59,7 +59,13 @@
                         <div class="toggle-container">
                           <span :class="['toggle-label', { active: billingInterval === 'monthly' }]">Monthly</span>
                           <label class="switch">
-                            <input type="checkbox" v-model="billingInterval" true-value="yearly" false-value="monthly">
+                            <input 
+                              type="checkbox" 
+                              v-model="billingInterval" 
+                              true-value="yearly" 
+                              false-value="monthly"
+                              @change="handleBillingChange"
+                            >
                             <span class="slider round"></span>
                           </label>
                           <span :class="['toggle-label', { active: billingInterval === 'yearly' }]">Yearly</span>
@@ -211,6 +217,7 @@
 import { ref, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
+import axios from 'axios';
 
 export default {
   name: 'Subscription',
@@ -233,9 +240,15 @@ export default {
       }
     });
 
+    const handleBillingChange = () => {
+      // Force a re-render of the price displays
+      billingInterval.value = billingInterval.value;
+    };
+
     const startCheckout = async () => {
       try {
         loading.value = true;
+        errorMessage.value = null;
         
         // Create checkout session
         const response = await axios.post('/api/stripe/create-checkout-session', {
@@ -259,6 +272,7 @@ export default {
       gradesUsed,
       successMessage,
       errorMessage,
+      handleBillingChange,
       startCheckout
     };
   }
@@ -406,7 +420,7 @@ export default {
 }
 
 input:checked + .slider {
-  background-color: var(--primary-purple);
+  background: linear-gradient(to right, var(--primary-purple), var(--primary-teal));
 }
 
 input:checked + .slider:before {

@@ -15,15 +15,39 @@ const routes = [
                 meta: { requiresAuth: true }
             },
             {
-                path: 'settings',
-                name: 'settings',
-                component: () => import('../views/Settings.vue'),
-                meta: { requiresAuth: true }
-            },
-            {
                 path: 'calendar',
                 name: 'calendar',
                 component: CalendarManager,
+                meta: { requiresAuth: true }
+            },
+            {
+                path: 'tasks',
+                name: 'tasks',
+                component: () => import('../views/Tasks.vue'),
+                meta: { requiresAuth: true }
+            },
+            {
+                path: 'analytics',
+                name: 'analytics',
+                component: () => import('../views/Analytics.vue'),
+                meta: { requiresAuth: true }
+            },
+            {
+                path: 'history',
+                name: 'history',
+                component: () => import('../views/History.vue'),
+                meta: { requiresAuth: true }
+            },
+            {
+                path: 'extension',
+                name: 'extension',
+                component: () => import('../views/Extension.vue'),
+                meta: { requiresAuth: true }
+            },
+            {
+                path: 'settings',
+                name: 'settings',
+                component: () => import('../views/Settings.vue'),
                 meta: { requiresAuth: true }
             }
         ]
