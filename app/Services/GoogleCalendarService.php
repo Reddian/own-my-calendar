@@ -7,10 +7,13 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Models\GoogleCalendar;
+use App\Models\User;
 
 class GoogleCalendarService
 {
     protected $client;
+    protected $service;
+    protected $cacheDuration = 300; // 5 minutes
     
     public function __construct()
     {
@@ -22,8 +25,8 @@ class GoogleCalendarService
         $this->client->setAccessType('offline');
         $this->client->setPrompt('consent');
         $this->client->setScopes([
-            'https://www.googleapis.com/auth/calendar.readonly',
-            'https://www.googleapis.com/auth/calendar.events.readonly',
+            Google_Service_Calendar::CALENDAR_READONLY,
+            Google_Service_Calendar::CALENDAR_EVENTS_READONLY
         ]);
         
         // Check if we have a stored token
@@ -61,13 +64,22 @@ class GoogleCalendarService
      */
     public function handleAuthCallback($code)
     {
-        $accessToken = $this->client->fetchAccessTokenWithAuthCode($code);
-        $this->storeToken($accessToken);
-        
-        // Store calendar information in the database
-        $this->storeCalendarInformation($accessToken);
-        
-        return $accessToken;
+        try {
+            $token = $this->client->fetchAccessTokenWithAuthCode($code);
+            $this->client->setAccessToken($token);
+            
+            if ($this->client->isAccessTokenExpired()) {
+                $this->client->fetchAccessTokenWithRefreshToken($this->client->getRefreshToken());
+            }
+            
+            // Store calendar information in the database
+            $this->storeCalendarInformation($token);
+            
+            return $token;
+        } catch (\Exception $e) {
+            Log::error('Google Calendar auth error: ' . $e->getMessage());
+            throw $e;
+        }
     }
     
     /**
@@ -80,10 +92,10 @@ class GoogleCalendarService
     {
         try {
             $this->client->setAccessToken($accessToken);
-            $service = new Google_Service_Calendar($this->client);
+            $this->service = new Google_Service_Calendar($this->client);
             
             // Get the list of calendars
-            $calendarList = $service->calendarList->listCalendarList();
+            $calendarList = $this->service->calendarList->listCalendarList();
             
             foreach ($calendarList->getItems() as $calendarListEntry) {
                 // Check if this calendar already exists for the user
@@ -190,52 +202,56 @@ class GoogleCalendarService
      */
     public function getEvents($startDate, $endDate)
     {
-        if (!$this->hasValidToken()) {
-            throw new \Exception('No valid Google Calendar token found');
-        }
+        $cacheKey = 'google_calendar_events_' . auth()->id() . '_' . $startDate . '_' . $endDate;
         
-        $service = new Google_Service_Calendar($this->client);
-        $startDateTime = Carbon::parse($startDate)->startOfDay()->toRfc3339String();
-        $endDateTime = Carbon::parse($endDate)->endOfDay()->toRfc3339String();
-        
-        $optParams = [
-            'timeMin' => $startDateTime,
-            'timeMax' => $endDateTime,
-            'singleEvents' => true,
-            'orderBy' => 'startTime',
-        ];
-        
-        try {
-            $results = $service->events->listEvents('primary', $optParams);
-            $events = [];
-            
-            foreach ($results->getItems() as $event) {
-                $start = $event->start->dateTime ?? $event->start->date;
-                $end = $event->end->dateTime ?? $event->end->date;
+        return Cache::remember($cacheKey, $this->cacheDuration, function () use ($startDate, $endDate) {
+            try {
+                if (!$this->hasValidToken()) {
+                    throw new \Exception('No valid Google Calendar token found');
+                }
                 
-                // Convert to Carbon instances for easier manipulation
-                $startCarbon = $start ? Carbon::parse($start) : null;
-                $endCarbon = $end ? Carbon::parse($end) : null;
+                $this->service = new Google_Service_Calendar($this->client);
+                $startDateTime = Carbon::parse($startDate)->startOfDay()->toRfc3339String();
+                $endDateTime = Carbon::parse($endDate)->endOfDay()->toRfc3339String();
                 
-                $events[] = [
-                    'id' => $event->id,
-                    'title' => $event->getSummary(),
-                    'description' => $event->getDescription(),
-                    'start' => $startCarbon ? $startCarbon->toDateTimeString() : null,
-                    'end' => $endCarbon ? $endCarbon->toDateTimeString() : null,
-                    'all_day' => !$event->start->dateTime,
-                    'location' => $event->getLocation(),
-                    'creator' => $event->getCreator() ? $event->getCreator()->getEmail() : null,
-                    'attendees' => $this->formatAttendees($event),
-                    'color_id' => $event->getColorId(),
+                $optParams = [
+                    'timeMin' => $startDateTime,
+                    'timeMax' => $endDateTime,
+                    'singleEvents' => true,
+                    'orderBy' => 'startTime',
                 ];
+                
+                $results = $this->service->events->listEvents('primary', $optParams);
+                $events = [];
+                
+                foreach ($results->getItems() as $event) {
+                    $start = $event->start->dateTime ?? $event->start->date;
+                    $end = $event->end->dateTime ?? $event->end->date;
+                    
+                    // Convert to Carbon instances for easier manipulation
+                    $startCarbon = $start ? Carbon::parse($start) : null;
+                    $endCarbon = $end ? Carbon::parse($end) : null;
+                    
+                    $events[] = [
+                        'id' => $event->id,
+                        'title' => $event->getSummary(),
+                        'description' => $event->getDescription(),
+                        'start' => $startCarbon ? $startCarbon->toDateTimeString() : null,
+                        'end' => $endCarbon ? $endCarbon->toDateTimeString() : null,
+                        'all_day' => !$event->start->dateTime,
+                        'location' => $event->getLocation(),
+                        'creator' => $event->getCreator() ? $event->getCreator()->getEmail() : null,
+                        'attendees' => $this->formatAttendees($event),
+                        'color_id' => $event->getColorId(),
+                    ];
+                }
+                
+                return $events;
+            } catch (\Exception $e) {
+                Log::error('Google Calendar events error: ' . $e->getMessage());
+                throw $e;
             }
-            
-            return $events;
-        } catch (\Exception $e) {
-            Log::error('Failed to fetch Google Calendar events: ' . $e->getMessage());
-            throw $e;
-        }
+        });
     }
     
     /**
@@ -268,14 +284,8 @@ class GoogleCalendarService
      */
     public function revokeAccess()
     {
-        $token = $this->getStoredToken();
-        if (!$token) {
-            return true; // Already no token
-        }
-        
-        $this->client->setAccessToken($token);
-        
         try {
+            $this->client->setAccessToken(auth()->user()->google_token);
             $this->client->revokeToken();
             $userId = Auth::id();
             Cache::forget("google_token_{$userId}");
@@ -285,8 +295,81 @@ class GoogleCalendarService
             
             return true;
         } catch (\Exception $e) {
-            Log::error('Failed to revoke Google token: ' . $e->getMessage());
+            Log::error('Google Calendar revoke error: ' . $e->getMessage());
             return false;
         }
+    }
+
+    public function isConnected()
+    {
+        return Cache::remember('google_calendar_connection', $this->cacheDuration, function () {
+            try {
+                $this->client->setAccessToken(auth()->user()->google_token);
+                return !$this->client->isAccessTokenExpired();
+            } catch (\Exception $e) {
+                return false;
+            }
+        });
+    }
+
+    public function getUserCalendars(User $user)
+    {
+        $cacheKey = 'google_calendars_' . $user->id;
+        
+        return Cache::remember($cacheKey, $this->cacheDuration, function () use ($user) {
+            try {
+                $this->client->setAccessToken($user->google_token);
+                $this->service = new Google_Service_Calendar($this->client);
+                
+                $calendarList = $this->service->calendarList->listCalendarList();
+                return $calendarList->getItems();
+            } catch (\Exception $e) {
+                Log::error('Google Calendar list error: ' . $e->getMessage());
+                throw $e;
+            }
+        });
+    }
+
+    public function updateCalendarSelection($calendarId, $isSelected)
+    {
+        $user = auth()->user();
+        $calendar = $user->calendars()->where('calendar_id', $calendarId)->firstOrFail();
+        $calendar->update(['is_selected' => $isSelected]);
+        
+        // Clear the cache for this user's calendars
+        Cache::forget('google_calendars_' . $user->id);
+        
+        return $calendar;
+    }
+
+    public function updateCalendarVisibility($calendarId, $isVisible)
+    {
+        $user = auth()->user();
+        $calendar = $user->calendars()->where('calendar_id', $calendarId)->firstOrFail();
+        $calendar->update(['is_visible' => $isVisible]);
+        
+        // Clear the cache for this user's calendars
+        Cache::forget('google_calendars_' . $user->id);
+        
+        return $calendar;
+    }
+
+    public function disconnectCalendar($calendarId)
+    {
+        $user = auth()->user();
+        $calendar = $user->calendars()->where('calendar_id', $calendarId)->firstOrFail();
+        $calendar->delete();
+        
+        // Clear the cache for this user's calendars
+        Cache::forget('google_calendars_' . $user->id);
+    }
+
+    public function disconnectAllCalendars()
+    {
+        $user = auth()->user();
+        $user->calendars()->delete();
+        
+        // Clear the cache for this user's calendars
+        Cache::forget('google_calendars_' . $user->id);
     }
 }

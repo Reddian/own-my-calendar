@@ -10,6 +10,7 @@ use App\Http\Controllers\MultiCalendarController;
 use App\Http\Controllers\AIGradingController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\StripeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -69,6 +70,26 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/subscription/cancel', [SubscriptionController::class, 'cancelSubscription']);
     Route::get('/subscription/can-grade', [SubscriptionController::class, 'canGradeCalendar']);
     Route::post('/subscription/increment-grades', [SubscriptionController::class, 'incrementGradesUsed']);
+
+    // Google Calendar Routes
+    Route::prefix('calendars')->group(function () {
+        Route::get('/', [GoogleCalendarController::class, 'getCalendars']);
+        Route::get('/auth', [GoogleCalendarController::class, 'getAuthUrl']);
+        Route::get('/check-connection', [GoogleCalendarController::class, 'checkConnection']);
+        Route::post('/selection', [GoogleCalendarController::class, 'updateSelection']);
+        Route::post('/visibility', [GoogleCalendarController::class, 'updateVisibility']);
+        Route::post('/disconnect', [GoogleCalendarController::class, 'disconnectCalendar']);
+        Route::post('/disconnect-all', [GoogleCalendarController::class, 'disconnectAll']);
+        Route::post('/disconnect-google', [GoogleCalendarController::class, 'disconnectGoogle']);
+    });
+
+    // Stripe Routes
+    Route::post('/stripe/create-checkout-session', [StripeController::class, 'createCheckoutSession']);
+    Route::get('/stripe/checkout/success', [StripeController::class, 'handleCheckoutSuccess']);
+    Route::post('/stripe/subscription/cancel', [StripeController::class, 'cancelSubscription']);
+    Route::post('/stripe/payment-method', [StripeController::class, 'updatePaymentMethod']);
+    Route::get('/stripe/payment-methods', [StripeController::class, 'getPaymentMethods']);
+    Route::get('/stripe/subscription/status', [StripeController::class, 'getSubscriptionStatus']);
 });
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {

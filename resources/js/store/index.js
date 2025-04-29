@@ -1,7 +1,15 @@
 import { createStore } from 'vuex';
 import axios from 'axios';
+import auth from './modules/auth';
+import settings from './modules/settings';
+import notifications from './modules/notifications';
 
 export default createStore({
+  modules: {
+    auth,
+    settings,
+    notifications
+  },
   state: {
     user: null,
     profile: null,
@@ -201,5 +209,6 @@ export default createStore({
         commit('SET_LOADING', false);
       }
     }
-  }
+  },
+  strict: process.env.NODE_ENV !== 'production'
 });

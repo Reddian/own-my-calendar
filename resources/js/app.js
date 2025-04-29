@@ -6,6 +6,10 @@
 
 import './bootstrap';
 import { createApp } from 'vue';
+import App from './App.vue';
+import router from './router';
+import store from './store';
+import axios from 'axios';
 
 /**
  * Next, we will create a fresh Vue application instance. You may then begin
@@ -13,7 +17,41 @@ import { createApp } from 'vue';
  * to use in your application's views. An example is included for you.
  */
 
-const app = createApp({});
+// Set up axios defaults
+axios.defaults.withCredentials = true;
+axios.defaults.baseURL = '/api';
+
+// Add axios interceptor for authentication
+axios.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response?.status === 401) {
+      store.dispatch('auth/logout');
+      router.push('/login');
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(registration => {
+        console.log('ServiceWorker registration successful');
+      })
+      .catch(err => {
+        console.log('ServiceWorker registration failed: ', err);
+      });
+  });
+}
+
+// Create Vue app
+const app = createApp(App);
+
+// Use router and store
+app.use(router);
+app.use(store);
 
 import ExampleComponent from './components/ExampleComponent.vue';
 app.component('example-component', ExampleComponent);
