@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -80,12 +81,10 @@ class User extends Authenticatable
         return $this->subscription->grades_used;
     }
 
-    public function extension()
-    {
-        return $this->hasOne(Extension::class);
-    }
-}
-
+    /**
+     * Get the user's extension settings.
+     */
+    public function extension(): HasOne
     {
         return $this->hasOne(Extension::class);
     }
@@ -93,7 +92,7 @@ class User extends Authenticatable
     /**
      * Get the Google Calendars associated with the user.
      */
-    public function calendars(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function calendars(): HasMany
     {
         return $this->hasMany(GoogleCalendar::class);
     }
