@@ -326,22 +326,48 @@ async function disconnectGoogleCalendar() {
 async function fetchGoogleData() {
   isLoadingCalendars.value = true;
   calendarFetchError.value = '';
+  console.log("Starting fetchGoogleData..."); // DEBUG
   try {
     // Check connection status first
+    console.log("Checking connection status at /api/calendars/check-connection..."); // DEBUG
     const statusResponse = await axios.get("/api/calendars/check-connection");
+    console.log("Connection status response:", statusResponse); // DEBUG
     isGoogleConnected.value = statusResponse.data.connected;
+    console.log("isGoogleConnected set to:", isGoogleConnected.value); // DEBUG
 
     if (isGoogleConnected.value) {
       // If connected, fetch the list of calendars
+      console.log("Fetching calendar list from /api/calendars..."); // DEBUG
       const calendarsResponse = await axios.get("/api/calendars");
-      // Assuming the API returns an array of calendars directly or within a data property
-      connectedCalendars.value = calendarsResponse.data.calendars || calendarsResponse.data || []; 
+      console.log("Raw calendar list response:", calendarsResponse); // DEBUG
+      console.log("Calendar list data:", calendarsResponse.data); // DEBUG
+      
+      // Ensure the response structure is handled correctly
+      if (calendarsResponse.data && Array.isArray(calendarsResponse.data.calendars)) {
+        console.log("Assigning calendars:", calendarsResponse.data.calendars); // DEBUG
+        connectedCalendars.value = calendarsResponse.data.calendars;
+      } else {
+        // Handle cases where the structure might be different or empty
+        console.warn("Unexpected calendar list response format or empty list:", calendarsResponse.data); // DEBUG
+        connectedCalendars.value = []; 
+      }
     } else {
       // If not connected, ensure the list is empty
+      console.log("Not connected, clearing calendar list."); // DEBUG
       connectedCalendars.value = [];
     }
   } catch (error) {
-    console.error("Error fetching Google Calendar data:", error);
+    console.error("Error fetching Google Calendar data:", error); // DEBUG
+    // Log the full error object for more details
+    if (error.response) {
+      console.error("Error response data:", error.response.data); // DEBUG
+      console.error("Error response status:", error.response.status); // DEBUG
+      console.error("Error response headers:", error.response.headers); // DEBUG
+    } else if (error.request) {
+      console.error("Error request:", error.request); // DEBUG
+    } else {
+      console.error("Error message:", error.message); // DEBUG
+    }
     isGoogleConnected.value = false; // Assume error means not connected
     connectedCalendars.value = [];
     calendarFetchError.value = 'Could not load Google Calendar status or list. Please try again later.';
@@ -351,6 +377,7 @@ async function fetchGoogleData() {
     }
   } finally {
     isLoadingCalendars.value = false;
+    console.log("Finished fetchGoogleData."); // DEBUG
   }
 }
 
@@ -358,13 +385,16 @@ async function fetchGoogleData() {
 watch(
   () => route.query,
   async (newQuery) => { // Make the watcher async
+    console.log("Route query changed:", newQuery); // DEBUG
     if (newQuery.google_callback === 'success') {
+      console.log("Detected google_callback=success"); // DEBUG
       googleSuccessMessage.value = 'Google Calendar connected successfully!';
       isGoogleConnected.value = true; // Assume success means connected
       await fetchGoogleData(); // Fetch calendars after successful connection
       // Optionally clear query params after showing message
       // setTimeout(clearGoogleMessages, 5000); 
     } else if (newQuery.google_callback === 'error') {
+      console.log("Detected google_callback=error"); // DEBUG
       googleErrorMessage.value = newQuery.message ? decodeURIComponent(newQuery.message) : 'An unknown error occurred during Google Calendar connection.';
       isGoogleConnected.value = false; // Assume error means not connected
       connectedCalendars.value = []; // Clear calendars on error
@@ -377,6 +407,7 @@ watch(
 
 // --- Lifecycle Hooks ---
 onMounted(async () => { // Make onMounted async
+  console.log("Settings component mounted."); // DEBUG
   // Initialize Bootstrap modals
   if (window.bootstrap && cancelModal.value) {
       bsCancelModal = new window.bootstrap.Modal(cancelModal.value);
@@ -401,7 +432,13 @@ onMounted(async () => { // Make onMounted async
   accountForm.email = 'test@example.com'; // Placeholder
   
   // Fetch Google connection status and calendars on load
-  await fetchGoogleData(); 
+  // Check if callback params are present, if so, watcher already called fetchGoogleData
+  if (!route.query.google_callback) {
+    console.log("No callback params, fetching initial Google data..."); // DEBUG
+    await fetchGoogleData(); 
+  } else {
+    console.log("Callback params detected, fetchGoogleData likely called by watcher."); // DEBUG
+  }
 });
 
 </script>
