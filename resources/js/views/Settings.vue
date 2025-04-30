@@ -333,47 +333,61 @@ async function fetchGoogleData() {
     const statusResponse = await axios.get("/api/calendars/check-connection");
     console.log("Connection status response:", statusResponse); // DEBUG
     isGoogleConnected.value = statusResponse.data.connected;
-    console.log("isGoogleConnected set to:", isGoogleConnected.value); // DEBUG
+    console.log("isGoogleConnected value before IF:", isGoogleConnected.value); // DEBUG
 
     if (isGoogleConnected.value) {
+      console.log("Inside IF block (isGoogleConnected is true)"); // DEBUG
       // If connected, fetch the list of calendars
-      console.log("Fetching calendar list from /api/calendars..."); // DEBUG
-      const calendarsResponse = await axios.get("/api/calendars");
-      console.log("Raw calendar list response:", calendarsResponse); // DEBUG
-      console.log("Calendar list data:", calendarsResponse.data); // DEBUG
-      
-      // Ensure the response structure is handled correctly
-      if (calendarsResponse.data && Array.isArray(calendarsResponse.data.calendars)) {
-        console.log("Assigning calendars:", calendarsResponse.data.calendars); // DEBUG
-        connectedCalendars.value = calendarsResponse.data.calendars;
-      } else {
-        // Handle cases where the structure might be different or empty
-        console.warn("Unexpected calendar list response format or empty list:", calendarsResponse.data); // DEBUG
-        connectedCalendars.value = []; 
+      try {
+        console.log("Attempting to fetch calendar list from /api/calendars..."); // DEBUG
+        const calendarsResponse = await axios.get("/api/calendars");
+        console.log("Raw calendar list response:", calendarsResponse); // DEBUG
+        console.log("Calendar list data:", calendarsResponse.data); // DEBUG
+        
+        // Ensure the response structure is handled correctly
+        if (calendarsResponse.data && Array.isArray(calendarsResponse.data.calendars)) {
+          console.log("Assigning calendars:", calendarsResponse.data.calendars); // DEBUG
+          connectedCalendars.value = calendarsResponse.data.calendars;
+        } else {
+          // Handle cases where the structure might be different or empty
+          console.warn("Unexpected calendar list response format or empty list:", calendarsResponse.data); // DEBUG
+          connectedCalendars.value = []; 
+        }
+      } catch (calendarError) {
+        console.error("Error specifically during /api/calendars fetch:", calendarError); // DEBUG
+        // Log specific error details if available
+        if (calendarError.response) {
+          console.error("Calendar fetch error response data:", calendarError.response.data);
+          console.error("Calendar fetch error response status:", calendarError.response.status);
+        }
+        connectedCalendars.value = []; // Clear list on specific error
+        // Set a more specific error message if possible
+        calendarFetchError.value = 'Failed to load the list of calendars. Please try again.';
       }
     } else {
       // If not connected, ensure the list is empty
-      console.log("Not connected, clearing calendar list."); // DEBUG
+      console.log("Outside IF block (isGoogleConnected is false), clearing calendar list."); // DEBUG
       connectedCalendars.value = [];
     }
   } catch (error) {
-    console.error("Error fetching Google Calendar data:", error); // DEBUG
+    // This catch block handles errors from the initial status check
+    console.error("Error during initial connection status check:", error); // DEBUG
     // Log the full error object for more details
     if (error.response) {
-      console.error("Error response data:", error.response.data); // DEBUG
-      console.error("Error response status:", error.response.status); // DEBUG
-      console.error("Error response headers:", error.response.headers); // DEBUG
+      console.error("Status check error response data:", error.response.data); // DEBUG
+      console.error("Status check error response status:", error.response.status); // DEBUG
+      console.error("Status check error response headers:", error.response.headers); // DEBUG
     } else if (error.request) {
-      console.error("Error request:", error.request); // DEBUG
+      console.error("Status check error request:", error.request); // DEBUG
     } else {
-      console.error("Error message:", error.message); // DEBUG
+      console.error("Status check error message:", error.message); // DEBUG
     }
     isGoogleConnected.value = false; // Assume error means not connected
     connectedCalendars.value = [];
-    calendarFetchError.value = 'Could not load Google Calendar status or list. Please try again later.';
+    calendarFetchError.value = 'Could not load Google Calendar status. Please try again later.';
     // Optionally display a more specific error if available from the response
     if (error.response && error.response.data && error.response.data.error) {
-        calendarFetchError.value = `Error: ${error.response.data.error.message || 'Failed to load data.'}`;
+        calendarFetchError.value = `Error: ${error.response.data.error.message || 'Failed to load status.'}`;
     }
   } finally {
     isLoadingCalendars.value = false;
@@ -389,7 +403,8 @@ watch(
     if (newQuery.google_callback === 'success') {
       console.log("Detected google_callback=success"); // DEBUG
       googleSuccessMessage.value = 'Google Calendar connected successfully!';
-      isGoogleConnected.value = true; // Assume success means connected
+      // Don't assume connection status here, let fetchGoogleData determine it
+      // isGoogleConnected.value = true; 
       await fetchGoogleData(); // Fetch calendars after successful connection
       // Optionally clear query params after showing message
       // setTimeout(clearGoogleMessages, 5000); 
@@ -432,12 +447,12 @@ onMounted(async () => { // Make onMounted async
   accountForm.email = 'test@example.com'; // Placeholder
   
   // Fetch Google connection status and calendars on load
-  // Check if callback params are present, if so, watcher already called fetchGoogleData
+  // The watcher with immediate:true handles the initial fetch if callback params are present
   if (!route.query.google_callback) {
-    console.log("No callback params, fetching initial Google data..."); // DEBUG
+    console.log("No callback params on mount, fetching initial Google data..."); // DEBUG
     await fetchGoogleData(); 
   } else {
-    console.log("Callback params detected, fetchGoogleData likely called by watcher."); // DEBUG
+    console.log("Callback params detected on mount, fetchGoogleData likely called by watcher."); // DEBUG
   }
 });
 
