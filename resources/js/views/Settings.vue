@@ -2,17 +2,22 @@
   <div class="container">
     <div class="row justify-content-center">
       <div class="col-md-10">
-        <!-- Alert Messages - Placeholder for a notification system (e.g., using Vuex or a dedicated component) -->
+        <!-- Alert Messages for Google Calendar Callback -->
+        <div v-if="googleSuccessMessage" class="alert alert-success alert-dismissible fade show" role="alert">
+          {{ googleSuccessMessage }}
+          <button type="button" class="btn-close" @click="clearGoogleMessages" aria-label="Close"></button>
+        </div>
+        <div v-if="googleErrorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
+          {{ googleErrorMessage }}
+          <button type="button" class="btn-close" @click="clearGoogleMessages" aria-label="Close"></button>
+        </div>
+        <!-- Placeholder for other general success/error messages -->
         <!-- <div v-if="successMessage" class="alert alert-success alert-dismissible fade show" role="alert">
           {{ successMessage }}
           <button type="button" class="btn-close" @click="clearMessages" aria-label="Close"></button>
         </div>
         <div v-if="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
           {{ errorMessage }}
-          <button type="button" class="btn-close" @click="clearMessages" aria-label="Close"></button>
-        </div>
-        <div v-if="infoMessage" class="alert alert-info alert-dismissible fade show" role="alert">
-          {{ infoMessage }}
           <button type="button" class="btn-close" @click="clearMessages" aria-label="Close"></button>
         </div> -->
 
@@ -44,12 +49,10 @@
                   <div class="mb-3">
                     <label for="name" class="form-label">Name</label>
                     <input type="text" class="form-control" id="name" v-model="accountForm.name">
-                    <!-- Add validation feedback if needed -->
                   </div>
                   <div class="mb-3">
                     <label for="email" class="form-label">Email</label>
                     <input type="email" class="form-control" id="email" v-model="accountForm.email">
-                    <!-- Add validation feedback if needed -->
                   </div>
                   <button type="submit" class="btn btn-primary">Update Account</button>
                 </form>
@@ -61,12 +64,10 @@
                   <div class="mb-3">
                     <label for="current_password" class="form-label">Current Password</label>
                     <input type="password" class="form-control" id="current_password" v-model="passwordForm.current_password">
-                    <!-- Add validation feedback if needed -->
                   </div>
                   <div class="mb-3">
                     <label for="password" class="form-label">New Password</label>
                     <input type="password" class="form-control" id="password" v-model="passwordForm.password">
-                    <!-- Add validation feedback if needed -->
                   </div>
                   <div class="mb-3">
                     <label for="password_confirmation" class="form-label">Confirm New Password</label>
@@ -113,7 +114,6 @@
                 <h3>Subscription Status</h3>
                 <div class="card mb-4">
                   <div class="card-body">
-                    <!-- Subscription status needs dynamic data from store/API -->
                     <div v-if="isSubscribed" class="subscription-status active">
                       <div class="status-icon"><i class="fas fa-check-circle"></i></div>
                       <div class="status-details">
@@ -155,7 +155,7 @@
               </div>
 
               <!-- Calendar Integration Settings -->
-              <div class="tab-pane fade" :class="{ 'show active': activeTab === 'calendar' }">
+              <div class="tab-pane fade" :class="{ 'show active': activeTab === 'calendar' }" id="calendar-integration">
                 <h3>Google Calendar Integration</h3>
                 <div class="card mb-4">
                   <div class="card-body">
@@ -164,8 +164,12 @@
                         <h5>Connect Your Calendar</h5>
                         <p class="text-muted">Connect your Google Calendar to start grading and improving your schedule.</p>
                       </div>
-                      <button type="button" class="btn btn-primary" @click="openConnectModal">
+                      <!-- Update button based on connection status -->
+                      <button v-if="!isGoogleConnected" type="button" class="btn btn-primary" @click="connectGoogleCalendar">
                         Connect Calendar
+                      </button>
+                      <button v-else type="button" class="btn btn-outline-danger" @click="disconnectGoogleCalendar">
+                        Disconnect Calendar
                       </button>
                     </div>
                   </div>
@@ -173,16 +177,18 @@
 
                 <div class="connected-calendars">
                   <h5>Connected Calendars</h5>
-                  <!-- List needs dynamic data -->
-                  <div v-if="connectedCalendars.length === 0" class="alert alert-info">
+                  <div v-if="!isGoogleConnected" class="alert alert-info">
                     No calendars connected yet. Click the "Connect Calendar" button to get started.
                   </div>
-                  <ul v-else class="list-group">
-                    <li v-for="calendar in connectedCalendars" :key="calendar.id" class="list-group-item d-flex justify-content-between align-items-center">
-                      {{ calendar.name }}
-                      <button class="btn btn-sm btn-outline-danger" @click="disconnectCalendar(calendar.id)">Disconnect</button>
-                    </li>
-                  </ul>
+                  <div v-else>
+                    <p>Successfully connected to Google Calendar.</p>
+                    <!-- Optionally list calendars if fetched -->
+                    <!-- <ul class="list-group">
+                      <li v-for="calendar in connectedCalendars" :key="calendar.id" class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ calendar.name }}
+                      </li>
+                    </ul> -->
+                  </div>
                 </div>
               </div>
             </div>
@@ -193,6 +199,7 @@
 
     <!-- Cancel Subscription Modal -->
     <div class="modal fade" id="cancelSubscriptionModal" tabindex="-1" ref="cancelModal">
+      <!-- Modal content remains the same -->
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
@@ -214,39 +221,14 @@
       </div>
     </div>
 
-    <!-- Connect Calendar Modal -->
-    <div class="modal fade" id="connectCalendarModal" tabindex="-1" ref="connectModal">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Connect Google Calendar</h5>
-            <button type="button" class="btn-close" @click="closeConnectModal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <p>To connect your Google Calendar, you'll need to authorize Own My Calendar to access your calendar data.</p>
-            <p>We only request read access to your calendar events to provide grading and recommendations.</p>
-            <div class="alert alert-info">
-              <i class="fas fa-info-circle"></i> Your calendar data is only used for grading and recommendations. We never share your data with third parties.
-            </div>
-            <!-- Add logic for free grade limit warning -->
-            <!-- <div v-if="!isSubscribed && gradesUsed >= 3" class="alert alert-warning">
-              <i class="fas fa-exclamation-triangle"></i> You've used all your free grades. Upgrade to Premium for unlimited grades.
-            </div> -->
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" @click="closeConnectModal">Cancel</button>
-            <!-- Replace with actual Google OAuth flow trigger -->
-            <a href="/google/redirect" class="btn btn-primary">Connect with Google</a> 
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Connect Calendar Modal (No longer needed as button directly links) -->
+    <!-- <div class="modal fade" id="connectCalendarModal" tabindex="-1" ref="connectModal"> ... </div> -->
 
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 // Assuming Bootstrap's JS is loaded globally or imported
 // import { Modal, Tab } from 'bootstrap';
@@ -255,6 +237,10 @@ const route = useRoute();
 const router = useRouter();
 
 const activeTab = ref('account'); // Default tab
+
+// --- Google Callback Messages ---
+const googleSuccessMessage = ref('');
+const googleErrorMessage = ref('');
 
 // --- Form Data (Needs to be populated from store/API) ---
 const accountForm = reactive({
@@ -280,19 +266,26 @@ const gradesRemaining = ref(0); // Placeholder
 const isCancelling = ref(false);
 
 // --- Calendar Data (Needs to be populated from store/API) ---
+const isGoogleConnected = ref(false); // Placeholder, fetch actual status
 const connectedCalendars = ref([]); // Placeholder e.g., [{ id: 1, name: 'Work Calendar' }]
 
 // --- Modals Refs ---
 const cancelModal = ref(null);
-const connectModal = ref(null);
+// const connectModal = ref(null); // No longer needed
 let bsCancelModal = null;
-let bsConnectModal = null;
+// let bsConnectModal = null; // No longer needed
 
 // --- Methods ---
 function setActiveTab(tabName) {
   activeTab.value = tabName;
-  // Update URL hash for persistence/linking
   router.replace({ hash: `#${tabName}` });
+}
+
+function clearGoogleMessages() {
+  googleSuccessMessage.value = '';
+  googleErrorMessage.value = '';
+  // Remove query params from URL without reloading
+  router.replace({ query: {} }); 
 }
 
 async function updateAccount() {
@@ -323,42 +316,60 @@ async function confirmCancelSubscription() {
   console.log('Cancelling subscription...');
   // TODO: Call API to cancel subscription
   try {
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500));
     console.log('Subscription cancelled');
-    isSubscribed.value = false; // Update state
+    isSubscribed.value = false;
     closeCancelModal();
   } catch (error) {
     console.error('Failed to cancel subscription:', error);
-    // Show error message
   } finally {
     isCancelling.value = false;
   }
 }
 
-function openConnectModal() {
-  if (bsConnectModal) bsConnectModal.show();
+function connectGoogleCalendar() {
+  // Redirect to the Laravel route that handles Google OAuth redirect
+  window.location.href = '/google/redirect';
 }
 
-function closeConnectModal() {
-  if (bsConnectModal) bsConnectModal.hide();
+async function disconnectGoogleCalendar() {
+  console.log('Disconnecting Google Calendar...');
+  // TODO: Call API to disconnect Google Calendar (/api/google/disconnect)
+  try {
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    isGoogleConnected.value = false;
+    googleSuccessMessage.value = 'Google Calendar disconnected successfully.';
+  } catch (error) {
+    console.error('Failed to disconnect Google Calendar:', error);
+    googleErrorMessage.value = 'Failed to disconnect Google Calendar. Please try again.';
+  }
 }
 
-async function disconnectCalendar(calendarId) {
-  console.log('Disconnecting calendar:', calendarId);
-  // TODO: Call API to disconnect calendar
-}
+// --- Watcher for Route Query Params ---
+watch(
+  () => route.query,
+  (newQuery) => {
+    if (newQuery.google_callback === 'success') {
+      googleSuccessMessage.value = 'Google Calendar connected successfully!';
+      isGoogleConnected.value = true; // Assume success means connected
+      // Optionally clear query params after showing message
+      // setTimeout(clearGoogleMessages, 5000); 
+    } else if (newQuery.google_callback === 'error') {
+      googleErrorMessage.value = newQuery.message ? decodeURIComponent(newQuery.message) : 'An unknown error occurred during Google Calendar connection.';
+      isGoogleConnected.value = false; // Assume error means not connected
+      // Optionally clear query params after showing message
+      // setTimeout(clearGoogleMessages, 5000);
+    }
+  },
+  { immediate: true } // Check immediately when component mounts
+);
 
 // --- Lifecycle Hooks ---
 onMounted(() => {
   // Initialize Bootstrap modals
-  if (window.bootstrap) {
-    if (cancelModal.value) {
+  if (window.bootstrap && cancelModal.value) {
       bsCancelModal = new window.bootstrap.Modal(cancelModal.value);
-    }
-    if (connectModal.value) {
-      bsConnectModal = new window.bootstrap.Modal(connectModal.value);
-    }
   }
 
   // Activate tab based on URL hash
@@ -369,18 +380,22 @@ onMounted(() => {
       activeTab.value = tabName;
     }
   }
+  // If callback params exist, ensure calendar tab is active
+  if (route.query.google_callback) {
+      setActiveTab('calendar');
+  }
 
-  // TODO: Fetch initial data (user, notifications, subscription, calendars) from store/API
-  // Example population:
+  // TODO: Fetch initial data (user, notifications, subscription, calendars, google connection status) from store/API
   accountForm.name = 'Test User';
   accountForm.email = 'test@example.com';
-  connectedCalendars.value = [{ id: 1, name: 'Primary Calendar' }];
+  // Fetch actual connection status
+  // isGoogleConnected.value = await fetchGoogleConnectionStatus(); 
 });
 
 </script>
 
 <style scoped>
-/* Styles from settings.blade.php @section('styles') */
+/* Styles remain the same */
 .subscription-status {
   display: flex;
   align-items: center;
@@ -428,13 +443,12 @@ onMounted(() => {
   border-color: #dee2e6 #dee2e6 #fff; /* Match Bootstrap active tab style */
 }
 
-/* Ensure modal styles work correctly */
 .modal {
-    color: #333; /* Set default text color for modal content */
+    color: #333;
 }
 
 .modal-content {
-    background-color: #fff; /* Or your desired modal background */
+    background-color: #fff;
 }
 
 .modal-header,
@@ -443,9 +457,9 @@ onMounted(() => {
     color: inherit;
 }
 
-/* Add other necessary styles */
 .card-header h1 {
-    font-size: 1.75rem; /* Adjust as needed */
+    font-size: 1.75rem;
     margin-bottom: 0;
 }
 </style>
+
