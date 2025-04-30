@@ -328,12 +328,12 @@ async function fetchGoogleData() {
   calendarFetchError.value = '';
   try {
     // Check connection status first
-    const statusResponse = await axios.get('/api/google/check-connection');
+    const statusResponse = await axios.get("/api/calendars/check-connection");
     isGoogleConnected.value = statusResponse.data.connected;
 
     if (isGoogleConnected.value) {
       // If connected, fetch the list of calendars
-      const calendarsResponse = await axios.get('/api/google/calendars');
+      const calendarsResponse = await axios.get("/api/calendars");
       // Ensure the response structure matches expectations
       if (calendarsResponse.data && Array.isArray(calendarsResponse.data.calendars)) {
          connectedCalendars.value = calendarsResponse.data.calendars;
