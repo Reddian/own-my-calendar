@@ -85,3 +85,17 @@ class User extends Authenticatable
         return $this->hasOne(Extension::class);
     }
 }
+
+    {
+        return $this->hasOne(Extension::class);
+    }
+
+    /**
+     * Get the Google Calendars associated with the user.
+     */
+    public function calendars(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(GoogleCalendar::class);
+    }
+}
+
