@@ -77,7 +77,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/', [GoogleCalendarController::class, 'getCalendars']);
         Route::get('/auth', [GoogleCalendarController::class, 'getAuthUrl']);
         Route::get('/check-connection', [GoogleCalendarController::class, 'checkConnection']);
-        Route::post('/selection', [GoogleCalendarController::class, 'updateSelection']);
+        Route::post("/update-selection", [GoogleCalendarController::class, "updateSelection"]);
         Route::post('/visibility', [GoogleCalendarController::class, 'updateVisibility']);
         Route::post('/disconnect', [GoogleCalendarController::class, 'disconnectCalendar']);
         Route::post('/disconnect-all', [GoogleCalendarController::class, 'disconnectAll']);
