@@ -19,11 +19,10 @@
     <!-- Bootstrap CSS -->
     <link href="//cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <!-- Custom CSS (Ensure these are still relevant and accessible) -->
-    <link href="{{ asset("css/fonts.css") }}" rel="stylesheet">
-    <link href="{{ asset("css/dashboard.css") }}" rel="stylesheet">
-    <link href="{{ asset("css/bootstrap-custom.css") }}" rel="stylesheet">
-    <!-- Add other global CSS files if needed -->
+    <!-- Custom CSS are now imported via app.js and handled by Vite -->
+    {{-- <link href="{{ asset("css/fonts.css") }}" rel="stylesheet"> --}}
+    {{-- <link href="{{ asset("css/dashboard.css") }}" rel="stylesheet"> --}}
+    {{-- <link href="{{ asset("css/bootstrap-custom.css") }}" rel="stylesheet"> --}}
 
     <!-- Scripts -->
     @vite(["resources/css/app.css", "resources/js/app.js"])

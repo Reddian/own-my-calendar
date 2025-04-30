@@ -6,8 +6,11 @@ import App from './App.vue';
 import router from './router';
 import store from './store'; // Import the store
 
-// Import global styles if necessary (ensure paths are correct)
-// import '../css/app.css'; // Example if you have global CSS
+// Import global styles managed by Vite
+import '../css/fonts.css'; 
+import '../css/dashboard.css';
+import '../css/bootstrap-custom.css';
+// Note: resources/css/app.css is already included via @vite in spa.blade.php
 
 // Create the Vue application instance
 const app = createApp(App);
