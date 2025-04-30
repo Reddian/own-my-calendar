@@ -1,73 +1,110 @@
 <template>
-  <div class="container">
-    <div class="row justify-content-center">
-      <div class="col-md-8">
-        <div class="card">
-          <div class="card-header">
-            <h1 class="text-center">Welcome to Own My Calendar</h1>
+  <div>
+    <h1 class="page-title">Dashboard</h1>
+
+    <!-- Weekly Streak -->
+    <div class="streak-container">
+      <div class="streak-flame">
+        <i class="fas fa-fire"></i>
+      </div>
+      <!-- Data needs to be dynamic -->
+      <div class="streak-count">8</div>
+      <div class="streak-label">week streak</div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="dashboard-stats">
+      <div class="stat-card">
+        <div class="title">Current Week Grade</div>
+        <!-- Data needs to be dynamic -->
+        <div class="value">92%</div>
+        <div class="change positive">
+          <i class="fas fa-arrow-up"></i> 5% from last week
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="title">Monthly Average</div>
+        <!-- Data needs to be dynamic -->
+        <div class="value">87%</div>
+        <div class="change positive">
+          <i class="fas fa-arrow-up"></i> 3% from last month
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="title">Connected Calendars</div>
+        <!-- Data needs to be dynamic -->
+        <div class="value">3</div>
+        <div class="change positive">
+          <i class="fas fa-plus"></i> Add more
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="title">Grades Remaining</div>
+        <!-- Data needs to be dynamic -->
+        <div class="value">Unlimited</div> <!-- Placeholder -->
+        <div class="change positive"> <!-- Placeholder -->
+          <i class="fas fa-check-circle"></i> Premium <!-- Placeholder -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Weekly Grade Overview -->
+    <div class="chart-card">
+      <div class="chart-title">
+        <h3>Weekly Grade History</h3>
+        <div class="chart-actions">
+          <router-link to="/history" class="btn btn-sm btn-outline-primary">View All</router-link>
+        </div>
+      </div>
+      <div class="chart-container">
+        <canvas id="gradeHistoryChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Calendar Rules Performance -->
+    <div class="chart-card mt-4">
+      <div class="chart-title">
+        <h3>Calendar Rules Performance</h3>
+        <div class="chart-actions">
+          <button class="btn btn-sm btn-outline-primary">Details</button>
+        </div>
+      </div>
+      <div class="chart-container">
+        <canvas id="rulesPerformanceChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Recommendations -->
+    <div class="card mt-4">
+      <div class="card-title">
+        <h3>AI Recommendations</h3>
+      </div>
+      <!-- Data needs to be dynamic -->
+      <div class="recommendations-list">
+        <div class="recommendation-item">
+          <i class="fas fa-lightbulb text-warning"></i>
+          <div class="recommendation-content">
+            <strong>Schedule more reflection time</strong>
+            <p>You're missing dedicated reflection blocks in your calendar. Try adding 30 minutes each day for reflection.</p>
           </div>
-          <div class="card-body">
-            <div class="text-center mb-4">
-              <p class="lead">Take control of your time and boost your productivity</p>
-            </div>
-
-            <!-- Quick Stats -->
-            <div class="row mb-4">
-              <div class="col-md-4">
-                <div class="stat-card">
-                  <i class="fas fa-calendar-check stat-icon"></i>
-                  <h3>{{ stats.eventsToday }}</h3>
-                  <p>Events Today</p>
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="stat-card">
-                  <i class="fas fa-chart-line stat-icon"></i>
-                  <h3>{{ stats.productivityScore }}%</h3>
-                  <p>Productivity Score</p>
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="stat-card">
-                  <i class="fas fa-clock stat-icon"></i>
-                  <h3>{{ stats.freeTime }}</h3>
-                  <p>Free Time Today</p>
-                </div>
-              </div>
-            </div>
-
-            <!-- Quick Actions -->
-            <div class="quick-actions mb-4">
-              <h2 class="text-center mb-3">Quick Actions</h2>
-              <div class="row">
-                <div class="col-md-6 mb-3">
-                  <button class="btn btn-primary btn-lg w-100" @click="navigateToCalendar">
-                    <i class="fas fa-calendar-alt me-2"></i>View Calendar
-                  </button>
-                </div>
-                <div class="col-md-6 mb-3">
-                  <button class="btn btn-success btn-lg w-100" @click="navigateToAnalytics">
-                    <i class="fas fa-chart-bar me-2"></i>View Analytics
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Recent Activity -->
-            <div class="recent-activity">
-              <h2 class="text-center mb-3">Recent Activity</h2>
-              <div class="activity-list">
-                <div v-for="activity in recentActivities" :key="activity.id" class="activity-item">
-                  <div class="activity-icon">
-                    <i :class="activity.icon"></i>
-                  </div>
-                  <div class="activity-content">
-                    <p class="activity-text">{{ activity.text }}</p>
-                    <small class="activity-time">{{ activity.time }}</small>
-                  </div>
-                </div>
-              </div>
-            </div>
+        </div>
+        
+        <div class="recommendation-item">
+          <i class="fas fa-lightbulb text-warning"></i>
+          <div class="recommendation-content">
+            <strong>Protect your planning time</strong>
+            <p>Your Sunday planning block was interrupted last week. Make sure to protect this critical time.</p>
+          </div>
+        </div>
+        
+        <div class="recommendation-item">
+          <i class="fas fa-check-circle text-success"></i>
+          <div class="recommendation-content">
+            <strong>Great job with money-making activities</strong>
+            <p>You've allocated appropriate time for your top money-making activities this week.</p>
           </div>
         </div>
       </div>
@@ -75,134 +112,162 @@
   </div>
 </template>
 
-<script>
-import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+<script setup>
+import { onMounted, onUnmounted } from 'vue';
+import Chart from 'chart.js/auto'; // Import Chart.js
 
-export default {
-  name: 'Home',
-  setup() {
-    const router = useRouter();
-    const stats = ref({
-      eventsToday: 0,
-      productivityScore: 0,
-      freeTime: '0h 0m'
-    });
+let gradeHistoryChartInstance = null;
+let rulesPerformanceChartInstance = null;
 
-    const recentActivities = ref([]);
-
-    const fetchStats = async () => {
-      try {
-        const response = await axios.get('/api/home/stats');
-        stats.value = response.data;
-      } catch (error) {
-        console.error('Failed to fetch stats:', error);
+onMounted(() => {
+  // Grade History Chart
+  const gradeHistoryCtx = document.getElementById('gradeHistoryChart');
+  if (gradeHistoryCtx) {
+    gradeHistoryChartInstance = new Chart(gradeHistoryCtx, {
+      type: 'line',
+      data: {
+        // Data needs to be fetched dynamically
+        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6', 'Current Week'],
+        datasets: [{
+          label: 'Weekly Grade',
+          data: [75, 78, 82, 85, 88, 87, 92],
+          borderColor: '#7e57ff',
+          backgroundColor: 'rgba(126, 87, 255, 0.1)',
+          tension: 0.4,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: false,
+            min: 50,
+            max: 100,
+            ticks: {
+              callback: function(value) {
+                return value + '%';
+              }
+            }
+          }
+        }
       }
-    };
-
-    const fetchRecentActivities = async () => {
-      try {
-        const response = await axios.get('/api/home/activities');
-        recentActivities.value = response.data;
-      } catch (error) {
-        console.error('Failed to fetch activities:', error);
-      }
-    };
-
-    const navigateToCalendar = () => {
-      router.push('/calendar');
-    };
-
-    const navigateToAnalytics = () => {
-      router.push('/analytics');
-    };
-
-    onMounted(() => {
-      fetchStats();
-      fetchRecentActivities();
     });
-
-    return {
-      stats,
-      recentActivities,
-      navigateToCalendar,
-      navigateToAnalytics
-    };
   }
-};
+  
+  // Rules Performance Chart
+  const rulesPerformanceCtx = document.getElementById('rulesPerformanceChart');
+  if (rulesPerformanceCtx) {
+    rulesPerformanceChartInstance = new Chart(rulesPerformanceCtx, {
+      type: 'radar',
+      data: {
+        // Data needs to be fetched dynamically
+        labels: [
+          'Non-Negotiables',
+          'Money-Making Activities',
+          'Reflection Time',
+          'Learning Time',
+          'Planning Time',
+          'Time Protection',
+          'Calendar Adherence'
+        ],
+        datasets: [{
+          label: 'Current Week',
+          data: [95, 90, 70, 85, 80, 75, 95],
+          backgroundColor: 'rgba(126, 87, 255, 0.2)',
+          borderColor: '#7e57ff',
+          pointBackgroundColor: '#7e57ff'
+        },
+        {
+          label: 'Previous Week',
+          data: [90, 85, 65, 80, 75, 70, 90],
+          backgroundColor: 'rgba(67, 198, 185, 0.2)',
+          borderColor: '#43c6b9',
+          pointBackgroundColor: '#43c6b9'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          r: {
+            angleLines: {
+              display: true
+            },
+            suggestedMin: 50,
+            suggestedMax: 100
+          }
+        }
+      }
+    });
+  }
+});
+
+onUnmounted(() => {
+  // Destroy charts when component is unmounted to prevent memory leaks
+  if (gradeHistoryChartInstance) {
+    gradeHistoryChartInstance.destroy();
+  }
+  if (rulesPerformanceChartInstance) {
+    rulesPerformanceChartInstance.destroy();
+  }
+});
 </script>
 
 <style scoped>
-.card {
-  border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.card-header {
-  background: linear-gradient(to right, var(--primary-purple), var(--primary-teal));
-  color: white;
-  border-top-left-radius: 10px;
-  border-top-right-radius: 10px;
-  padding: 20px;
-}
-
-.stat-card {
-  text-align: center;
-  padding: 20px;
-  background: #f8f9fa;
-  border-radius: 10px;
-  height: 100%;
-}
-
-.stat-icon {
-  font-size: 2.5rem;
-  color: var(--primary-purple);
-  margin-bottom: 15px;
-}
-
-.quick-actions .btn {
-  padding: 15px;
-  font-size: 1.1rem;
-}
-
-.activity-list {
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.activity-item {
+/* Styles from home.blade.php @section('styles') */
+.recommendation-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   padding: 15px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1); /* Adjust color for theme if needed */
 }
 
-.activity-icon {
-  width: 40px;
-  height: 40px;
-  background: #f8f9fa;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.recommendation-item:last-child {
+  border-bottom: none;
+}
+
+.recommendation-item i {
+  font-size: 24px;
   margin-right: 15px;
+  margin-top: 3px;
 }
 
-.activity-icon i {
-  color: var(--primary-purple);
+.recommendation-content strong {
+  display: block;
+  margin-bottom: 5px;
 }
 
-.activity-content {
-  flex: 1;
-}
-
-.activity-text {
+.recommendation-content p {
   margin: 0;
-  font-size: 0.9rem;
+  color: #666; /* Adjust color for theme if needed */
 }
 
-.activity-time {
-  color: #666;
-  font-size: 0.8rem;
+/* Add other necessary styles or import from global CSS */
+.page-title {
+  /* Styles from dashboard.css or define here */
 }
-</style> 
+.streak-container {
+  /* Styles from dashboard.css or define here */
+}
+.dashboard-stats {
+  /* Styles from dashboard.css or define here */
+}
+.stat-card {
+  /* Styles from dashboard.css or define here */
+}
+.chart-card {
+  /* Styles from dashboard.css or define here */
+}
+.chart-container {
+  position: relative; 
+  height: 300px; /* Example height, adjust as needed */
+  width: 100%;
+}
+</style>

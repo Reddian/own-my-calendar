@@ -1,282 +1,451 @@
 <template>
-  <div class="settings-container">
-    <h1 class="text-2xl font-bold mb-6">Settings</h1>
-    
-    <!-- Account Settings -->
-    <div class="settings-section">
-      <h2 class="text-xl font-semibold mb-4">Account Settings</h2>
-      <Form @submit="handleUpdateProfile" v-slot="{ errors }" class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700">Name</label>
-          <Field 
-            v-model="profileForm.name" 
-            name="name"
-            type="text" 
-            rules="required|min:2|max:50"
-            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            :class="{ 'border-red-500': errors.name }"
-          />
-          <ErrorMessage name="name" class="text-red-500 text-sm mt-1" />
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-10">
+        <!-- Alert Messages - Placeholder for a notification system (e.g., using Vuex or a dedicated component) -->
+        <!-- <div v-if="successMessage" class="alert alert-success alert-dismissible fade show" role="alert">
+          {{ successMessage }}
+          <button type="button" class="btn-close" @click="clearMessages" aria-label="Close"></button>
         </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700">Email</label>
-          <Field 
-            v-model="profileForm.email" 
-            name="email"
-            type="email" 
-            rules="required|email"
-            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            :class="{ 'border-red-500': errors.email }"
-          />
-          <ErrorMessage name="email" class="text-red-500 text-sm mt-1" />
+        <div v-if="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
+          {{ errorMessage }}
+          <button type="button" class="btn-close" @click="clearMessages" aria-label="Close"></button>
         </div>
-        <button 
-          type="submit" 
-          class="btn-primary"
-          :disabled="isLoading"
-        >
-          {{ isLoading ? 'Saving...' : 'Save Changes' }}
-        </button>
-      </Form>
+        <div v-if="infoMessage" class="alert alert-info alert-dismissible fade show" role="alert">
+          {{ infoMessage }}
+          <button type="button" class="btn-close" @click="clearMessages" aria-label="Close"></button>
+        </div> -->
+
+        <div class="card">
+          <div class="card-header">
+            <h1>Settings</h1>
+          </div>
+          <div class="card-body">
+            <ul class="nav nav-tabs" id="settingsTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" :class="{ active: activeTab === 'account' }" @click="setActiveTab('account')" type="button">Account</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" :class="{ active: activeTab === 'notifications' }" @click="setActiveTab('notifications')" type="button">Notifications</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" :class="{ active: activeTab === 'subscription' }" @click="setActiveTab('subscription')" type="button">Subscription</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" :class="{ active: activeTab === 'calendar' }" @click="setActiveTab('calendar')" type="button">Calendar Integration</button>
+              </li>
+            </ul>
+
+            <div class="tab-content p-3" id="settingsTabsContent">
+              <!-- Account Settings -->
+              <div class="tab-pane fade" :class="{ 'show active': activeTab === 'account' }">
+                <h3>Account Information</h3>
+                <form @submit.prevent="updateAccount">
+                  <div class="mb-3">
+                    <label for="name" class="form-label">Name</label>
+                    <input type="text" class="form-control" id="name" v-model="accountForm.name">
+                    <!-- Add validation feedback if needed -->
+                  </div>
+                  <div class="mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email" v-model="accountForm.email">
+                    <!-- Add validation feedback if needed -->
+                  </div>
+                  <button type="submit" class="btn btn-primary">Update Account</button>
+                </form>
+
+                <hr class="my-4">
+
+                <h3>Change Password</h3>
+                <form @submit.prevent="updatePassword">
+                  <div class="mb-3">
+                    <label for="current_password" class="form-label">Current Password</label>
+                    <input type="password" class="form-control" id="current_password" v-model="passwordForm.current_password">
+                    <!-- Add validation feedback if needed -->
+                  </div>
+                  <div class="mb-3">
+                    <label for="password" class="form-label">New Password</label>
+                    <input type="password" class="form-control" id="password" v-model="passwordForm.password">
+                    <!-- Add validation feedback if needed -->
+                  </div>
+                  <div class="mb-3">
+                    <label for="password_confirmation" class="form-label">Confirm New Password</label>
+                    <input type="password" class="form-control" id="password_confirmation" v-model="passwordForm.password_confirmation">
+                  </div>
+                  <button type="submit" class="btn btn-primary">Update Password</button>
+                </form>
+              </div>
+
+              <!-- Notification Settings -->
+              <div class="tab-pane fade" :class="{ 'show active': activeTab === 'notifications' }">
+                <h3>Notification Preferences</h3>
+                <form @submit.prevent="updateNotifications">
+                  <div class="mb-3 form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="weekly_grade_email" v-model="notificationForm.weekly_grade_email">
+                    <label class="form-check-label" for="weekly_grade_email">Send me weekly grade emails</label>
+                  </div>
+                  <div class="mb-3 form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="planning_reminder" v-model="notificationForm.planning_reminder">
+                    <label class="form-check-label" for="planning_reminder">Send me weekly planning reminders</label>
+                  </div>
+                  <div class="mb-3">
+                    <label for="reminder_day" class="form-label">Reminder Day</label>
+                    <select class="form-select" id="reminder_day" v-model="notificationForm.reminder_day">
+                      <option value="Sunday">Sunday</option>
+                      <option value="Monday">Monday</option>
+                      <option value="Tuesday">Tuesday</option>
+                      <option value="Wednesday">Wednesday</option>
+                      <option value="Thursday">Thursday</option>
+                      <option value="Friday">Friday</option>
+                      <option value="Saturday">Saturday</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <label for="reminder_time" class="form-label">Reminder Time</label>
+                    <input type="time" class="form-control" id="reminder_time" v-model="notificationForm.reminder_time">
+                  </div>
+                  <button type="submit" class="btn btn-primary">Save Notification Settings</button>
+                </form>
+              </div>
+
+              <!-- Subscription Settings -->
+              <div class="tab-pane fade" :class="{ 'show active': activeTab === 'subscription' }">
+                <h3>Subscription Status</h3>
+                <div class="card mb-4">
+                  <div class="card-body">
+                    <!-- Subscription status needs dynamic data from store/API -->
+                    <div v-if="isSubscribed" class="subscription-status active">
+                      <div class="status-icon"><i class="fas fa-check-circle"></i></div>
+                      <div class="status-details">
+                        <h4>Premium Plan</h4>
+                        <p>Your subscription is active.</p>
+                        <p class="text-muted">Next billing date: {{ nextBillingDate }}</p>
+                      </div>
+                    </div>
+                    <div v-else class="subscription-status inactive">
+                      <div class="status-icon"><i class="fas fa-info-circle"></i></div>
+                      <div class="status-details">
+                        <h4>Free Plan</h4>
+                        <p>You are currently on the free plan.</p>
+                        <p class="text-muted">{{ gradesRemaining }} grades remaining</p>
+                      </div>
+                    </div>
+
+                    <div class="mt-4">
+                      <button v-if="isSubscribed" type="button" class="btn btn-outline-danger" @click="openCancelModal">
+                        Cancel Subscription
+                      </button>
+                      <router-link v-else to="/subscription" class="btn btn-primary">Upgrade to Premium</router-link>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="isSubscribed" class="card">
+                  <div class="card-header"><h5>Subscription Benefits</h5></div>
+                  <div class="card-body">
+                    <ul class="subscription-benefits">
+                      <li><i class="fas fa-check text-success"></i> Connect unlimited calendars</li>
+                      <li><i class="fas fa-check text-success"></i> Unlimited calendar grades</li>
+                      <li><i class="fas fa-check text-success"></i> Advanced AI recommendations</li>
+                      <li><i class="fas fa-check text-success"></i> Priority support</li>
+                      <li><i class="fas fa-check text-success"></i> Detailed analytics</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Calendar Integration Settings -->
+              <div class="tab-pane fade" :class="{ 'show active': activeTab === 'calendar' }">
+                <h3>Google Calendar Integration</h3>
+                <div class="card mb-4">
+                  <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <div>
+                        <h5>Connect Your Calendar</h5>
+                        <p class="text-muted">Connect your Google Calendar to start grading and improving your schedule.</p>
+                      </div>
+                      <button type="button" class="btn btn-primary" @click="openConnectModal">
+                        Connect Calendar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="connected-calendars">
+                  <h5>Connected Calendars</h5>
+                  <!-- List needs dynamic data -->
+                  <div v-if="connectedCalendars.length === 0" class="alert alert-info">
+                    No calendars connected yet. Click the "Connect Calendar" button to get started.
+                  </div>
+                  <ul v-else class="list-group">
+                    <li v-for="calendar in connectedCalendars" :key="calendar.id" class="list-group-item d-flex justify-content-between align-items-center">
+                      {{ calendar.name }}
+                      <button class="btn btn-sm btn-outline-danger" @click="disconnectCalendar(calendar.id)">Disconnect</button>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Calendar Settings -->
-    <div class="settings-section">
-      <h2 class="text-xl font-semibold mb-4">Calendar Settings</h2>
-      <Form @submit="handleUpdateCalendarSettings" v-slot="{ errors }" class="space-y-4">
-        <div class="flex items-center justify-between">
-          <div>
-            <label class="block text-sm font-medium text-gray-700">Auto-sync with Google Calendar</label>
-            <p class="text-sm text-gray-500">Automatically sync your calendar events</p>
+    <!-- Cancel Subscription Modal -->
+    <div class="modal fade" id="cancelSubscriptionModal" tabindex="-1" ref="cancelModal">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Cancel Subscription</h5>
+            <button type="button" class="btn-close" @click="closeCancelModal" aria-label="Close"></button>
           </div>
-          <Field 
-            v-model="calendarForm.autoSync" 
-            name="autoSync"
-            type="checkbox"
-            as="ToggleSwitch"
-            :disabled="isLoading"
-          />
-        </div>
-        <div class="flex items-center justify-between">
-          <div>
-            <label class="block text-sm font-medium text-gray-700">Show Weekends</label>
-            <p class="text-sm text-gray-500">Display weekend days in calendar view</p>
+          <div class="modal-body">
+            <p>Are you sure you want to cancel your subscription?</p>
+            <p>You will still have access to premium features until the end of your current billing period.</p>
           </div>
-          <Field 
-            v-model="calendarForm.showWeekends" 
-            name="showWeekends"
-            type="checkbox"
-            as="ToggleSwitch"
-            :disabled="isLoading"
-          />
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="closeCancelModal">Keep Subscription</button>
+            <button type="button" class="btn btn-danger" @click="confirmCancelSubscription" :disabled="isCancelling">
+              <span v-if="isCancelling" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+              Yes, Cancel Subscription
+            </button>
+          </div>
         </div>
-        <button 
-          type="submit" 
-          class="btn-primary"
-          :disabled="isLoading"
-        >
-          {{ isLoading ? 'Saving...' : 'Save Changes' }}
-        </button>
-      </Form>
+      </div>
     </div>
 
-    <!-- Notification Settings -->
-    <div class="settings-section">
-      <h2 class="text-xl font-semibold mb-4">Notification Settings</h2>
-      <Form @submit="handleUpdateNotificationSettings" v-slot="{ errors }" class="space-y-4">
-        <div class="flex items-center justify-between">
-          <div>
-            <label class="block text-sm font-medium text-gray-700">Email Notifications</label>
-            <p class="text-sm text-gray-500">Receive notifications via email</p>
+    <!-- Connect Calendar Modal -->
+    <div class="modal fade" id="connectCalendarModal" tabindex="-1" ref="connectModal">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Connect Google Calendar</h5>
+            <button type="button" class="btn-close" @click="closeConnectModal" aria-label="Close"></button>
           </div>
-          <Field 
-            v-model="notificationForm.email" 
-            name="emailNotifications"
-            type="checkbox"
-            as="ToggleSwitch"
-            :disabled="isLoading"
-          />
-        </div>
-        <div class="flex items-center justify-between">
-          <div>
-            <label class="block text-sm font-medium text-gray-700">Weekly Summary</label>
-            <p class="text-sm text-gray-500">Get a weekly summary of your calendar</p>
+          <div class="modal-body">
+            <p>To connect your Google Calendar, you'll need to authorize Own My Calendar to access your calendar data.</p>
+            <p>We only request read access to your calendar events to provide grading and recommendations.</p>
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle"></i> Your calendar data is only used for grading and recommendations. We never share your data with third parties.
+            </div>
+            <!-- Add logic for free grade limit warning -->
+            <!-- <div v-if="!isSubscribed && gradesUsed >= 3" class="alert alert-warning">
+              <i class="fas fa-exclamation-triangle"></i> You've used all your free grades. Upgrade to Premium for unlimited grades.
+            </div> -->
           </div>
-          <Field 
-            v-model="notificationForm.weeklySummary" 
-            name="weeklySummary"
-            type="checkbox"
-            as="ToggleSwitch"
-            :disabled="isLoading"
-          />
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="closeConnectModal">Cancel</button>
+            <!-- Replace with actual Google OAuth flow trigger -->
+            <a href="/google/redirect" class="btn btn-primary">Connect with Google</a> 
+          </div>
         </div>
-        <button 
-          type="submit" 
-          class="btn-primary"
-          :disabled="isLoading"
-        >
-          {{ isLoading ? 'Saving...' : 'Save Changes' }}
-        </button>
-      </Form>
+      </div>
     </div>
 
-    <!-- Notification Component -->
-    <Notification 
-      v-if="notification.message" 
-      :message="notification.message"
-      :type="notification.type"
-      :duration="notification.duration"
-    />
   </div>
 </template>
 
-<script>
-import { mapState, mapGetters, mapActions } from 'vuex';
-import { Form, Field, ErrorMessage, configure } from 'vee-validate';
-import * as rules from '@vee-validate/rules';
-import ToggleSwitch from '@/components/ToggleSwitch.vue';
-import Notification from '@/components/Notification.vue';
+<script setup>
+import { ref, reactive, onMounted, computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+// Assuming Bootstrap's JS is loaded globally or imported
+// import { Modal, Tab } from 'bootstrap';
 
-// Configure VeeValidate
-Object.keys(rules).forEach(rule => {
-  configure({
-    validateOnBlur: true,
-    validateOnChange: true,
-    validateOnInput: false,
-    validateOnModelUpdate: true,
-  });
+const route = useRoute();
+const router = useRouter();
+
+const activeTab = ref('account'); // Default tab
+
+// --- Form Data (Needs to be populated from store/API) ---
+const accountForm = reactive({
+  name: '',
+  email: ''
+});
+const passwordForm = reactive({
+  current_password: '',
+  password: '',
+  password_confirmation: ''
+});
+const notificationForm = reactive({
+  weekly_grade_email: true,
+  planning_reminder: true,
+  reminder_day: 'Sunday',
+  reminder_time: '18:00'
 });
 
-export default {
-  name: 'Settings',
-  components: {
-    Form,
-    Field,
-    ErrorMessage,
-    ToggleSwitch,
-    Notification
-  },
-  data() {
-    return {
-      profileForm: {
-        name: '',
-        email: ''
-      },
-      calendarForm: {
-        autoSync: false,
-        showWeekends: true
-      },
-      notificationForm: {
-        email: true,
-        weeklySummary: true
-      }
-    };
-  },
-  computed: {
-    ...mapState('settings', ['profile', 'calendar', 'notifications', 'isLoading', 'error']),
-    ...mapState('notifications', ['notifications']),
-    notification() {
-      return this.notifications[0] || { message: '', type: '', duration: 3000 };
+// --- Subscription Data (Needs to be populated from store/API) ---
+const isSubscribed = ref(true); // Placeholder
+const nextBillingDate = ref('May 30, 2025'); // Placeholder
+const gradesRemaining = ref(0); // Placeholder
+const isCancelling = ref(false);
+
+// --- Calendar Data (Needs to be populated from store/API) ---
+const connectedCalendars = ref([]); // Placeholder e.g., [{ id: 1, name: 'Work Calendar' }]
+
+// --- Modals Refs ---
+const cancelModal = ref(null);
+const connectModal = ref(null);
+let bsCancelModal = null;
+let bsConnectModal = null;
+
+// --- Methods ---
+function setActiveTab(tabName) {
+  activeTab.value = tabName;
+  // Update URL hash for persistence/linking
+  router.replace({ hash: `#${tabName}` });
+}
+
+async function updateAccount() {
+  console.log('Updating account:', accountForm);
+  // TODO: Call API to update account
+}
+
+async function updatePassword() {
+  console.log('Updating password');
+  // TODO: Call API to update password
+}
+
+async function updateNotifications() {
+  console.log('Updating notifications:', notificationForm);
+  // TODO: Call API to update notifications
+}
+
+function openCancelModal() {
+  if (bsCancelModal) bsCancelModal.show();
+}
+
+function closeCancelModal() {
+  if (bsCancelModal) bsCancelModal.hide();
+}
+
+async function confirmCancelSubscription() {
+  isCancelling.value = true;
+  console.log('Cancelling subscription...');
+  // TODO: Call API to cancel subscription
+  try {
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    console.log('Subscription cancelled');
+    isSubscribed.value = false; // Update state
+    closeCancelModal();
+  } catch (error) {
+    console.error('Failed to cancel subscription:', error);
+    // Show error message
+  } finally {
+    isCancelling.value = false;
+  }
+}
+
+function openConnectModal() {
+  if (bsConnectModal) bsConnectModal.show();
+}
+
+function closeConnectModal() {
+  if (bsConnectModal) bsConnectModal.hide();
+}
+
+async function disconnectCalendar(calendarId) {
+  console.log('Disconnecting calendar:', calendarId);
+  // TODO: Call API to disconnect calendar
+}
+
+// --- Lifecycle Hooks ---
+onMounted(() => {
+  // Initialize Bootstrap modals
+  if (window.bootstrap) {
+    if (cancelModal.value) {
+      bsCancelModal = new window.bootstrap.Modal(cancelModal.value);
     }
-  },
-  created() {
-    this.fetchProfile();
-    this.fetchSettings();
-  },
-  methods: {
-    ...mapActions('settings', [
-      'fetchProfile',
-      'updateProfile',
-      'fetchSettings',
-      'updateCalendarSettings',
-      'updateNotificationSettings'
-    ]),
-    ...mapActions('notifications', ['addNotification']),
-    async handleUpdateProfile(values, { resetForm }) {
-      try {
-        await this.updateProfile(this.profileForm);
-        this.addNotification({
-          message: 'Profile updated successfully',
-          type: 'success'
-        });
-        resetForm();
-      } catch (error) {
-        this.addNotification({
-          message: error.message || 'Failed to update profile',
-          type: 'error'
-        });
-      }
-    },
-    async handleUpdateCalendarSettings(values, { resetForm }) {
-      try {
-        await this.updateCalendarSettings(this.calendarForm);
-        this.addNotification({
-          message: 'Calendar settings updated successfully',
-          type: 'success'
-        });
-        resetForm();
-      } catch (error) {
-        this.addNotification({
-          message: error.message || 'Failed to update calendar settings',
-          type: 'error'
-        });
-      }
-    },
-    async handleUpdateNotificationSettings(values, { resetForm }) {
-      try {
-        await this.updateNotificationSettings(this.notificationForm);
-        this.addNotification({
-          message: 'Notification settings updated successfully',
-          type: 'success'
-        });
-        resetForm();
-      } catch (error) {
-        this.addNotification({
-          message: error.message || 'Failed to update notification settings',
-          type: 'error'
-        });
-      }
-    }
-  },
-  watch: {
-    profile: {
-      immediate: true,
-      handler(newProfile) {
-        if (newProfile) {
-          this.profileForm = { ...newProfile };
-        }
-      }
-    },
-    calendar: {
-      immediate: true,
-      handler(newCalendar) {
-        if (newCalendar) {
-          this.calendarForm = { ...newCalendar };
-        }
-      }
-    },
-    notifications: {
-      immediate: true,
-      handler(newNotifications) {
-        if (newNotifications) {
-          this.notificationForm = { ...newNotifications };
-        }
-      }
+    if (connectModal.value) {
+      bsConnectModal = new window.bootstrap.Modal(connectModal.value);
     }
   }
-};
+
+  // Activate tab based on URL hash
+  const hash = route.hash;
+  if (hash) {
+    const tabName = hash.substring(1);
+    if (['account', 'notifications', 'subscription', 'calendar'].includes(tabName)) {
+      activeTab.value = tabName;
+    }
+  }
+
+  // TODO: Fetch initial data (user, notifications, subscription, calendars) from store/API
+  // Example population:
+  accountForm.name = 'Test User';
+  accountForm.email = 'test@example.com';
+  connectedCalendars.value = [{ id: 1, name: 'Primary Calendar' }];
+});
+
 </script>
 
 <style scoped>
-.settings-container {
-  @apply max-w-4xl mx-auto p-6;
+/* Styles from settings.blade.php @section('styles') */
+.subscription-status {
+  display: flex;
+  align-items: center;
 }
 
-.settings-section {
-  @apply bg-white rounded-lg shadow p-6 mb-6;
+.status-icon {
+  font-size: 2.5rem;
+  margin-right: 1rem;
 }
 
-.btn-primary {
-  @apply inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed;
+.subscription-status.active .status-icon {
+  color: var(--primary-teal);
 }
-</style> 
+
+.subscription-status.inactive .status-icon {
+  color: #6c757d;
+}
+
+.status-details h4 {
+  margin-bottom: 0.25rem;
+  color: var(--primary-purple);
+}
+
+.subscription-benefits {
+  list-style: none;
+  padding-left: 0;
+}
+
+.subscription-benefits li {
+  margin-bottom: 0.5rem;
+}
+
+.subscription-benefits i {
+  margin-right: 0.5rem;
+}
+
+.nav-tabs .nav-link {
+  color: #495057;
+  cursor: pointer;
+}
+
+.nav-tabs .nav-link.active {
+  color: var(--primary-purple);
+  font-weight: 600;
+  border-color: #dee2e6 #dee2e6 #fff; /* Match Bootstrap active tab style */
+}
+
+/* Ensure modal styles work correctly */
+.modal {
+    color: #333; /* Set default text color for modal content */
+}
+
+.modal-content {
+    background-color: #fff; /* Or your desired modal background */
+}
+
+.modal-header,
+.modal-body,
+.modal-footer {
+    color: inherit;
+}
+
+/* Add other necessary styles */
+.card-header h1 {
+    font-size: 1.75rem; /* Adjust as needed */
+    margin-bottom: 0;
+}
+</style>

@@ -1,77 +1,26 @@
-/**
- * First we will load all of this project's JavaScript dependencies which
- * includes Vue and other libraries. It is a great starting point when
- * building robust, powerful web applications using Vue and Laravel.
- */
-
-import './bootstrap';
+import './bootstrap'; // If bootstrap.js setup is needed (e.g., for Axios CSRF header)
 import { createApp } from 'vue';
+
+// Import the main App component, router, and store
 import App from './App.vue';
 import router from './router';
-import store from './store';
-import axios from 'axios';
+import store from './store'; // Import the store
 
-/**
- * Next, we will create a fresh Vue application instance. You may then begin
- * registering components with the application instance so they are ready
- * to use in your application's views. An example is included for you.
- */
+// Import global styles if necessary (ensure paths are correct)
+// import '../css/app.css'; // Example if you have global CSS
 
-// Set up axios defaults
-axios.defaults.withCredentials = true;
-axios.defaults.baseURL = '/api';
-
-// Add axios interceptor for authentication
-axios.interceptors.response.use(
-  response => response,
-  error => {
-    if (error.response?.status === 401) {
-      store.dispatch('auth/logout');
-      router.push('/login');
-    }
-    return Promise.reject(error);
-  }
-);
-
-// Register service worker
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then(registration => {
-        console.log('ServiceWorker registration successful');
-      })
-      .catch(err => {
-        console.log('ServiceWorker registration failed: ', err);
-      });
-  });
-}
-
-// Create Vue app
+// Create the Vue application instance
 const app = createApp(App);
 
-// Use router and store
+// Use the router and store
 app.use(router);
-app.use(store);
+app.use(store); // Use the store
 
-import ExampleComponent from './components/ExampleComponent.vue';
-app.component('example-component', ExampleComponent);
+// Optionally, dispatch an action to fetch initial user data when the app loads
+// store.dispatch('user/fetchUser'); // Assuming 'user' is the namespace
 
-/**
- * The following block of code may be used to automatically register your
- * Vue components. It will recursively scan this directory for the Vue
- * components and automatically register them with their "basename".
- *
- * Eg. ./components/ExampleComponent.vue -> <example-component></example-component>
- */
-
-// Object.entries(import.meta.glob('./**/*.vue', { eager: true })).forEach(([path, definition]) => {
-//     app.component(path.split('/').pop().replace(/\.\w+$/, ''), definition.default);
-// });
-
-/**
- * Finally, we will attach the application instance to a HTML element with
- * an "id" attribute of "app". This element is included with the "auth"
- * scaffolding. Otherwise, you will need to add an element yourself.
- */
-
+// Mount the application to the element with id="app"
+// Ensure your main Blade view (e.g., spa.blade.php) 
+// has <div id="app"></div> where the Vue app will be mounted.
 app.mount('#app');
+

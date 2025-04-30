@@ -1,49 +1,21 @@
 import { createStore } from 'vuex';
-import axios from 'axios';
-import auth from './modules/auth';
-import settings from './modules/settings';
-import notifications from './modules/notifications';
 
-export default createStore({
-  modules: {
-    auth,
-    settings,
-    notifications
-  },
-  state: {
-    user: null,
-    profile: null,
-    grades: [],
-    currentWeekGrade: null,
-    isAuthenticated: false,
-    hasCompletedOnboarding: false,
-    loading: false,
-    error: null
-  },
-  getters: {
-    user: state => state.user,
-    profile: state => state.profile,
-    grades: state => state.grades,
-    currentWeekGrade: state => state.currentWeekGrade,
-    isAuthenticated: state => state.isAuthenticated,
-    hasCompletedOnboarding: state => state.hasCompletedOnboarding,
-    loading: state => state.loading,
-    error: state => state.error
-  },
+// Import modules if you create them (e.g., user module)
+// import user from './modules/user';
+
+// Placeholder for a simple user module directly in the main store
+const userModule = {
+  namespaced: true, // Good practice if you plan to add more modules
+  state: () => ({
+    user: null, // To store user information (e.g., { id, name, email, isSubscribed, ... })
+    isAuthenticated: false, // To track authentication status
+    loading: false, // To track loading state for user actions
+    error: null, // To store any errors related to user actions
+  }),
   mutations: {
     SET_USER(state, user) {
       state.user = user;
       state.isAuthenticated = !!user;
-    },
-    SET_PROFILE(state, profile) {
-      state.profile = profile;
-      state.hasCompletedOnboarding = !!profile;
-    },
-    SET_GRADES(state, grades) {
-      state.grades = grades;
-    },
-    SET_CURRENT_WEEK_GRADE(state, grade) {
-      state.currentWeekGrade = grade;
     },
     SET_LOADING(state, loading) {
       state.loading = loading;
@@ -51,164 +23,76 @@ export default createStore({
     SET_ERROR(state, error) {
       state.error = error;
     },
-    CLEAR_ERROR(state) {
-      state.error = null;
-    }
+    CLEAR_USER(state) {
+      state.user = null;
+      state.isAuthenticated = false;
+    },
   },
   actions: {
-    // Authentication actions
-    async login({ commit }, credentials) {
-      try {
-        commit('SET_LOADING', true);
-        commit('CLEAR_ERROR');
-        const response = await axios.post('/api/login', credentials);
-        localStorage.setItem('token', response.data.token);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
-        commit('SET_USER', response.data.user);
-        return response;
-      } catch (error) {
-        commit('SET_ERROR', error.response?.data?.message || 'Login failed');
-        throw error;
-      } finally {
-        commit('SET_LOADING', false);
-      }
-    },
-    async register({ commit }, userData) {
-      try {
-        commit('SET_LOADING', true);
-        commit('CLEAR_ERROR');
-        const response = await axios.post('/api/register', userData);
-        localStorage.setItem('token', response.data.token);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
-        commit('SET_USER', response.data.user);
-        return response;
-      } catch (error) {
-        commit('SET_ERROR', error.response?.data?.message || 'Registration failed');
-        throw error;
-      } finally {
-        commit('SET_LOADING', false);
-      }
-    },
-    async logout({ commit }) {
-      try {
-        commit('SET_LOADING', true);
-        await axios.post('/api/logout');
-        localStorage.removeItem('token');
-        delete axios.defaults.headers.common['Authorization'];
-        commit('SET_USER', null);
-        commit('SET_PROFILE', null);
-      } catch (error) {
-        console.error('Logout error:', error);
-      } finally {
-        commit('SET_LOADING', false);
-      }
-    },
+    // Example action to fetch user data (e.g., after login or on app load)
     async fetchUser({ commit }) {
+      commit('SET_LOADING', true);
+      commit('SET_ERROR', null);
       try {
-        commit('SET_LOADING', true);
-        const token = localStorage.getItem('token');
-        if (token) {
-          axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-          const response = await axios.get('/api/user');
-          commit('SET_USER', response.data);
-        }
+        // Replace with your actual API call to get user data
+        // const response = await axios.get('/api/user');
+        // const user = response.data;
+        
+        // Placeholder user data
+        const user = {
+          id: 1,
+          name: 'Test User',
+          email: 'test@example.com',
+          isSubscribed: true, // Example property
+          // Add other relevant user properties
+        };
+        
+        commit('SET_USER', user);
       } catch (error) {
-        console.error('Fetch user error:', error);
-        localStorage.removeItem('token');
-        delete axios.defaults.headers.common['Authorization'];
-        commit('SET_USER', null);
+        console.error('Error fetching user:', error);
+        commit('SET_ERROR', 'Failed to load user data.');
+        commit('CLEAR_USER'); // Clear user data on error
       } finally {
         commit('SET_LOADING', false);
       }
     },
-    
-    // Profile actions
-    async fetchProfile({ commit }) {
+    // Example logout action
+    async logout({ commit }) {
+      commit('SET_LOADING', true);
+      commit('SET_ERROR', null);
       try {
-        commit('SET_LOADING', true);
-        const response = await axios.get('/api/profile');
-        commit('SET_PROFILE', response.data.profile);
-        return response.data;
+        // Replace with your actual API call to logout
+        // await axios.post('/logout');
+        console.log('Simulating logout...');
+        commit('CLEAR_USER');
+        // Optionally redirect using the router instance if needed
+        // router.push('/login'); 
       } catch (error) {
-        console.error('Fetch profile error:', error);
-        if (error.response?.status === 404) {
-          commit('SET_PROFILE', null);
-        }
+        console.error('Error logging out:', error);
+        commit('SET_ERROR', 'Logout failed.');
       } finally {
         commit('SET_LOADING', false);
       }
     },
-    async saveProfile({ commit }, profileData) {
-      try {
-        commit('SET_LOADING', true);
-        commit('CLEAR_ERROR');
-        const response = await axios.post('/api/profile', profileData);
-        commit('SET_PROFILE', response.data.profile);
-        return response.data;
-      } catch (error) {
-        commit('SET_ERROR', error.response?.data?.message || 'Failed to save profile');
-        throw error;
-      } finally {
-        commit('SET_LOADING', false);
-      }
-    },
-    
-    // Onboarding actions
-    async completeOnboarding({ commit }, onboardingData) {
-      try {
-        commit('SET_LOADING', true);
-        commit('CLEAR_ERROR');
-        const response = await axios.post('/api/onboarding', onboardingData);
-        commit('SET_PROFILE', response.data.profile);
-        return response.data;
-      } catch (error) {
-        commit('SET_ERROR', error.response?.data?.message || 'Failed to complete onboarding');
-        throw error;
-      } finally {
-        commit('SET_LOADING', false);
-      }
-    },
-    
-    // Calendar grade actions
-    async fetchGrades({ commit }) {
-      try {
-        commit('SET_LOADING', true);
-        const response = await axios.get('/api/grades');
-        commit('SET_GRADES', response.data.grades);
-        return response.data;
-      } catch (error) {
-        console.error('Fetch grades error:', error);
-      } finally {
-        commit('SET_LOADING', false);
-      }
-    },
-    async fetchCurrentWeekGrade({ commit }) {
-      try {
-        commit('SET_LOADING', true);
-        const response = await axios.get('/api/grades/current-week');
-        commit('SET_CURRENT_WEEK_GRADE', response.data.grade);
-        return response.data;
-      } catch (error) {
-        console.error('Fetch current week grade error:', error);
-      } finally {
-        commit('SET_LOADING', false);
-      }
-    },
-    async saveGrade({ commit, dispatch }, gradeData) {
-      try {
-        commit('SET_LOADING', true);
-        commit('CLEAR_ERROR');
-        const response = await axios.post('/api/grades', gradeData);
-        dispatch('fetchGrades');
-        dispatch('fetchCurrentWeekGrade');
-        return response.data;
-      } catch (error) {
-        commit('SET_ERROR', error.response?.data?.message || 'Failed to save grade');
-        throw error;
-      } finally {
-        commit('SET_LOADING', false);
-      }
-    }
+    // Add other actions like login, register, updateProfile, etc.
   },
-  strict: process.env.NODE_ENV !== 'production'
+  getters: {
+    getUser: (state) => state.user,
+    isAuthenticated: (state) => state.isAuthenticated,
+    isLoading: (state) => state.loading,
+    getError: (state) => state.error,
+    // Example getter for subscription status
+    isSubscribed: (state) => state.user?.isSubscribed || false,
+  },
+};
+
+const store = createStore({
+  modules: {
+    user: userModule,
+    // Add other modules here if needed (e.g., notifications, settings)
+  },
+  // You can also have global state/mutations/actions/getters here if needed
 });
+
+export default store;
+
