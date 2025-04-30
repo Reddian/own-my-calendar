@@ -334,20 +334,15 @@ async function fetchGoogleData() {
     if (isGoogleConnected.value) {
       // If connected, fetch the list of calendars
       const calendarsResponse = await axios.get("/api/calendars");
-      // Ensure the response structure matches expectations
-      if (calendarsResponse.data && Array.isArray(calendarsResponse.data.calendars)) {
-         connectedCalendars.value = calendarsResponse.data.calendars;
-      } else {
-         console.error('Unexpected response structure for calendars:', calendarsResponse.data);
-         connectedCalendars.value = []; // Reset to empty array on unexpected structure
-         calendarFetchError.value = 'Could not load calendar list (unexpected format).';
-      }
+      // Assuming the API returns an array of calendars directly or within a data property
+      connectedCalendars.value = calendarsResponse.data.calendars || calendarsResponse.data || []; 
     } else {
-      connectedCalendars.value = []; // Ensure list is empty if not connected
+      // If not connected, ensure the list is empty
+      connectedCalendars.value = [];
     }
   } catch (error) {
-    console.error('Error fetching Google Calendar data:', error);
-    isGoogleConnected.value = false; // Assume not connected on error
+    console.error("Error fetching Google Calendar data:", error);
+    isGoogleConnected.value = false; // Assume error means not connected
     connectedCalendars.value = [];
     calendarFetchError.value = 'Could not load Google Calendar status or list. Please try again later.';
     // Optionally display a more specific error if available from the response
