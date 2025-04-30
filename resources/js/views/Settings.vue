@@ -12,14 +12,7 @@
           <button type="button" class="btn-close" @click="clearGoogleMessages" aria-label="Close"></button>
         </div>
         <!-- Placeholder for other general success/error messages -->
-        <!-- <div v-if="successMessage" class="alert alert-success alert-dismissible fade show" role="alert">
-          {{ successMessage }}
-          <button type="button" class="btn-close" @click="clearMessages" aria-label="Close"></button>
-        </div>
-        <div v-if="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
-          {{ errorMessage }}
-          <button type="button" class="btn-close" @click="clearMessages" aria-label="Close"></button>
-        </div> -->
+        <!-- ... -->
 
         <div class="card">
           <div class="card-header">
@@ -27,6 +20,7 @@
           </div>
           <div class="card-body">
             <ul class="nav nav-tabs" id="settingsTabs" role="tablist">
+              <!-- Tabs remain the same -->
               <li class="nav-item" role="presentation">
                 <button class="nav-link" :class="{ active: activeTab === 'account' }" @click="setActiveTab('account')" type="button">Account</button>
               </li>
@@ -44,6 +38,7 @@
             <div class="tab-content p-3" id="settingsTabsContent">
               <!-- Account Settings -->
               <div class="tab-pane fade" :class="{ 'show active': activeTab === 'account' }">
+                <!-- Account form remains the same -->
                 <h3>Account Information</h3>
                 <form @submit.prevent="updateAccount">
                   <div class="mb-3">
@@ -79,6 +74,7 @@
 
               <!-- Notification Settings -->
               <div class="tab-pane fade" :class="{ 'show active': activeTab === 'notifications' }">
+                <!-- Notifications form remains the same -->
                 <h3>Notification Preferences</h3>
                 <form @submit.prevent="updateNotifications">
                   <div class="mb-3 form-check form-switch">
@@ -111,6 +107,7 @@
 
               <!-- Subscription Settings -->
               <div class="tab-pane fade" :class="{ 'show active': activeTab === 'subscription' }">
+                <!-- Subscription content remains the same -->
                 <h3>Subscription Status</h3>
                 <div class="card mb-4">
                   <div class="card-body">
@@ -164,7 +161,6 @@
                         <h5>Connect Your Calendar</h5>
                         <p class="text-muted">Connect your Google Calendar to start grading and improving your schedule.</p>
                       </div>
-                      <!-- Update button based on connection status -->
                       <button v-if="!isGoogleConnected" type="button" class="btn btn-primary" @click="connectGoogleCalendar">
                         Connect Calendar
                       </button>
@@ -177,18 +173,27 @@
 
                 <div class="connected-calendars">
                   <h5>Connected Calendars</h5>
-                  <div v-if="!isGoogleConnected" class="alert alert-info">
+                  <!-- Display loading state -->
+                  <div v-if="isLoadingCalendars" class="text-center my-3">
+                    <div class="spinner-border text-primary" role="status">
+                      <span class="visually-hidden">Loading calendars...</span>
+                    </div>
+                  </div>
+                  <!-- Display error state -->
+                  <div v-else-if="calendarFetchError" class="alert alert-warning">
+                    {{ calendarFetchError }}
+                  </div>
+                  <!-- Display no calendars connected -->
+                  <div v-else-if="!isGoogleConnected || connectedCalendars.length === 0" class="alert alert-info">
                     No calendars connected yet. Click the "Connect Calendar" button to get started.
                   </div>
-                  <div v-else>
-                    <p>Successfully connected to Google Calendar.</p>
-                    <!-- Optionally list calendars if fetched -->
-                    <!-- <ul class="list-group">
-                      <li v-for="calendar in connectedCalendars" :key="calendar.id" class="list-group-item d-flex justify-content-between align-items-center">
-                        {{ calendar.name }}
-                      </li>
-                    </ul> -->
-                  </div>
+                  <!-- Display connected calendars list -->
+                  <ul v-else class="list-group">
+                    <li v-for="calendar in connectedCalendars" :key="calendar.id" class="list-group-item d-flex justify-content-between align-items-center">
+                      {{ calendar.summary }} <!-- Assuming 'summary' is the calendar name -->
+                      <!-- Add buttons for selection/visibility if needed -->
+                    </li>
+                  </ul>
                 </div>
               </div>
             </div>
@@ -221,17 +226,13 @@
       </div>
     </div>
 
-    <!-- Connect Calendar Modal (No longer needed as button directly links) -->
-    <!-- <div class="modal fade" id="connectCalendarModal" tabindex="-1" ref="connectModal"> ... </div> -->
-
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-// Assuming Bootstrap's JS is loaded globally or imported
-// import { Modal, Tab } from 'bootstrap';
+import axios from 'axios'; // Import axios for API calls
 
 const route = useRoute();
 const router = useRouter();
@@ -242,16 +243,9 @@ const activeTab = ref('account'); // Default tab
 const googleSuccessMessage = ref('');
 const googleErrorMessage = ref('');
 
-// --- Form Data (Needs to be populated from store/API) ---
-const accountForm = reactive({
-  name: '',
-  email: ''
-});
-const passwordForm = reactive({
-  current_password: '',
-  password: '',
-  password_confirmation: ''
-});
+// --- Form Data ---
+const accountForm = reactive({ name: '', email: '' });
+const passwordForm = reactive({ current_password: '', password: '', password_confirmation: '' });
 const notificationForm = reactive({
   weekly_grade_email: true,
   planning_reminder: true,
@@ -259,21 +253,21 @@ const notificationForm = reactive({
   reminder_time: '18:00'
 });
 
-// --- Subscription Data (Needs to be populated from store/API) ---
+// --- Subscription Data ---
 const isSubscribed = ref(true); // Placeholder
 const nextBillingDate = ref('May 30, 2025'); // Placeholder
 const gradesRemaining = ref(0); // Placeholder
 const isCancelling = ref(false);
 
-// --- Calendar Data (Needs to be populated from store/API) ---
-const isGoogleConnected = ref(false); // Placeholder, fetch actual status
-const connectedCalendars = ref([]); // Placeholder e.g., [{ id: 1, name: 'Work Calendar' }]
+// --- Calendar Data ---
+const isGoogleConnected = ref(false); 
+const connectedCalendars = ref([]); 
+const isLoadingCalendars = ref(false);
+const calendarFetchError = ref('');
 
 // --- Modals Refs ---
 const cancelModal = ref(null);
-// const connectModal = ref(null); // No longer needed
 let bsCancelModal = null;
-// let bsConnectModal = null; // No longer needed
 
 // --- Methods ---
 function setActiveTab(tabName) {
@@ -284,40 +278,21 @@ function setActiveTab(tabName) {
 function clearGoogleMessages() {
   googleSuccessMessage.value = '';
   googleErrorMessage.value = '';
-  // Remove query params from URL without reloading
   router.replace({ query: {} }); 
 }
 
-async function updateAccount() {
-  console.log('Updating account:', accountForm);
-  // TODO: Call API to update account
-}
+async function updateAccount() { /* ... API call ... */ }
+async function updatePassword() { /* ... API call ... */ }
+async function updateNotifications() { /* ... API call ... */ }
 
-async function updatePassword() {
-  console.log('Updating password');
-  // TODO: Call API to update password
-}
-
-async function updateNotifications() {
-  console.log('Updating notifications:', notificationForm);
-  // TODO: Call API to update notifications
-}
-
-function openCancelModal() {
-  if (bsCancelModal) bsCancelModal.show();
-}
-
-function closeCancelModal() {
-  if (bsCancelModal) bsCancelModal.hide();
-}
+function openCancelModal() { if (bsCancelModal) bsCancelModal.show(); }
+function closeCancelModal() { if (bsCancelModal) bsCancelModal.hide(); }
 
 async function confirmCancelSubscription() {
   isCancelling.value = true;
-  console.log('Cancelling subscription...');
-  // TODO: Call API to cancel subscription
   try {
+    // TODO: Call API to cancel subscription
     await new Promise(resolve => setTimeout(resolve, 1500));
-    console.log('Subscription cancelled');
     isSubscribed.value = false;
     closeCancelModal();
   } catch (error) {
@@ -328,17 +303,18 @@ async function confirmCancelSubscription() {
 }
 
 function connectGoogleCalendar() {
-  // Redirect to the Laravel route that handles Google OAuth redirect
   window.location.href = '/google/redirect';
 }
 
 async function disconnectGoogleCalendar() {
   console.log('Disconnecting Google Calendar...');
-  // TODO: Call API to disconnect Google Calendar (/api/google/disconnect)
+  googleSuccessMessage.value = ''; // Clear previous messages
+  googleErrorMessage.value = '';
   try {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // TODO: Call API to disconnect Google Calendar (e.g., axios.post('/api/google/disconnect'))
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
     isGoogleConnected.value = false;
+    connectedCalendars.value = []; // Clear calendar list
     googleSuccessMessage.value = 'Google Calendar disconnected successfully.';
   } catch (error) {
     console.error('Failed to disconnect Google Calendar:', error);
@@ -346,18 +322,57 @@ async function disconnectGoogleCalendar() {
   }
 }
 
+// Fetch Google connection status and calendars
+async function fetchGoogleData() {
+  isLoadingCalendars.value = true;
+  calendarFetchError.value = '';
+  try {
+    // Check connection status first
+    const statusResponse = await axios.get('/api/google/check-connection');
+    isGoogleConnected.value = statusResponse.data.connected;
+
+    if (isGoogleConnected.value) {
+      // If connected, fetch the list of calendars
+      const calendarsResponse = await axios.get('/api/google/calendars');
+      // Ensure the response structure matches expectations
+      if (calendarsResponse.data && Array.isArray(calendarsResponse.data.calendars)) {
+         connectedCalendars.value = calendarsResponse.data.calendars;
+      } else {
+         console.error('Unexpected response structure for calendars:', calendarsResponse.data);
+         connectedCalendars.value = []; // Reset to empty array on unexpected structure
+         calendarFetchError.value = 'Could not load calendar list (unexpected format).';
+      }
+    } else {
+      connectedCalendars.value = []; // Ensure list is empty if not connected
+    }
+  } catch (error) {
+    console.error('Error fetching Google Calendar data:', error);
+    isGoogleConnected.value = false; // Assume not connected on error
+    connectedCalendars.value = [];
+    calendarFetchError.value = 'Could not load Google Calendar status or list. Please try again later.';
+    // Optionally display a more specific error if available from the response
+    if (error.response && error.response.data && error.response.data.error) {
+        calendarFetchError.value = `Error: ${error.response.data.error.message || 'Failed to load data.'}`;
+    }
+  } finally {
+    isLoadingCalendars.value = false;
+  }
+}
+
 // --- Watcher for Route Query Params ---
 watch(
   () => route.query,
-  (newQuery) => {
+  async (newQuery) => { // Make the watcher async
     if (newQuery.google_callback === 'success') {
       googleSuccessMessage.value = 'Google Calendar connected successfully!';
       isGoogleConnected.value = true; // Assume success means connected
+      await fetchGoogleData(); // Fetch calendars after successful connection
       // Optionally clear query params after showing message
       // setTimeout(clearGoogleMessages, 5000); 
     } else if (newQuery.google_callback === 'error') {
       googleErrorMessage.value = newQuery.message ? decodeURIComponent(newQuery.message) : 'An unknown error occurred during Google Calendar connection.';
       isGoogleConnected.value = false; // Assume error means not connected
+      connectedCalendars.value = []; // Clear calendars on error
       // Optionally clear query params after showing message
       // setTimeout(clearGoogleMessages, 5000);
     }
@@ -366,7 +381,7 @@ watch(
 );
 
 // --- Lifecycle Hooks ---
-onMounted(() => {
+onMounted(async () => { // Make onMounted async
   // Initialize Bootstrap modals
   if (window.bootstrap && cancelModal.value) {
       bsCancelModal = new window.bootstrap.Modal(cancelModal.value);
@@ -385,11 +400,13 @@ onMounted(() => {
       setActiveTab('calendar');
   }
 
-  // TODO: Fetch initial data (user, notifications, subscription, calendars, google connection status) from store/API
-  accountForm.name = 'Test User';
-  accountForm.email = 'test@example.com';
-  // Fetch actual connection status
-  // isGoogleConnected.value = await fetchGoogleConnectionStatus(); 
+  // Fetch initial data
+  // TODO: Fetch user, notifications, subscription data
+  accountForm.name = 'Test User'; // Placeholder
+  accountForm.email = 'test@example.com'; // Placeholder
+  
+  // Fetch Google connection status and calendars on load
+  await fetchGoogleData(); 
 });
 
 </script>
