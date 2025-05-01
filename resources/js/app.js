@@ -21,9 +21,9 @@ import '../css/bootstrap-custom.css';
 async function initializeApp() {
     try {
         // Fetch CSRF cookie from Sanctum before mounting the app
-        console.log('Fetching CSRF cookie from /sanctum/csrf-cookie...'); // DEBUG
+        console.log('[App Init] Fetching CSRF cookie from /sanctum/csrf-cookie...'); // DEBUG
         await window.axios.get('/sanctum/csrf-cookie');
-        console.log('CSRF cookie fetched successfully.'); // DEBUG
+        console.log('[App Init] CSRF cookie fetched successfully.'); // DEBUG
 
         // Create the Vue application instance
         const app = createApp(App);
@@ -32,17 +32,20 @@ async function initializeApp() {
         app.use(router);
         app.use(store); // Use the store
 
-        // Optionally, dispatch an action to fetch initial user data when the app loads
-        // store.dispatch('user/fetchUser'); // Assuming 'user' is the namespace
+        // Attempt to fetch initial user data when the app loads
+        // This helps establish the auth state before initial navigation guards run
+        console.log('[App Init] Dispatching initial user/fetchUser...'); // DEBUG
+        await store.dispatch('user/fetchUser'); // Assuming 'user' is the namespace
+        console.log('[App Init] Initial user/fetchUser completed.'); // DEBUG
 
         // Mount the application to the element with id="app"
         // Ensure your main Blade view (e.g., spa.blade.php) 
         // has <div id="app"></div> where the Vue app will be mounted.
         app.mount('#app');
-        console.log('Vue app mounted.'); // DEBUG
+        console.log('[App Init] Vue app mounted.'); // DEBUG
 
     } catch (error) {
-        console.error('Failed to fetch CSRF cookie or mount Vue app:', error);
+        console.error('[App Init] Failed to fetch CSRF cookie, fetch initial user, or mount Vue app:', error);
         // Handle error appropriately, maybe show a message to the user
         document.getElementById('app').innerHTML = '<div class="alert alert-danger">Failed to initialize the application. Please try refreshing the page.</div>';
     }

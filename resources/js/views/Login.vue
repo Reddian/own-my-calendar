@@ -91,17 +91,17 @@
             </div>
 
             <div class="auth-links">
-                <!-- Use Laravel named routes defined in web.php -->
+                <!-- Use Vue router links -->
                 <div class="forgot-password">
-                    <a href="/password/reset"> <!-- Assuming /password/reset is correct path -->
+                    <router-link :to="{ name: 'forgot-password' }"> 
                         <i class="fas fa-key me-1"></i>Forgot Your Password?
-                    </a>
+                    </router-link>
                 </div>
                 <div class="register-link">
                     <span>Don't have an account?</span>
-                    <a href="/register"> <!-- Assuming /register is correct path -->
+                    <router-link :to="{ name: 'register' }"> 
                         Create one
-                    </a>
+                    </router-link>
                 </div>
             </div>
         </form>
@@ -112,8 +112,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'; // Add onMounted
-import axios from 'axios';
+import { ref, reactive, onMounted, computed } from 'vue'; // Add computed
+import axios from 'axios'; // Keep axios for potential other uses, though login uses store
 import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 
@@ -131,50 +131,55 @@ const form = reactive({
   remember: false,
 });
 
-const loading = ref(false);
-const errorMessage = ref(''); // For general errors
-const errors = ref({}); // For specific field errors
+// Use computed properties to get loading state and errors from the store
+const loading = computed(() => store.state.user.loading);
+const errorMessage = ref(''); // Keep local ref for general message display
+const errors = ref({}); // Keep local ref for field-specific errors
+
+// Get store error state
+const storeError = computed(() => store.state.user.error);
 
 async function handleLogin() {
-  loading.value = true;
+  // Reset local errors before attempting login via store
   errorMessage.value = '';
   errors.value = {};
 
   try {
-    // Ensure CSRF cookie is set (already handled in app.js)
-    // await axios.get('/sanctum/csrf-cookie'); 
+    console.log('Dispatching user/login action with:', form.email); // DEBUG
+    // Dispatch the login action from the Vuex store
+    const loginSuccess = await store.dispatch('user/login', form);
     
-    console.log('Attempting login with:', form.email); // DEBUG
-    // Make the login request to a new API endpoint (to be created)
-    await axios.post('/api/login', form); // Changed from /login to /api/login
-    console.log('Login request successful'); // DEBUG
-
-    // Fetch user data after successful login
-    await store.dispatch("user/fetchUser"); // Fetch user data after successful login
-    console.log('Login successful, fetching user data...'); // DEBUG
-    // TODO: Implement fetchUser action in Vuex store
-
-    // Redirect to the dashboard or intended page
-    console.log('Redirecting to /home...'); // DEBUG
-    router.push('/home'); 
+    if (loginSuccess) {
+        console.log('Vuex login action successful, user state should be updated.'); // DEBUG
+        // Check verification status before redirecting
+        const user = store.state.user.user;
+        if (user && !user.email_verified_at) {
+            console.log('User not verified, redirecting to verification notice.'); // DEBUG
+            router.push({ name: 'verification.notice' });
+        } else {
+            console.log('User verified, redirecting to /home...'); // DEBUG
+            router.push('/home'); 
+        }
+    } else {
+        // This case might not be hit if the action throws an error, but included for completeness
+        errorMessage.value = storeError.value || 'Login failed unexpectedly.';
+    }
 
   } catch (error) {
-    console.error('Login failed:', error); // DEBUG
-    loading.value = false;
+    console.error('Login failed in component:', error); // DEBUG
+    // Handle errors thrown by the Vuex action
     if (error.response) {
       if (error.response.status === 422) {
-        // Validation errors
+        // Validation errors from backend
         errors.value = error.response.data.errors;
         errorMessage.value = error.response.data.message || 'Validation failed.';
-      } else if (error.response.status === 419) {
-        // CSRF token mismatch - should be less likely now
-        errorMessage.value = 'Your session expired. Please refresh the page and try again.';
       } else {
         // Other errors (e.g., invalid credentials)
         errorMessage.value = error.response.data.message || 'Login failed. Please check your credentials.';
       }
     } else {
-      errorMessage.value = 'An unexpected error occurred. Please try again.';
+      // Network errors or errors without a response
+      errorMessage.value = storeError.value || 'An unexpected error occurred. Please try again.';
     }
   }
 }
@@ -262,6 +267,22 @@ async function handleLogin() {
   border: 1px solid #ef5350; /* Red border for invalid */
 }
 
+/* Alert styling */
+.alert {
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+    color: white;
+    text-align: left;
+}
+
+.alert-danger {
+    color: #ffcdd2; /* Lighter red text */
+    background-color: rgba(239, 83, 80, 0.5); /* Semi-transparent red */
+    border-color: rgba(239, 83, 80, 0.7);
+}
+
 .btn-login {
   width: 100%;
   padding: 15px; /* From modern-login */
@@ -329,7 +350,8 @@ async function handleLogin() {
   gap: 15px; /* From auth-custom */
 }
 
-.forgot-password a {
+.forgot-password a,
+.register-link a {
   color: #ffd54f; /* From auth-custom */
   font-weight: 600;
   text-decoration: none;
@@ -340,7 +362,8 @@ async function handleLogin() {
   transition: all 0.3s ease;
 }
 
-.forgot-password a:hover {
+.forgot-password a:hover,
+.register-link a:hover {
   color: white; /* From auth-custom */
   text-decoration: underline;
 }
@@ -352,18 +375,6 @@ async function handleLogin() {
 
 .register-link span {
   margin-right: 5px;
-}
-
-.register-link a {
-  color: #ffd54f; /* From auth-custom */
-  font-weight: 600;
-  text-decoration: none;
-  transition: all 0.3s ease;
-}
-
-.register-link a:hover {
-  color: white; /* From auth-custom */
-  text-decoration: underline;
 }
 
 /* Tagline */
@@ -585,4 +596,3 @@ async function handleLogin() {
 }
 
 </style>
-
