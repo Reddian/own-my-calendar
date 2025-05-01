@@ -1,7 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\ForgotPasswordController;
+use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\VerificationController;
 use App\Http\Controllers\GoogleCalendarController;
 use App\Http\Controllers\StripeController;
 use App\Http\Controllers\CheckoutController;
@@ -17,17 +19,38 @@ use App\Http\Controllers\CheckoutController;
 |
 */
 
-// Authentication Routes (Disable default login routes, keep others)
-Auth::routes(["login" => false, "register" => true, "reset" => true, "verify" => true]);
+// --- Authentication Routes (Manually Defined) ---
 
-// Google Calendar OAuth Routes (Keep for backend integration)
+// Explicitly handle GET /login to serve the SPA view
+Route::get("/login", function () {
+    return view("spa");
+})->name("login");
+
+// Registration Routes (Assuming standard Blade views for now)
+Route::get("register", [RegisterController::class, "showRegistrationForm"])->name("register");
+Route::post("register", [RegisterController::class, "register"]);
+
+// Password Reset Routes (Assuming standard Blade views for now)
+Route::get("password/reset", [ForgotPasswordController::class, "showLinkRequestForm"])->name("password.request");
+Route::post("password/email", [ForgotPasswordController::class, "sendResetLinkEmail"])->name("password.email");
+Route::get("password/reset/{token}", [ForgotPasswordController::class, "showResetForm"])->name("password.reset"); // Changed controller
+Route::post("password/reset", [ForgotPasswordController::class, "reset"])->name("password.update"); // Changed controller
+
+// Email Verification Routes (Assuming standard Blade views for now)
+Route::get("email/verify", [VerificationController::class, "show"])->name("verification.notice");
+Route::get("email/verify/{id}/{hash}", [VerificationController::class, "verify"])->middleware(["signed", "throttle:6,1"])->name("verification.verify");
+Route::post("email/resend", [VerificationController::class, "resend"])->middleware(["auth", "throttle:6,1"])->name("verification.resend");
+
+// --- Other Web Routes ---
+
+// Google Calendar OAuth Routes
 Route::get("google/redirect", [GoogleCalendarController::class, "redirectToGoogle"])->name("google.redirect");
 Route::get("google/callback", [GoogleCalendarController::class, "handleGoogleCallback"])->name("google.callback");
 
-// Stripe Webhook (Keep for backend integration)
+// Stripe Webhook
 Route::post("stripe/webhook", [StripeController::class, "handleWebhook"])->name("stripe.webhook");
 
-// Checkout Routes (Keep for backend integration)
+// Checkout Routes
 Route::middleware(["auth"])->group(function () {
     Route::post("checkout", [CheckoutController::class, "checkout"])->name("checkout.checkout");
     Route::get("checkout/success", [CheckoutController::class, "success"])->name("checkout.success");
@@ -36,15 +59,9 @@ Route::middleware(["auth"])->group(function () {
     Route::post("checkout/create-portal-session", [CheckoutController::class, "createPortalSession"])->name("checkout.portal");
 });
 
-// API Routes (These should be in api.php, but ensure they exist for Vue app)
-// Example: Route::middleware("auth:sanctum")->get("/api/user", function (Request $request) { return $request->user(); });
-
-// Catch-all route for the Vue SPA
-// This route MUST be the last web route defined.
-// It serves the base SPA view for any non-API, non-specific web route.
-// Authentication is now handled by the Vue router guards.
+// --- SPA Catch-all Route (MUST be last) ---
 Route::get("/{any?}", function () {
-    return view("spa"); // Return the single blade file that hosts the Vue app
-})->where("any", ".*"); // Allows any path, including nested paths
+    return view("spa");
+})->where("any", ".*");
 
 
