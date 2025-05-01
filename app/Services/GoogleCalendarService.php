@@ -166,6 +166,8 @@ class GoogleCalendarService
         Log::info("[GoogleCalendarService] Storing token for user ID: {$userId}"); // DEBUG
         // Store the full token structure
         Cache::put("google_token_{$userId}", $accessToken, Carbon::now()->addDays(30)); // Store for 30 days
+        // Clear connection status cache whenever a new token is stored
+        $this->clearConnectionCache();
     }
     
     /**
@@ -228,6 +230,8 @@ class GoogleCalendarService
                         }
                         $this->storeToken($mergedToken); // Store the updated token
                         $this->client->setAccessToken($mergedToken); // Update client with refreshed token
+                        // Clear connection status cache after successful refresh
+                        $this->clearConnectionCache(); 
                         return true;
                     } catch (\Exception $e) {
                         Log::error("[GoogleCalendarService] Failed to refresh Google token: " . $e->getMessage()); // DEBUG
@@ -261,6 +265,19 @@ class GoogleCalendarService
             Log::info("[GoogleCalendarService] Clearing token for user ID: {$userId}"); // DEBUG
             Cache::forget("google_token_{$userId}");
             Cache::forget("google_calendar_connection_{$userId}"); // Also clear connection status cache
+        }
+    }
+
+    /**
+     * Clear the connection status cache for the current user.
+     */
+    protected function clearConnectionCache()
+    {
+        $user = Auth::user();
+        if ($user) {
+            $userId = $user->id;
+            Log::info("[GoogleCalendarService] Clearing connection status cache for user ID: {$userId}"); // DEBUG
+            Cache::forget("google_calendar_connection_{$userId}");
         }
     }
     

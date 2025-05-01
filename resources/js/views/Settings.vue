@@ -449,13 +449,8 @@ watch(() => route.query, (newQuery, oldQuery) => {
 // Watch for changes in the active tab
 watch(activeTab, (newTab, oldTab) => {
   if (newTab === 'calendar') {
-    // Fetch data only if not currently handling a google callback (which fetches separately)
-    if (!route.query.google_callback) {
-      console.log("Calendar tab activated, fetching data..."); // DEBUG
+    console.log("Calendar tab activated, fetching data..."); // DEBUG
       fetchGoogleData();
-    } else {
-      console.log("Calendar tab activated, but callback watcher will handle fetch."); // DEBUG
-    }
   }
 });
 
@@ -477,8 +472,8 @@ onMounted(() => {
   accountForm.name = 'John Doe'; 
   accountForm.email = 'john.doe@example.com'; 
 
-  // Initial fetch if calendar tab is active on mount AND not a callback
-  if (activeTab.value === 'calendar' && !route.query.google_callback) {
+  // Initial fetch if calendar tab is active on mount
+  if (activeTab.value === 'calendar') {
     console.log("Component mounted on Calendar tab, fetching data..."); // DEBUG
     fetchGoogleData();
   }
