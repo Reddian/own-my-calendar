@@ -183,10 +183,41 @@ class GoogleCalendarService
             return null;
         }
         $userId = $user->id;
+        $cacheKey = "google_token_{$userId}";
         Log::info("[GoogleCalendarService] Getting token for user ID: {$userId}"); // DEBUG
-        $token = Cache::get("google_token_{$userId}");
-        Log::info("[GoogleCalendarService] Token retrieved from cache for user {$userId}: " . ($token ? json_encode($token) : "null")); // DEBUG
-        return $token;
+        
+        // 1. Check cache first
+        $token = Cache::get($cacheKey);
+        if ($token) {
+            Log::info("[GoogleCalendarService] Token retrieved from cache for user {$userId}: " . json_encode($token)); // DEBUG
+            return $token;
+        }
+
+        Log::info("[GoogleCalendarService] Token not found in cache for user {$userId}, checking database..."); // DEBUG
+
+        // 2. If not in cache, check the database (e.g., from the first available calendar record)
+        $calendarRecord = $user->calendars()->whereNotNull("access_token")->orderBy("updated_at", "desc")->first();
+
+        if ($calendarRecord && $calendarRecord->access_token) {
+            try {
+                $token = json_decode($calendarRecord->access_token, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($token)) {
+                    Log::info("[GoogleCalendarService] Token retrieved from database for user {$userId}: " . json_encode($token)); // DEBUG
+                    // 3. Store it back in cache for future requests
+                    // Use a reasonable duration, maybe shorter than the original 30 days if fetched from DB
+                    Cache::put($cacheKey, $token, Carbon::now()->addHours(1)); 
+                    return $token;
+                } else {
+                    Log::error("[GoogleCalendarService] Failed to decode token from database for user {$userId}. JSON Error: " . json_last_error_msg()); // DEBUG
+                }
+            } catch (\Exception $e) {
+                 Log::error("[GoogleCalendarService] Exception decoding token from database for user {$userId}: " . $e->getMessage()); // DEBUG
+            }
+        }
+
+        Log::warning("[GoogleCalendarService] Token not found in cache or database for user {$userId}."); // DEBUG
+        // 4. If not found in cache or database, return null
+        return null;
     }
     
     /**
