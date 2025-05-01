@@ -1,7 +1,7 @@
 import 'bootstrap/dist/css/bootstrap.min.css';
 
-// Import Font Awesome CSS (Consider installing via npm if preferred)
-import '@fortawesome/fontawesome-free/css/all.min.css'; // Assuming installed via npm
+// Import Font Awesome CSS
+import '@fortawesome/fontawesome-free/css/all.min.css'; // Correct path confirmed
 
 import './bootstrap'; // If bootstrap.js setup is needed (e.g., for Axios CSRF header)
 import { createApp } from 'vue';
