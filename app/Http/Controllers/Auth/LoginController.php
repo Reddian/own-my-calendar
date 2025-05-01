@@ -60,20 +60,23 @@ class LoginController extends Controller
             "password" => "required|string",
         ]);
 
-        // Attempt to log the user in
+        // Attempt to log the user in using the 'web' guard for session-based auth
         if (Auth::guard("web")->attempt(
             $request->only($this->username(), "password"), 
             $request->filled("remember")
         )) {
+            // Regenerate session ID to prevent session fixation
             $request->session()->regenerate();
-            Log::info("API Login successful", ["user_id" => Auth::id()]); // DEBUG
+            Log::info("API Login successful", ["user_id" => Auth::guard("web")->id()]); // DEBUG
             
-            // Return the authenticated user
-            return response()->json(Auth::user()); 
+            // IMPORTANT: Return a JSON response, NOT a redirect.
+            // The SPA will handle fetching user data and redirection.
+            return response()->json(["message" => "Login successful"], 200); 
         }
 
         Log::warning("API Login failed", ["email" => $request->email]); // DEBUG
         // If the login attempt was unsuccessful, throw validation exception
+        // This will automatically be converted to a 422 JSON response by Laravel
         throw ValidationException::withMessages([
             $this->username() => [trans("auth.failed")],
         ]);
