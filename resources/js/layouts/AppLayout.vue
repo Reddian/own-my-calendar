@@ -121,14 +121,30 @@ function toggleMenu() {
 async function logout() {
   console.log("Logout action triggered");
   try {
-    // Make a POST request to Laravel's logout route
-    await axios.post("/logout");
+    console.log("Attempting axios.post(\"/logout\")..."); // DEBUG
+    const response = await axios.post("/logout");
+    console.log("Logout request successful:", response); // DEBUG
     // On successful logout, redirect to the login page
+    console.log("Redirecting to /login..."); // DEBUG
     window.location.href = "/login"; // Use window.location for a full page reload to clear SPA state
   } catch (error) {
-    console.error("Logout failed:", error);
+    console.error("Logout failed:", error); // DEBUG
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error("Logout error response data:", error.response.data); // DEBUG
+      console.error("Logout error response status:", error.response.status); // DEBUG
+      console.error("Logout error response headers:", error.response.headers); // DEBUG
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error("Logout error request:", error.request); // DEBUG
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.error("Logout error message:", error.message); // DEBUG
+    }
+    console.error("Logout error config:", error.config); // DEBUG
     // Optionally show an error message to the user
-    alert("Logout failed. Please try again.");
+    alert("Logout failed. Please check the console for details.");
   }
 }
 
