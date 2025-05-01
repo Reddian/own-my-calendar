@@ -122,7 +122,7 @@ async function logout() {
   console.log("Logout action triggered");
   try {
     console.log("Attempting axios.post(\"/logout\")..."); // DEBUG
-    const response = await axios.post("/logout");
+    const response = await axios.post("/api/logout");
     console.log("Logout request successful:", response); // DEBUG
     // On successful logout, redirect to the login page
     console.log("Redirecting to /login..."); // DEBUG

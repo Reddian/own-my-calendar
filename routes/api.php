@@ -3,7 +3,11 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Middleware\VerifyCsrfToken; // Import VerifyCsrfToken
-use App\Http\Controllers\Auth\LoginController; // Import LoginController
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\RegisterController; // Import RegisterController
+use App\Http\Controllers\Auth\ForgotPasswordController; // Import ForgotPasswordController
+use App\Http\Controllers\Auth\ResetPasswordController; // Import ResetPasswordController
+use App\Http\Controllers\Auth\VerificationController; // Import VerificationController
 use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\CalendarGradeController;
 use App\Http\Controllers\OnboardingController;
@@ -26,10 +30,23 @@ use App\Http\Controllers\ExtensionController;
 |
 */
 
-// Public API routes (like login)
-Route::post("/login", [LoginController::class, "apiLogin"]); // Add API login route
+// Public Authentication API routes
+Route::post("/login", [LoginController::class, "apiLogin"]);
+Route::post("/register", [RegisterController::class, "apiRegister"]); // Add API register route
+Route::post("/password/email", [ForgotPasswordController::class, "sendResetLinkEmailApi"]); // Add API forgot password route
+Route::post("/password/reset", [ResetPasswordController::class, "resetApi"]); // Add API reset password route
 
+// Routes requiring authentication (Sanctum)
 Route::middleware("auth:sanctum")->group(function () {
+    // Logout
+    Route::post("/logout", [LoginController::class, "apiLogout"]);
+
+    // Email Verification
+    // Note: Verification routes might need specific middleware from Laravel Breeze/UI if used
+    Route::post("/email/resend", [VerificationController::class, "resendApi"])->name("verification.resend.api"); // Add API resend verification route
+    // Laravel's default verification routes often include signed URLs, which might need adjustments for API usage.
+    // Route::get("/email/verify/{id}/{hash}", [VerificationController::class, "verify"])->name("verification.verify"); // Example if needed
+
     // User profile routes
     Route::get("/profile", [UserProfileController::class, "index"]);
     Route::post("/profile", [UserProfileController::class, "store"]);
@@ -77,7 +94,7 @@ Route::middleware("auth:sanctum")->group(function () {
     Route::get("/subscription/can-grade", [SubscriptionController::class, "canGradeCalendar"]);
     Route::post("/subscription/increment-grades", [SubscriptionController::class, "incrementGradesUsed"]);
 
-    // Google Calendar Routes
+    // Google Calendar Routes (Refactored)
     Route::prefix("calendars")->group(function () {
         Route::get("/", [GoogleCalendarController::class, "getCalendars"]);
         Route::get("/auth", [GoogleCalendarController::class, "getAuthUrl"]);
@@ -103,15 +120,13 @@ Route::middleware("auth:sanctum")->group(function () {
     Route::post("/extension/features", [ExtensionController::class, "updateFeature"]);
     Route::post("/extension/settings", [ExtensionController::class, "updateSetting"]);
 
-    // User route (already exists)
+    // User route
     Route::get("/user", function (Request $request) {
         return $request->user();
     });
 
-    // Add API logout route
-    Route::post("/logout", [LoginController::class, "apiLogout"]);
 });
 
 // Note: The /user route was moved inside the auth:sanctum group for consistency
-// The /api/login route is outside the auth:sanctum group
+
 
