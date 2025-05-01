@@ -4,6 +4,10 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use Illuminate\Http\Request; // Add Request
+use Illuminate\Support\Facades\Auth; // Add Auth
+use Illuminate\Validation\ValidationException; // Add ValidationException
+use Illuminate\Support\Facades\Log; // Add Log for debugging
 
 class LoginController extends Controller
 {
@@ -21,11 +25,11 @@ class LoginController extends Controller
     use AuthenticatesUsers;
 
     /**
-     * Where to redirect users after login.
+     * Where to redirect users after login (for traditional web routes, if any remain).
      *
      * @var string
      */
-    protected $redirectTo = '/';
+    protected $redirectTo = "/";
 
     /**
      * Create a new controller instance.
@@ -34,7 +38,67 @@ class LoginController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('guest')->except('logout');
-        $this->middleware('auth')->only('logout');
+        // Apply guest middleware to apiLogin, allow auth middleware for apiLogout
+        $this->middleware("guest")->except(["logout", "apiLogout"]); 
+        $this->middleware("auth:sanctum")->only("apiLogout"); // Use sanctum guard for API logout
     }
+
+    /**
+     * Handle a login request from the API (Vue component).
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response|\Illuminate\Http\JsonResponse
+     *
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    public function apiLogin(Request $request)
+    {
+        Log::info("API Login attempt", ["email" => $request->email]); // DEBUG
+
+        $request->validate([
+            $this->username() => "required|string",
+            "password" => "required|string",
+        ]);
+
+        // Attempt to log the user in
+        if (Auth::guard("web")->attempt(
+            $request->only($this->username(), "password"), 
+            $request->filled("remember")
+        )) {
+            $request->session()->regenerate();
+            Log::info("API Login successful", ["user_id" => Auth::id()]); // DEBUG
+            
+            // Return the authenticated user
+            return response()->json(Auth::user()); 
+        }
+
+        Log::warning("API Login failed", ["email" => $request->email]); // DEBUG
+        // If the login attempt was unsuccessful, throw validation exception
+        throw ValidationException::withMessages([
+            $this->username() => [trans("auth.failed")],
+        ]);
+    }
+
+    /**
+     * Log the user out of the application via API request.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response|\Illuminate\Http\JsonResponse
+     */
+    public function apiLogout(Request $request)
+    {
+        Log::info("API Logout attempt", ["user_id" => Auth::id()]); // DEBUG
+        Auth::guard("web")->logout();
+
+        $request->session()->invalidate();
+
+        $request->session()->regenerateToken();
+
+        Log::info("API Logout successful"); // DEBUG
+        return response()->json(["message" => "Logged out successfully."], 204); // 204 No Content is often used for successful logout
+    }
+
+    // Note: The standard logout method from AuthenticatesUsers trait is still available
+    // if needed for any remaining traditional web routes, but apiLogout handles the SPA.
 }
+

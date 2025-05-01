@@ -1,7 +1,5 @@
 import { createStore } from 'vuex';
-
-// Import modules if you create them (e.g., user module)
-// import user from './modules/user';
+import axios from 'axios'; // Ensure axios is imported
 
 // Placeholder for a simple user module directly in the main store
 const userModule = {
@@ -29,24 +27,14 @@ const userModule = {
     },
   },
   actions: {
-    // Example action to fetch user data (e.g., after login or on app load)
+    // Action to fetch user data (e.g., after login or on app load)
     async fetchUser({ commit }) {
       commit('SET_LOADING', true);
       commit('SET_ERROR', null);
       try {
-        // Replace with your actual API call to get user data
-        // const response = await axios.get('/api/user');
-        // const user = response.data;
-        
-        // Placeholder user data
-        const user = {
-          id: 1,
-          name: 'Test User',
-          email: 'test@example.com',
-          isSubscribed: true, // Example property
-          // Add other relevant user properties
-        };
-        
+        // Use the standard Sanctum endpoint to get the authenticated user
+        const response = await axios.get('/api/user'); 
+        const user = response.data;
         commit('SET_USER', user);
       } catch (error) {
         console.error('Error fetching user:', error);
@@ -56,25 +44,51 @@ const userModule = {
         commit('SET_LOADING', false);
       }
     },
-    // Example logout action
-    async logout({ commit }) {
+
+    // Login action
+    async login({ commit, dispatch }, credentials) {
       commit('SET_LOADING', true);
       commit('SET_ERROR', null);
       try {
-        // Replace with your actual API call to logout
-        // await axios.post('/logout');
-        console.log('Simulating logout...');
-        commit('CLEAR_USER');
-        // Optionally redirect using the router instance if needed
-        // router.push('/login'); 
+        // Ensure CSRF cookie is set (should be handled by app.js)
+        // await axios.get('/sanctum/csrf-cookie'); 
+        
+        // Make the login request
+        await axios.post('/api/login', credentials);
+        
+        // If login is successful, fetch the user data
+        await dispatch('fetchUser'); 
+        return true; // Indicate success
       } catch (error) {
-        console.error('Error logging out:', error);
-        commit('SET_ERROR', 'Logout failed.');
+        console.error('Error logging in:', error);
+        const errorMessage = error.response?.data?.message || 'Login failed. Please check your credentials.';
+        commit('SET_ERROR', errorMessage);
+        commit('CLEAR_USER');
+        // Re-throw the error so the component can handle UI updates (like showing validation errors)
+        throw error; 
       } finally {
         commit('SET_LOADING', false);
       }
     },
-    // Add other actions like login, register, updateProfile, etc.
+
+    // Logout action
+    async logout({ commit }) {
+      commit('SET_LOADING', true);
+      commit('SET_ERROR', null);
+      try {
+        // Use the API logout route
+        await axios.post('/api/logout'); 
+        commit('CLEAR_USER');
+        // Redirect happens in the component after dispatching this action
+      } catch (error) {
+        console.error('Error logging out:', error);
+        commit('SET_ERROR', 'Logout failed.');
+        // Even if logout API fails, clear user state on frontend
+        commit('CLEAR_USER'); 
+      } finally {
+        commit('SET_LOADING', false);
+      }
+    },
   },
   getters: {
     getUser: (state) => state.user,

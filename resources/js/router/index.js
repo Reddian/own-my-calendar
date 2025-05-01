@@ -3,14 +3,15 @@ import { createRouter, createWebHistory } from 'vue-router';
 // Layouts
 import AppLayout from '../layouts/AppLayout.vue';
 
-// Views (dynamically imported for lazy loading)
+// Views (dynamically imported for lazy// Views (dynamically imported)
 const Home = () => import("../views/Home.vue");
 const Calendar = () => import("../views/Calendar.vue");
 const History = () => import("../views/History.vue");
 const Settings = () => import("../views/Settings.vue");
 const Extension = () => import("../views/Extension.vue");
-const Terms = () => import("../views/Terms.vue"); // Added Terms import
-const Privacy = () => import("../views/Privacy.vue"); // Added Privacy import
+const Terms = () => import("../views/Terms.vue");
+const Privacy = () => import("../views/Privacy.vue");
+const Login = () => import("../views/Login.vue"); // Add Login component import // Added Privacy import
 // Add imports for other views like Subscription etc. as they are created
 // const Subscription = () => import("../views/Subscription.vue");
 
@@ -71,20 +72,19 @@ const routes = [
       //   component: Subscription,
       // },
     ]
+  },  // Add routes for authentication if needed (outside the main layout)
+  {
+    path: "/login", // Fixed formatting
+    name: "login",
+    component: Login,
+    meta: { requiresGuest: true } // Add meta field for guest guard
   },
-  // Add routes for authentication if needed (outside the main layout)
   // {
-  //   path: '/login',
-  //   name: 'login',
-  //   component: Login,
-  // },
-  // {
-  //   path: '/register',
-  //   name: 'register',
+  //   path: 
+      "/register",
+  //   name: "register",
   //   component: Register,
-  // },
-
-  // Catch-all route for 404 Not Found
+  // },all route for 404 Not Found
   // { 
   //   path: '/:pathMatch(.*)*', 
   //   name: 'NotFound', 
