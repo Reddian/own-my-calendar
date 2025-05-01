@@ -1,5 +1,8 @@
 <template>
-  <div class="container">
+  <div class="container page-container">
+    <!-- Page Heading -->
+    <h1 class="page-heading">Settings</h1>
+
     <div class="row justify-content-center">
       <div class="col-md-10">
         <!-- Alert Messages for Google Calendar Callback -->
@@ -17,12 +20,10 @@
           <button type="button" class="btn-close" @click="generalErrorMessage = ''" aria-label="Close"></button>
         </div>
 
-        <div class="card">
-          <div class="card-header">
-            <h1>Settings</h1>
-          </div>
+        <div class="card settings-card">
+          <!-- Card Header removed, heading is now above -->
           <div class="card-body">
-            <ul class="nav nav-tabs" id="settingsTabs" role="tablist">
+            <ul class="nav nav-tabs settings-tabs" id="settingsTabs" role="tablist">
               <!-- Tabs remain the same -->
               <li class="nav-item" role="presentation">
                 <button class="nav-link" :class="{ active: activeTab === 'account' }" @click="setActiveTab('account')" type="button">Account</button>
@@ -38,7 +39,7 @@
               </li>
             </ul>
 
-            <div class="tab-content p-3" id="settingsTabsContent">
+            <div class="tab-content pt-3 settings-tab-content" id="settingsTabsContent">
               <!-- Account Settings -->
               <div class="tab-pane fade" :class="{ 'show active': activeTab === 'account' }">
                 <!-- Account form remains the same -->
@@ -318,207 +319,209 @@ async function confirmCancelSubscription() {
     closeCancelModal();
   } catch (error) {
     console.error('Failed to cancel subscription:', error);
+    // TODO: Show error message to user
   } finally {
     isCancelling.value = false;
   }
 }
 
-function connectGoogleCalendar() {
-  window.location.href = '/google/redirect';
+async function connectGoogleCalendar() {
+  try {
+    const response = await axios.get('/api/calendars/auth');
+    window.location.href = response.data.authUrl;
+  } catch (error) {
+    console.error('Error getting Google auth URL:', error);
+    generalErrorMessage.value = 'Failed to initiate Google Calendar connection. Please try again.';
+  }
 }
 
 async function disconnectGoogleCalendar() {
-  console.log('Disconnecting Google Calendar...');
-  googleSuccessMessage.value = ''; // Clear previous messages
-  googleErrorMessage.value = '';
-  generalErrorMessage.value = '';
   try {
-    // TODO: Call API to disconnect Google Calendar (e.g., axios.post('/api/google/disconnect'))
-    await axios.post('/api/calendars/disconnect-all'); // Assuming an endpoint to disconnect all
+    // Assuming a single disconnect endpoint for simplicity now
+    await axios.post('/api/calendars/disconnect-all'); 
     isGoogleConnected.value = false;
-    connectedCalendars.value = []; // Clear calendar list
+    connectedCalendars.value = [];
     googleSuccessMessage.value = 'Google Calendar disconnected successfully.';
   } catch (error) {
-    console.error('Failed to disconnect Google Calendar:', error);
-    googleErrorMessage.value = 'Failed to disconnect Google Calendar. Please try again.';
+    console.error('Error disconnecting Google Calendar:', error);
+    generalErrorMessage.value = 'Failed to disconnect Google Calendar. Please try again.';
   }
 }
 
-// Fetch Google connection status and calendars
 async function fetchGoogleData() {
   isLoadingCalendars.value = true;
   calendarFetchError.value = '';
-  console.log("Starting fetchGoogleData..."); // DEBUG
   try {
-    // Check connection status first
-    console.log("Checking connection status at /api/calendars/check-connection..."); // DEBUG
-    const statusResponse = await axios.get("/api/calendars/check-connection");
-    console.log("Connection status response:", statusResponse); // DEBUG
-    isGoogleConnected.value = statusResponse.data.connected;
-    console.log("isGoogleConnected value before IF:", isGoogleConnected.value); // DEBUG
+    console.log('Settings.vue: Fetching Google connection status...');
+    const connectionStatusResponse = await axios.get('/api/calendars/check-connection');
+    isGoogleConnected.value = connectionStatusResponse.data.isConnected;
+    console.log('Settings.vue: Connection status:', isGoogleConnected.value);
 
     if (isGoogleConnected.value) {
-      console.log("Inside IF block (isGoogleConnected is true)"); // DEBUG
-      // If connected, fetch the list of calendars
-      try {
-        console.log("Attempting to fetch calendar list from /api/calendars..."); // DEBUG
-        const calendarsResponse = await axios.get("/api/calendars");
-        console.log("Calendar list response:", calendarsResponse); // DEBUG
-        
-        // Check if the response structure is as expected
-        if (calendarsResponse.data && Array.isArray(calendarsResponse.data.calendars)) {
-          connectedCalendars.value = calendarsResponse.data.calendars;
-          console.log("Connected calendars set:", connectedCalendars.value); // DEBUG
-        } else {
-          console.error("Unexpected response structure for calendar list:", calendarsResponse.data); // DEBUG
-          calendarFetchError.value = "Could not parse calendar list from server.";
-          connectedCalendars.value = []; // Clear list on error
-        }
-      } catch (listError) {
-        console.error("Error fetching calendar list:", listError); // DEBUG
-        calendarFetchError.value = "Could not load Google Calendar list. Please try again later.";
-        connectedCalendars.value = []; // Clear list on error
-      }
+      console.log('Settings.vue: Fetching connected calendars...');
+      const calendarsResponse = await axios.get('/api/calendars');
+      connectedCalendars.value = calendarsResponse.data;
+      console.log('Settings.vue: Fetched calendars:', connectedCalendars.value);
     } else {
-      console.log("Outside IF block (isGoogleConnected is false), clearing calendar list."); // DEBUG
-      connectedCalendars.value = []; // Clear list if not connected
+      connectedCalendars.value = [];
+      console.log('Settings.vue: Google not connected, clearing calendars.');
     }
   } catch (error) {
-    console.error("Error checking Google connection status:", error); // DEBUG
-    calendarFetchError.value = "Could not load Google Calendar status. Please try again later.";
-    isGoogleConnected.value = false;
-    connectedCalendars.value = []; // Clear list on error
+    console.error('Error fetching Google Calendar data:', error);
+    calendarFetchError.value = 'Failed to load calendar data. Please try reconnecting your calendar or refresh the page.';
+    // Don't assume disconnected on error, could be temporary API issue
+    // isGoogleConnected.value = false; 
+    // connectedCalendars.value = [];
   } finally {
     isLoadingCalendars.value = false;
-    console.log("Finished fetchGoogleData."); // DEBUG
   }
 }
 
-// Toggle calendar selection
 async function toggleCalendarSelection(calendar) {
   const newSelectionState = !calendar.is_selected;
-  const calendarId = calendar.id;
-  console.log(`Toggling selection for calendar ${calendarId} to ${newSelectionState}`);
-  generalErrorMessage.value = ''; // Clear previous errors
-
+  console.log(`Toggling calendar ${calendar.id} (${calendar.summary}) selection to ${newSelectionState}`);
+  
   // Optimistically update UI
-  const calendarIndex = connectedCalendars.value.findIndex(c => c.id === calendarId);
-  if (calendarIndex !== -1) {
-    connectedCalendars.value[calendarIndex].is_selected = newSelectionState;
-  }
+  const originalState = calendar.is_selected;
+  calendar.is_selected = newSelectionState;
 
   try {
-    await axios.post('/api/calendars/update-selection', {
-      calendar_id: calendarId,
-      is_selected: newSelectionState
+    await axios.post('/api/calendars/selection', {
+      calendarId: calendar.id,
+      isSelected: newSelectionState
     });
-    console.log(`Successfully updated selection for calendar ${calendarId}`);
-    // Optionally show a success message
+    console.log(`Successfully updated selection for calendar ${calendar.id}`);
   } catch (error) {
-    console.error(`Failed to update selection for calendar ${calendarId}:`, error);
-    generalErrorMessage.value = `Failed to update selection for ${calendar.summary}. Please try again.`;
-    // Revert UI on error
-    if (calendarIndex !== -1) {
-      connectedCalendars.value[calendarIndex].is_selected = !newSelectionState;
-    }
+    console.error('Error updating calendar selection:', error);
+    // Revert optimistic update on error
+    calendar.is_selected = originalState;
+    generalErrorMessage.value = `Failed to update selection for calendar '${calendar.summary}'. Please try again.`;
   }
 }
 
-
-// Watch for Google callback query parameters
-watch(() => route.query, (newQuery, oldQuery) => {
-  // Only react if the google_callback parameter actually changes or appears
-  if (newQuery.google_callback && newQuery.google_callback !== oldQuery.google_callback) {
-      console.log("Query parameters changed with google_callback:", newQuery); // DEBUG
-      if (newQuery.google_callback === 'success') {
-          googleSuccessMessage.value = 'Google Calendar connected successfully!';
-          setActiveTab('calendar'); // Switch to calendar tab on success
-          console.log("Google callback success, fetching data via query watcher..."); // DEBUG
-          fetchGoogleData(); // Re-fetch data after successful connection
-      } else if (newQuery.google_callback === 'error') {
-          googleErrorMessage.value = newQuery.message || 'Failed to connect Google Calendar.';
-          setActiveTab('calendar'); // Switch to calendar tab even on error
-          console.log("Google callback error, fetching data via query watcher..."); // DEBUG
-          fetchGoogleData(); // Re-fetch data even on error to update status
-      }
-      // Clear the query params after handling them
-      router.replace({ query: {} });
-  }
-}, { deep: true });
-
-// Watch for changes in the active tab
-watch(activeTab, (newTab, oldTab) => {
-  if (newTab === 'calendar') {
-    console.log("Calendar tab activated, fetching data..."); // DEBUG
-      fetchGoogleData();
-  }
-});
-
+// --- Lifecycle Hooks ---
 onMounted(() => {
+  console.log('Settings.vue mounted');
   // Initialize Bootstrap modal
   if (cancelModal.value) {
     bsCancelModal = new Modal(cancelModal.value);
   }
 
+  // Check for Google callback query parameters
+  if (route.query.google_success) {
+    googleSuccessMessage.value = route.query.google_success;
+  }
+  if (route.query.google_error) {
+    googleErrorMessage.value = route.query.google_error;
+  }
+
   // Set active tab based on hash
   if (route.hash) {
-    const tabName = route.hash.substring(1);
-    if (['account', 'notifications', 'subscription', 'calendar'].includes(tabName)) {
-      activeTab.value = tabName;
+    const hashTab = route.hash.substring(1);
+    const validTabs = ['account', 'notifications', 'subscription', 'calendar'];
+    if (validTabs.includes(hashTab)) {
+      activeTab.value = hashTab;
     }
   }
 
-  // Fetch initial non-calendar data (placeholders)
-  accountForm.name = 'John Doe'; 
-  accountForm.email = 'john.doe@example.com'; 
-
-  // Initial fetch if calendar tab is active on mount
-  if (activeTab.value === 'calendar') {
-    console.log("Component mounted on Calendar tab, fetching data..."); // DEBUG
-    fetchGoogleData();
-  }
-  console.log("Component mounted."); // DEBUG
+  // Fetch initial data
+  fetchGoogleData();
+  // TODO: Fetch account, notification, subscription data
 });
 
-// Remove the old route.name watcher
-/*
-watch(
-  () => route.name,
-  (newName) => {
-    if (newName === 'Settings') {
-      console.log("Entered Settings route (route.name watcher), fetching data..."); // DEBUG
-      // Check if we need to avoid fetch due to callback query param
-      if (!route.query.google_callback) {
-         fetchGoogleData();
-      } else {
-         console.log("Google callback detected, fetch will be handled by query watcher."); // DEBUG
-         // The query watcher should still trigger fetchGoogleData
-      }
-    }
-  },
-  { immediate: true } // Run immediately when component is setup/mounted
-);
-*/
+// Watch for route query changes (e.g., after Google redirect)
+watch(() => route.query, (newQuery) => {
+  if (newQuery.google_success) {
+    googleSuccessMessage.value = newQuery.google_success;
+    fetchGoogleData(); // Re-fetch data after successful connection
+  }
+  if (newQuery.google_error) {
+    googleErrorMessage.value = newQuery.google_error;
+  }
+});
 
 </script>
 
 <style scoped>
-/* Add any specific styles for the settings page here */
+/* Add custom styles if needed */
+.page-container {
+  padding-top: 2rem; /* Add padding if heading is moved outside card */
+  padding-bottom: 2rem;
+}
+
+.page-heading {
+  margin-bottom: 1.5rem; /* Space below heading */
+  color: var(--dark-blue); /* Use consistent heading color */
+  font-weight: 600; /* Make heading bolder */
+}
+
+.settings-card {
+  /* Add any specific card styling if needed */
+  background-color: #fff; /* Ensure card background is white */
+  box-shadow: var(--shadow);
+  border: none; /* Remove default border if any */
+}
+
+.settings-tabs {
+  border-bottom: 1px solid #dee2e6; /* Standard Bootstrap border */
+  margin-bottom: 1rem; /* Space below tabs */
+}
+
+.settings-tabs .nav-item {
+  margin-bottom: -1px; /* Align bottom border */
+}
+
+.settings-tabs .nav-link {
+  border: none; /* Remove individual borders */
+  border-top-left-radius: 0.375rem; /* Match card radius */
+  border-top-right-radius: 0.375rem;
+  color: var(--dark-blue); /* Use a standard text color */
+  background-color: transparent;
+  padding: 0.75rem 1.25rem; /* Adjust padding */
+  font-weight: 500;
+  transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+}
+
+.settings-tabs .nav-link:hover,
+.settings-tabs .nav-link:focus {
+  border-color: transparent; /* No border on hover/focus */
+  color: var(--primary-purple); /* Highlight color on hover */
+}
+
+.settings-tabs .nav-link.active {
+  color: var(--primary-purple); /* Active tab color */
+  background-color: #fff; /* Ensure active tab background matches card */
+  border-bottom: 2px solid var(--primary-purple); /* Add bottom border for active state */
+  font-weight: 600;
+}
+
+.settings-tab-content {
+  /* Add padding or other styles for the content area */
+  padding-top: 1rem; /* Add some space above content */
+}
+
+.settings-tab-content h3 {
+    font-size: 1.25rem; /* Slightly smaller headings within tabs */
+    font-weight: 600;
+    color: var(--dark-blue);
+    margin-bottom: 1rem;
+}
+
 .subscription-status {
   display: flex;
   align-items: center;
   padding: 1rem;
-  border-radius: 0.375rem; /* Bootstrap default */
+  border-radius: 0.375rem; /* Bootstrap's default */
 }
 
 .subscription-status.active {
-  background-color: #e9f7ef; /* Light green */
-  border: 1px solid #d1e7dd; /* Bootstrap success border */
+  background-color: #e9f5e9; /* Light green background */
+  border: 1px solid #a5d6a7; /* Green border */
 }
 
 .subscription-status.inactive {
-  background-color: #f8f9fa; /* Bootstrap light gray */
-  border: 1px solid #dee2e6; /* Bootstrap default border */
+  background-color: #e3f2fd; /* Light blue background */
+  border: 1px solid #90caf9; /* Blue border */
 }
 
 .status-icon {
@@ -527,11 +530,24 @@ watch(
 }
 
 .subscription-status.active .status-icon {
-  color: #198754; /* Bootstrap success color */
+  color: #4caf50; /* Green icon */
 }
 
 .subscription-status.inactive .status-icon {
-  color: #6c757d; /* Bootstrap secondary color */
+  color: #2196f3; /* Blue icon */
+}
+
+.status-details h4 {
+  margin-bottom: 0.25rem;
+}
+
+.status-details p {
+  margin-bottom: 0;
+}
+
+.subscription-benefits {
+  list-style: none;
+  padding-left: 0;
 }
 
 .subscription-benefits li {
@@ -543,16 +559,15 @@ watch(
 }
 
 .connected-calendars {
-  margin-top: 1.5rem;
+  margin-top: 2rem;
 }
 
-.list-group-item .form-check-input {
-  cursor: pointer;
-}
-
-.list-group-item .form-check-label {
-  cursor: pointer;
-  margin-left: 0.5rem;
+.list-group-item span[style*="color"] {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin-right: 0.5em;
+  vertical-align: middle;
+  border: 1px solid rgba(0,0,0,0.2);
 }
 </style>
-
