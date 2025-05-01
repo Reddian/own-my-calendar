@@ -4,15 +4,15 @@ import { createRouter, createWebHistory } from 'vue-router';
 import AppLayout from '../layouts/AppLayout.vue';
 
 // Views (dynamically imported for lazy loading)
-const Home = () => import('../views/Home.vue');
-const Calendar = () => import('../views/Calendar.vue');
-const History = () => import('../views/History.vue');
-const Settings = () => import('../views/Settings.vue');
-// Add imports for other views like Extension, Subscription, Terms, Privacy etc. as they are created
-// const Extension = () => import('../views/Extension.vue');
-// const Subscription = () => import('../views/Subscription.vue');
-// const Terms = () => import('../views/Terms.vue');
-// const Privacy = () => import('../views/Privacy.vue');
+const Home = () => import("../views/Home.vue");
+const Calendar = () => import("../views/Calendar.vue");
+const History = () => import("../views/History.vue");
+const Settings = () => import("../views/Settings.vue");
+const Extension = () => import("../views/Extension.vue");
+const Terms = () => import("../views/Terms.vue"); // Added Terms import
+const Privacy = () => import("../views/Privacy.vue"); // Added Privacy import
+// Add imports for other views like Subscription etc. as they are created
+// const Subscription = () => import("../views/Subscription.vue");
 
 // Placeholder for Auth views if needed later
 // const Login = () => import('../views/auth/Login.vue');
@@ -50,25 +50,25 @@ const routes = [
         component: Settings,
       },
       // Add routes for other pages as needed
-      // {
-      //   path: 'extension',
-      //   name: 'extension',
-      //   component: Extension,
-      // },
+      {
+        path: 'extension',
+        name: 'extension',
+        component: Extension,
+      },
+      {
+        path: 'terms',
+        name: 'terms',
+        component: Terms,
+      },
+      {
+        path: 'privacy',
+        name: 'privacy',
+        component: Privacy,
+      },
       // {
       //   path: 'subscription',
       //   name: 'subscription',
       //   component: Subscription,
-      // },
-      // {
-      //   path: 'terms',
-      //   name: 'terms',
-      //   component: Terms,
-      // },
-      // {
-      //   path: 'privacy',
-      //   name: 'privacy',
-      //   component: Privacy,
       // },
     ]
   },
