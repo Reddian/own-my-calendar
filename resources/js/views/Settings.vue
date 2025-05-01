@@ -1,7 +1,7 @@
 <template>
-  <div class="container page-container">
+  <div>
     <!-- Page Heading -->
-    <h1 class="page-heading">Settings</h1>
+    <h1 class="page-title">Settings</h1>
 
     <div class="row justify-content-center">
       <div class="col-md-10">
@@ -197,16 +197,16 @@
                     <li v-for="calendar in connectedCalendars" :key="calendar.id" class="list-group-item d-flex justify-content-between align-items-center">
                       <div>
                         <span :style="{ color: calendar.backgroundColor }">■</span> <!-- Simple color indicator -->
-                        {{ calendar.summary }} 
+                        {{ calendar.summary }}
                         <span v-if="calendar.primary" class="badge bg-secondary ms-2">Primary</span>
                       </div>
                       <div class="form-check form-switch">
-                        <input 
-                          class="form-check-input" 
-                          type="checkbox" 
-                          role="switch" 
-                          :id="'calendar-select-' + calendar.id" 
-                          :checked="calendar.is_selected" 
+                        <input
+                          class="form-check-input"
+                          type="checkbox"
+                          role="switch"
+                          :id="'calendar-select-' + calendar.id"
+                          :checked="calendar.is_selected"
                           @change="toggleCalendarSelection(calendar)"
                         >
                         <label class="form-check-label" :for="'calendar-select-' + calendar.id">Include</label>
@@ -281,8 +281,8 @@ const gradesRemaining = ref(0); // Placeholder
 const isCancelling = ref(false);
 
 // --- Calendar Data ---
-const isGoogleConnected = ref(false); 
-const connectedCalendars = ref([]); 
+const isGoogleConnected = ref(false);
+const connectedCalendars = ref([]);
 const isLoadingCalendars = ref(false);
 const calendarFetchError = ref('');
 
@@ -300,7 +300,7 @@ function clearGoogleMessages() {
   googleSuccessMessage.value = '';
   googleErrorMessage.value = '';
   // Remove query params from URL without reloading
-  router.replace({ query: {} }); 
+  router.replace({ query: {} });
 }
 
 async function updateAccount() { /* ... API call ... */ }
@@ -338,7 +338,7 @@ async function connectGoogleCalendar() {
 async function disconnectGoogleCalendar() {
   try {
     // Assuming a single disconnect endpoint for simplicity now
-    await axios.post('/api/calendars/disconnect-all'); 
+    await axios.post('/api/calendars/disconnect-all');
     isGoogleConnected.value = false;
     connectedCalendars.value = [];
     googleSuccessMessage.value = 'Google Calendar disconnected successfully.';
@@ -370,7 +370,7 @@ async function fetchGoogleData() {
     console.error('Error fetching Google Calendar data:', error);
     calendarFetchError.value = 'Failed to load calendar data. Please try reconnecting your calendar or refresh the page.';
     // Don't assume disconnected on error, could be temporary API issue
-    // isGoogleConnected.value = false; 
+    // isGoogleConnected.value = false;
     // connectedCalendars.value = [];
   } finally {
     isLoadingCalendars.value = false;
@@ -380,7 +380,7 @@ async function fetchGoogleData() {
 async function toggleCalendarSelection(calendar) {
   const newSelectionState = !calendar.is_selected;
   console.log(`Toggling calendar ${calendar.id} (${calendar.summary}) selection to ${newSelectionState}`);
-  
+
   // Optimistically update UI
   const originalState = calendar.is_selected;
   calendar.is_selected = newSelectionState;
@@ -569,5 +569,9 @@ watch(() => route.query, (newQuery) => {
   margin-right: 0.5em;
   vertical-align: middle;
   border: 1px solid rgba(0,0,0,0.2);
+}
+
+.navbar-brand, .nav-link {
+    color: #333333 !important;
 }
 </style>
