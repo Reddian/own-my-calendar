@@ -130,33 +130,44 @@ router.beforeEach(async (to, from, next) => {
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
   const requiresGuest = to.matched.some(record => record.meta.requiresGuest);
 
-  // Check authentication status only once if needed
-  // We assume the user state is already loaded or will be checked
-  // A simple check might be looking for a user object in the store
-  const isAuthenticated = !!store.state.user.user; // Adjust based on your Vuex state structure
-  const isVerified = store.state.user.user ? store.state.user.user.email_verified_at : false; // Check if verified
+  // Fetch user state values
+  const isAuthenticated = !!store.state.user.user;
+  const user = store.state.user.user;
+  // Ensure isVerified is strictly boolean based on the presence of email_verified_at
+  const isVerified = user ? !!user.email_verified_at : false; 
+
+  // Log state before making decision
+  console.log(`Guard Check: Path=${to.path}, requiresAuth=${requiresAuth}, requiresGuest=${requiresGuest}, isAuthenticated=${isAuthenticated}, isVerified=${isVerified}, User Object=`, JSON.stringify(user)); // DEBUG
 
   if (requiresAuth && !isAuthenticated) {
     // If route requires auth and user is not authenticated, redirect to login
-    console.log('Guard: Requires auth, not authenticated. Redirecting to login.');
+    console.log('Guard Decision: Requires auth, not authenticated. Redirecting to login.');
     next({ name: 'login' });
   } else if (requiresGuest && isAuthenticated) {
-    // If route requires guest and user is authenticated, redirect to home
-    console.log('Guard: Requires guest, authenticated. Redirecting to home.');
-    next({ name: 'home' });
+    // If route requires guest and user is authenticated...
+    // Check verification status *before* redirecting away from guest routes
+     if (!isVerified) {
+         // If authenticated but not verified, redirect to verification notice page
+         console.log('Guard Decision: Requires guest, authenticated but not verified. Redirecting to verification notice.');
+         next({ name: 'verification.notice' });
+     } else {
+        // If authenticated AND verified, redirect to home page
+        console.log('Guard Decision: Requires guest, authenticated and verified. Redirecting to home.');
+        next({ name: 'home' });
+     }
   } else if (requiresAuth && isAuthenticated && !isVerified && to.name !== 'verification.notice') {
       // If route requires auth, user is authenticated BUT NOT verified,
       // and they are trying to access something other than the verification notice page,
       // redirect them to the verification notice page.
-      console.log('Guard: Requires auth, authenticated but not verified. Redirecting to verification notice.');
+      console.log('Guard Decision: Requires auth, authenticated but not verified. Redirecting to verification notice.');
       next({ name: 'verification.notice' });
   } else if (to.name === 'verification.notice' && isVerified) {
       // If user is already verified and tries to access verification notice, redirect home
-      console.log('Guard: Verified user accessing verification notice. Redirecting to home.');
+      console.log('Guard Decision: Verified user accessing verification notice. Redirecting to home.');
       next({ name: 'home' });
   } else {
-    // Otherwise, allow navigation
-    console.log('Guard: Allowing navigation.');
+    // Otherwise, allow navigation (e.g., authenticated & verified user accessing protected route)
+    console.log('Guard Decision: Allowing navigation.');
     next();
   }
 });
