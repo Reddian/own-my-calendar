@@ -445,7 +445,7 @@ watch(() => route.query, (newQuery) => {
 <style scoped>
 /* Add custom styles if needed */
 .page-container {
-  padding-top: 2rem; /* Add padding if heading is moved outside card */
+  /* Removed padding-top to rely on main-content padding */
   padding-bottom: 2rem;
 }
 
@@ -475,7 +475,7 @@ watch(() => route.query, (newQuery) => {
   border: none; /* Remove individual borders */
   border-top-left-radius: 0.375rem; /* Match card radius */
   border-top-right-radius: 0.375rem;
-  color: var(--dark-blue); /* Use a standard text color */
+  color: #333; /* Changed from var(--dark-blue) to explicit dark grey */
   background-color: transparent;
   padding: 0.75rem 1.25rem; /* Adjust padding */
   font-weight: 500;
