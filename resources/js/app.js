@@ -1,3 +1,4 @@
+import 'bootstrap/dist/css/bootstrap.min.css';
 import './bootstrap'; // If bootstrap.js setup is needed (e.g., for Axios CSRF header)
 import { createApp } from 'vue';
 
