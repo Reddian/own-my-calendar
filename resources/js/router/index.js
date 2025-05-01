@@ -79,12 +79,14 @@ const routes = [
     component: Login,
     meta: { requiresGuest: true } // Add meta field for guest guard
   },
+  // Example Register Route (Commented out as we are using Laravel's default for now)
   // {
-  //   path: 
-      "/register",
+  //   path: "/register",
   //   name: "register",
-  //   component: Register,
-  // },all route for 404 Not Found
+  //   component: () => import("../views/Register.vue"), // Assuming a Register.vue component
+  //   meta: { requiresGuest: true }
+  // },
+  // Catch-all route for 404 Not Found
   // { 
   //   path: '/:pathMatch(.*)*', 
   //   name: 'NotFound', 
