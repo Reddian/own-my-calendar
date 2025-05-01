@@ -17,9 +17,8 @@ use App\Http\Controllers\CheckoutController;
 |
 */
 
-// Authentication Routes (Keep Laravel Auth for backend)
-// Note: Auth::routes() might define a /home route. We ensure our catch-all handles it.
-Auth::routes(["verify" => true]);
+// Authentication Routes (Disable default login routes, keep others)
+Auth::routes(["login" => false, "register" => true, "reset" => true, "verify" => true]);
 
 // Google Calendar OAuth Routes (Keep for backend integration)
 Route::get("google/redirect", [GoogleCalendarController::class, "redirectToGoogle"])->name("google.redirect");
@@ -42,10 +41,10 @@ Route::middleware(["auth"])->group(function () {
 
 // Catch-all route for the Vue SPA
 // This route MUST be the last web route defined.
-// It ensures that any authenticated request not matching previous routes
-// is handled by the Vue application.
+// It serves the base SPA view for any non-API, non-specific web route.
+// Authentication is now handled by the Vue router guards.
 Route::get("/{any?}", function () {
     return view("spa"); // Return the single blade file that hosts the Vue app
-})->where("any", ".*") // Allows any path, including nested paths
-  ->middleware("auth"); // Ensure user is authenticated to access the SPA
+})->where("any", ".*"); // Allows any path, including nested paths
+
 
