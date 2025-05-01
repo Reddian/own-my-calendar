@@ -150,7 +150,7 @@ async function handleLogin() {
     console.log('Login request successful'); // DEBUG
 
     // Fetch user data after successful login
-    // await store.dispatch('user/fetchUser'); // Assuming a Vuex action exists
+    await store.dispatch("user/fetchUser"); // Fetch user data after successful login
     console.log('Login successful, fetching user data...'); // DEBUG
     // TODO: Implement fetchUser action in Vuex store
 
