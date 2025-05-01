@@ -475,15 +475,36 @@ class GoogleCalendarService
             
             $this->service = new Google_Service_Calendar($this->client); // Client has token set by hasValidToken
             
-            Log::info("[GoogleCalendarService] Fetching calendar list from Google API for user {$userId}..."); // DEBUG
             $calendarList = $this->service->calendarList->listCalendarList();
-            $items = $calendarList->getItems();
-            Log::info("[GoogleCalendarService] Fetched " . count($items) . " calendars from Google API for user {$userId}"); // DEBUG
+            $googleItems = $calendarList->getItems();
+            Log::info("[GoogleCalendarService] Fetched " . count($googleItems) . " calendars from Google API for user {$userId}"); // DEBUG
+
+            // Fetch corresponding database records to get selection state
+            $dbCalendars = $user->calendars()->get()->keyBy("calendar_id");
+
+            // Merge Google API data with database selection state
+            $mergedCalendars = [];
+            foreach ($googleItems as $item) {
+                $dbRecord = $dbCalendars->get($item->getId());
+                $mergedCalendars[] = (
+                    // Convert Google_Service_Calendar_CalendarListEntry to an array or stdClass
+                    // and add the is_selected property
+                    (object)array_merge((array)$item->toSimpleObject(), [
+                        "is_selected" => $dbRecord ? $dbRecord->is_selected : false, // Default to false if no DB record (shouldn't happen ideally)
+                        // Ensure other relevant fields from Google object are present if needed
+                        "id" => $item->getId(), // Ensure ID is correctly mapped
+                        "summary" => $item->getSummary(),
+                        "backgroundColor" => $item->getBackgroundColor(),
+                        "primary" => $item->getPrimary(),
+                        // Add other fields as needed by the frontend
+                    ])
+                );
+            }
             
-            // Store the fetched items in cache
-            Cache::put($cacheKey, $items, $this->cacheDuration);
+            // Store the merged items in cache
+            Cache::put($cacheKey, $mergedCalendars, $this->cacheDuration);
             
-            return $items;
+            return $mergedCalendars;
         } catch (\Exception $e) {
             Log::error("[GoogleCalendarService] Google Calendar list error for user {$userId}: " . $e->getMessage()); // DEBUG
             throw $e;
