@@ -119,11 +119,17 @@ function toggleMenu() {
 }
 
 async function logout() {
-  // Placeholder for logout logic
-  // Typically involves calling an API endpoint and redirecting
-  console.log('Logout action triggered');
-  // Example: await axios.post('/logout');
-  // router.push('/login');
+  console.log("Logout action triggered");
+  try {
+    // Make a POST request to Laravel's logout route
+    await axios.post("/logout");
+    // On successful logout, redirect to the login page
+    window.location.href = "/login"; // Use window.location for a full page reload to clear SPA state
+  } catch (error) {
+    console.error("Logout failed:", error);
+    // Optionally show an error message to the user
+    alert("Logout failed. Please try again.");
+  }
 }
 
 // Close menu when route changes
