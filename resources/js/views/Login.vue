@@ -91,15 +91,15 @@
             </div>
 
             <div class="auth-links">
-                <!-- Assuming password reset and register are still standard Laravel routes -->
+                <!-- Use Laravel named routes defined in web.php -->
                 <div class="forgot-password">
-                    <a href="/password/reset">
+                    <a href="/password/reset"> <!-- Assuming /password/reset is correct path -->
                         <i class="fas fa-key me-1"></i>Forgot Your Password?
                     </a>
                 </div>
                 <div class="register-link">
                     <span>Don't have an account?</span>
-                    <a href="/register">
+                    <a href="/register"> <!-- Assuming /register is correct path -->
                         Create one
                     </a>
                 </div>
@@ -181,159 +181,407 @@ async function handleLogin() {
 </script>
 
 <style scoped>
-/* Import or define styles similar to auth.css or the original blade template */
-/* Assuming global styles for .login-page, .coin, .clock, .gear etc. are loaded */
+/* Combined and adapted styles from modern-login.css and auth-custom.css */
 
-.login-container {
-  /* Styles from auth.css or similar */
-  max-width: 400px;
-  margin: 5rem auto;
-  padding: 2rem;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  position: relative; /* Ensure it's above decorative elements if needed */
-  z-index: 10;
+/* Gradient Background & Page Layout */
+.login-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #4a6fdc 0%, #6fb1e3 100%); /* From auth-custom */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  margin: 0; /* From auth-custom */
 }
 
+/* Main Content Container */
+.login-container {
+  width: 100%;
+  max-width: 450px; /* Adjusted from auth-custom */
+  margin: 0 auto;
+  text-align: center;
+  position: relative; /* Added from modern-login */
+  z-index: 10;
+  padding: 0; /* From auth-custom */
+}
+
+/* Logo */
 .logo-container {
   text-align: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.5rem; /* Keep existing margin */
 }
 
 .logo-image {
-  max-width: 200px;
+  max-width: 200px; /* Keep existing size */
   height: auto;
 }
 
-.login-form .form-group {
-  margin-bottom: 1rem;
+/* Form Elements */
+.login-form {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 15px; /* From modern-login & auth-custom */
+}
+
+.form-control {
+  width: 100%;
+  padding: 15px 20px; /* From modern-login */
+  font-size: 1rem;
+  background-color: rgba(255, 255, 255, 0.2); /* From modern-login */
+  border: none;
+  border-radius: 10px; /* From modern-login */
+  color: white;
+  backdrop-filter: blur(5px); /* From modern-login */
+  transition: all 0.3s ease;
+}
+
+.form-control::placeholder {
+  color: rgba(255, 255, 255, 0.7); /* From modern-login */
+}
+
+.form-control:focus {
+  background-color: rgba(255, 255, 255, 0.3); /* From modern-login */
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3); /* From modern-login */
+}
+
+/* Validation Feedback (Ensure Bootstrap styles apply or replicate) */
+.invalid-feedback {
+  display: block; /* Ensure it shows */
+  text-align: left;
+  color: #ffcdd2; /* Light red for visibility on dark background */
+  margin-top: 0.25rem;
+}
+.form-control.is-invalid {
+  border: 1px solid #ef5350; /* Red border for invalid */
 }
 
 .btn-login {
   width: 100%;
-  padding: 0.75rem;
-  background-color: #6a1b9a; /* Example primary color */
-  color: #fff;
+  padding: 15px; /* From modern-login */
+  background-color: #4a90e2; /* From modern-login */
+  color: white;
   border: none;
-  border-radius: 4px;
-  font-size: 1rem;
+  border-radius: 10px; /* From modern-login */
+  font-size: 1.1rem; /* From modern-login */
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* From modern-login */
 }
 
 .btn-login:hover {
-  background-color: #4a148c; /* Darker shade */
+  background-color: #3a80d2; /* From modern-login */
+  transform: translateY(-2px); /* From modern-login */
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3); /* From modern-login */
+}
+
+.btn-login:active {
+  transform: translateY(0); /* From modern-login */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* From modern-login */
 }
 
 .btn-login:disabled {
   background-color: #ccc;
   cursor: not-allowed;
+  opacity: 0.6;
 }
 
+/* Remember Me */
 .remember-me-container {
   display: flex;
-  justify-content: center; /* Center the checkbox */
-  margin-bottom: 1rem;
+  justify-content: center;
+  align-items: center;
+  margin: 10px 0 15px 0; /* Adjusted margin */
 }
 
+.form-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.form-check-input {
+  margin-right: 8px;
+  width: 1.1em; /* Slightly larger checkbox */
+  height: 1.1em;
+}
+
+.form-check-label {
+  margin: 0;
+  color: white;
+  font-weight: 500;
+}
+
+/* Auth Links */
 .auth-links {
-  text-align: center;
-  margin-top: 1.5rem;
-  font-size: 0.9rem;
+  margin-top: 20px; /* From auth-custom */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px; /* From auth-custom */
 }
 
-.auth-links div {
-  margin-bottom: 0.5rem;
-}
-
-.auth-links a {
-  color: #6a1b9a; /* Example primary color */
+.forgot-password a {
+  color: #ffd54f; /* From auth-custom */
+  font-weight: 600;
   text-decoration: none;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
 }
 
-.auth-links a:hover {
+.forgot-password a:hover {
+  color: white; /* From auth-custom */
   text-decoration: underline;
 }
 
+.register-link {
+  margin-top: 5px; /* From auth-custom */
+  color: white;
+}
+
 .register-link span {
-  margin-right: 0.5rem;
+  margin-right: 5px;
 }
 
+.register-link a {
+  color: #ffd54f; /* From auth-custom */
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.register-link a:hover {
+  color: white; /* From auth-custom */
+  text-decoration: underline;
+}
+
+/* Tagline */
 .tagline {
-  text-align: center;
-  margin-top: 2rem;
-  color: #666;
-  font-style: italic;
+  color: white; /* From modern-login */
+  font-size: 1.2rem;
+  margin-top: 20px;
+  opacity: 0.9;
 }
 
-/* Add styles for decorative elements if not globally available */
-.login-page {
-    position: relative;
-    min-height: 100vh;
-    background-color: #f8f9fa; /* Light background */
-    overflow: hidden; /* Hide overflowing decorative elements */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* Basic styles for decorative elements - adjust positions as needed */
+/* Decorative Elements (from modern-login.css) */
 .coin {
-    position: absolute;
-    background-color: #ffd700; /* Gold color */
-    border-radius: 50%;
-    box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+  position: absolute;
+  background-color: #ffc107;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
-.coin-sm { width: 20px; height: 20px; }
-.coin-md { width: 40px; height: 40px; }
-.coin-lg { width: 60px; height: 60px; }
 
-.coin-1 { top: 10%; left: 15%; }
-.coin-2 { top: 25%; right: 10%; }
-.coin-3 { bottom: 15%; left: 20%; }
+.coin::before {
+  content: "$";
+  color: #e6a800;
+  font-weight: bold;
+}
+
+.coin-sm {
+  width: 40px;
+  height: 40px;
+  font-size: 1.2rem;
+}
+
+.coin-md {
+  width: 60px;
+  height: 60px;
+  font-size: 1.5rem;
+}
+
+.coin-lg {
+  width: 100px;
+  height: 100px;
+  font-size: 2.5rem;
+}
 
 .coin-stack {
-    position: absolute;
-    bottom: 5%;
-    right: 15%;
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
+
+.coin-stack::before,
+.coin-stack::after {
+  content: "";
+  width: 80px;
+  height: 15px;
+  background-color: #ffc107;
+  border-radius: 10px;
+  margin-bottom: 5px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.coin-1 { top: 100px; right: 100px; }
+.coin-2 { top: 40%; left: 10%; }
+.coin-3 { bottom: 30%; left: 50%; }
 
 .clock {
-    position: absolute;
-    top: 15%;
-    right: 20%;
-    width: 80px;
-    height: 80px;
-    border: 3px solid #ccc;
-    border-radius: 50%;
+  position: absolute;
+  bottom: 50px;
+  right: 50px;
+  width: 100px;
+  height: 100px;
+  background-color: #5b8def;
+  border-radius: 50%;
+  border: 5px solid #4a7bce;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  z-index: 5;
 }
+
+.clock::before { /* Minute hand */
+  content: "";
+  position: absolute;
+  width: 5px;
+  height: 30px;
+  background-color: white;
+  border-radius: 5px;
+  transform: rotate(-45deg);
+  transform-origin: bottom center;
+  bottom: 50%; /* Position origin at center */
+  left: calc(50% - 2.5px);
+}
+
+.clock::after { /* Hour hand */
+  content: "";
+  position: absolute;
+  width: 5px;
+  height: 20px;
+  background-color: white;
+  border-radius: 5px;
+  transform: rotate(45deg);
+  transform-origin: bottom center;
+  bottom: 50%; /* Position origin at center */
+  left: calc(50% - 2.5px);
+}
+
+/* Clock markings */
 .clock span {
-    position: absolute;
-    width: 2px;
-    height: 5px;
-    background-color: #ccc;
-    top: 50%;
-    left: 50%;
-    transform-origin: 50% 0;
+  position: absolute;
+  width: 4px;
+  height: 10px;
+  background-color: white;
+  border-radius: 2px;
+  top: 50%; /* Center vertically */
+  left: 50%; /* Center horizontally */
+  transform-origin: 50% 0; /* Rotate around top center */
 }
-/* Position clock markings (example for 12, 3, 6, 9) */
-.clock span:nth-child(1) { transform: translate(-50%, -50%) rotate(0deg) translateY(-35px); }
-.clock span:nth-child(4) { transform: translate(-50%, -50%) rotate(90deg) translateY(-35px); }
-.clock span:nth-child(7) { transform: translate(-50%, -50%) rotate(180deg) translateY(-35px); }
-.clock span:nth-child(10) { transform: translate(-50%, -50%) rotate(270deg) translateY(-35px); }
-/* Add more spans and rotations for other hours */
+
+.clock span:nth-child(1) { transform: translate(-50%, -50%) rotate(0deg) translateY(-40px); }
+.clock span:nth-child(2) { transform: translate(-50%, -50%) rotate(30deg) translateY(-40px); }
+.clock span:nth-child(3) { transform: translate(-50%, -50%) rotate(60deg) translateY(-40px); }
+.clock span:nth-child(4) { transform: translate(-50%, -50%) rotate(90deg) translateY(-40px); }
+.clock span:nth-child(5) { transform: translate(-50%, -50%) rotate(120deg) translateY(-40px); }
+.clock span:nth-child(6) { transform: translate(-50%, -50%) rotate(150deg) translateY(-40px); }
+.clock span:nth-child(7) { transform: translate(-50%, -50%) rotate(180deg) translateY(-40px); }
+.clock span:nth-child(8) { transform: translate(-50%, -50%) rotate(210deg) translateY(-40px); }
+.clock span:nth-child(9) { transform: translate(-50%, -50%) rotate(240deg) translateY(-40px); }
+.clock span:nth-child(10) { transform: translate(-50%, -50%) rotate(270deg) translateY(-40px); }
+.clock span:nth-child(11) { transform: translate(-50%, -50%) rotate(300deg) translateY(-40px); }
+.clock span:nth-child(12) { transform: translate(-50%, -50%) rotate(330deg) translateY(-40px); }
 
 .gear {
-    position: absolute;
-    bottom: 20%;
-    left: 10%;
-    width: 50px;
-    height: 50px;
-    /* Basic gear shape using borders or SVG/image */
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path fill="%23ccc" d="M99.4 58.8c-1.4-2.4-3.7-4.1-6.4-4.9l-7.6-2.2c-.8-.2-1.6-.5-2.4-.8-.8-.3-1.6-.7-2.3-1.1-1.8-1-3.4-2.3-4.8-3.8-.6-.6-1.1-1.3-1.6-2-.5-.7-1-1.4-1.4-2.2-.4-.8-.8-1.6-1.1-2.4-.3-.8-.5-1.6-.8-2.4l-2.2-7.6c-.8-2.7-2.5-5-4.9-6.4-2.4-1.4-5.2-1.9-8-1.5l-8.1 1.2c-.8.1-1.7.2-2.5.2-.8 0-1.7-.1-2.5-.2l-8.1-1.2c-2.8-.4-5.6.1-8 1.5-2.4 1.4-4.1 3.7-4.9 6.4l-2.2 7.6c-.2.8-.5 1.6-.8 2.4-.3.8-.7 1.6-1.1 2.4-.6.8-1.2 1.5-1.8 2.2-.7.7-1.4 1.4-2.2 2-.8.6-1.6 1.1-2.4 1.6-1.8 1.2-3.4 2.7-4.8 4.3-.6.6-1.1 1.3-1.6 2-.5.7-1 1.4-1.4 2.2-.4.8-.8 1.6-1.1 2.4-.3.8-.5 1.6-.8 2.4l-2.2 7.6c-.8 2.7-1 5.5.1 8.1.8 2.6 2.5 4.8 4.8 6.3 2.3 1.5 5 2.1 7.7 1.7l8.1-1.2c.8-.1 1.7-.2 2.5-.2.8 0 1.7.1 2.5.2l8.1 1.2c2.7.4 5.4-.1 7.7-1.7 2.3-1.5 4-3.7 4.8-6.3.8-2.6.6-5.4-.1-8.1l-2.2-7.6c-.2-.8-.5-1.6-.8-2.4-.3-.8-.7-1.6-1.1-2.4-.6-.8-1.2-1.5-1.8-2.2-.7-.7-1.4-1.4-2.2-2-.8-.6-1.6-1.1-2.4-1.6-1.8-1.2-3.4-2.7-4.8-4.3-.6-.6-1.1-1.3-1.6-2-.5-.7-1-1.4-1.4-2.2-.4-.8-.8-1.6-1.1-2.4-.3-.8-.5-1.6-.8-2.4l-2.2-7.6c-.8-2.7-2.5-5-4.9-6.4-2.4-1.4-5.2-1.9-8-1.5l-8.1 1.2c-.8.1-1.7.2-2.5.2-.8 0-1.7-.1-2.5-.2l-8.1-1.2c-2.8-.4-5.6.1-8 1.5-2.4 1.4-4.1 3.7-4.9 6.4l-2.2 7.6c-.2.8-.5 1.6-.8 2.4-.3.8-.7 1.6-1.1 2.4-.6.8-1.2 1.5-1.8 2.2-.7.7-1.4 1.4-2.2 2-.8.6-1.6 1.1-2.4 1.6-1.8 1.2-3.4 2.7-4.8 4.3-.6.6-1.1 1.3-1.6 2-.5.7-1 1.4-1.4 2.2-.4.8-.8 1.6-1.1 2.4-.3.8-.5 1.6-.8 2.4l-2.2 7.6c-.8 2.7-1 5.5.1 8.1.8 2.6 2.5 4.8 4.8 6.3 2.3 1.5 5 2.1 7.7 1.7l8.1-1.2c.8-.1 1.7-.2 2.5-.2.8 0 1.7.1 2.5.2l8.1 1.2c2.7.4 5.4-.1 7.7-1.7 2.3-1.5 4-3.7 4.8-6.3.8-2.6.6-5.4-.1-8.1l-2.2-7.6c-.2-.8-.5-1.6-.8-2.4-.3-.8-.7-1.6-1.1-2.4-.6-.8-1.2-1.5-1.8-2.2-.7-.7-1.4-1.4-2.2-2-.8-.6-1.6-1.1-2.4-1.6-1.8-1.2-3.4-2.7-4.8-4.3-.6-.6-1.1-1.3-1.6-2-.5-.7-1-1.4-1.4-2.2-.4-.8-.8-1.6-1.1-2.4-.3-.8-.5-1.6-.8-2.4l-2.2-7.6c-.8-2.7-2.5-5-4.9-6.4-2.4-1.4-5.2-1.9-8-1.5l-8.1 1.2c-.8.1-1.7.2-2.5.2-.8 0-1.7-.1-2.5-.2l-8.1-1.2c-2.8-.4-5.6.1-8 1.5-2.4 1.4-4.1 3.7-4.9 6.4l-2.2 7.6c-.2.8-.5 1.6-.8 2.4-.3.8-.7 1.6-1.1 2.4-.6.8-1.2 1.5-1.8 2.2-.7.7-1.4 1.4-2.2 2-.8.6-1.6 1.1-2.4 1.6-1.8 1.2-3.4 2.7-4.8 4.3-.6.6-1.1 1.3-1.6 2-.5.7-1 1.4-1.4 2.2-.4.8-.8 1.6-1.1 2.4-.3.8-.5 1.6-.8 2.4l-2.2 7.6c-.8 2.7-1 5.5.1 8.1.8 2.6 2.5 4.8 4.8 6.3 2.3 1.5 5 2.1 7.7 1.7l8.1-1.2c.8-.1 1.7-.2 2.5-.2.8 0 1.7.1 2.5.2l8.1 1.2c2.7.4 5.4-.1 7.7-1.7 2.3-1.5 4-3.7 4.8-6.3.8-2.6.6-5.4-.1-8.1zM50 35c-8.3 0-15 6.7-15 15s6.7 15 15 15 15-6.7 15-15-6.7-15-15-15z"/></svg>');
-    background-size: contain;
-    background-repeat: no-repeat;
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  right: 20%;
+  top: 40%;
+}
+
+.gear::before {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  transform: rotate(45deg);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .login-heading {
+    font-size: 2.5rem;
+  }
+  
+  .calendar-icon {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .coin-lg {
+    width: 80px;
+    height: 80px;
+  }
+  
+  .clock {
+    width: 80px;
+    height: 80px;
+  }
+  
+  .gear {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-heading {
+    font-size: 2rem;
+  }
+  
+  .calendar-icon {
+    width: 80px;
+    height: 80px;
+  }
+  
+  .coin-sm, .coin-md {
+    display: none;
+  }
+  
+  .coin-lg {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .clock {
+    width: 60px;
+    height: 60px;
+    right: 20px;
+    bottom: 20px;
+  }
+}
+
+/* Ensure no extra spacing from main app layout */
+:global(#app) {
+    margin: 0;
+    padding: 0;
+}
+:global(main) {
+    padding: 0 !important;
+    margin: 0 !important;
 }
 
 </style>
