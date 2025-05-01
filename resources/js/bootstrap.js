@@ -28,13 +28,12 @@ window.axios.defaults.withCredentials = true;
 //     forceTLS: (import.meta.env.VITE_PUSHER_SCHEME ?? 'https') === 'https',
 //     enabledTransports: ['ws', 'wss'],
 // });
-
-// Attempt to read CSRF token from meta tag (if spa.blade.php includes it)
-let token = document.head.querySelector('meta[name="csrf-token"]');
-
-if (token) {
-    window.axios.defaults.headers.common['X-CSRF-TOKEN'] = token.content;
-} else {
-    console.error('CSRF token not found: https://laravel.com/docs/csrf#csrf-x-csrf-token');
-}
-
+// CSRF token handling is now managed via Sanctum's /sanctum/csrf-cookie endpoint
+// called in app.js before the Vue app mounts.
+// let token = document.head.querySelector("meta[name=\"csrf-token\"]");
+// 
+// if (token) {
+//     window.axios.defaults.headers.common["X-CSRF-TOKEN"] = token.content;
+// } else {
+//     console.error("CSRF token not found: https://laravel.com/docs/csrf#csrf-x-csrf-token");
+// }
