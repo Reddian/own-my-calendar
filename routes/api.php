@@ -8,7 +8,8 @@ use App\Http\Controllers\Auth\RegisterController; // Import RegisterController
 use App\Http\Controllers\Auth\ForgotPasswordController; // Import ForgotPasswordController
 use App\Http\Controllers\Auth\ResetPasswordController; // Import ResetPasswordController
 use App\Http\Controllers\Auth\VerificationController; // Import VerificationController
-use App\Http\Controllers\UserProfileController;
+use App\Http\Controllers\UserProfileController; // Keep for potential other uses
+use App\Http\Controllers\ProfileController; // Import the new ProfileController
 use App\Http\Controllers\CalendarGradeController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\GoogleCalendarController;
@@ -42,16 +43,16 @@ Route::middleware("auth:sanctum")->group(function () {
     Route::post("/logout", [LoginController::class, "apiLogout"]);
 
     // Email Verification
-    // Note: Verification routes might need specific middleware from Laravel Breeze/UI if used
     Route::post("/email/resend", [VerificationController::class, "resendApi"])->name("verification.resend.api"); // Add API resend verification route
-    // Laravel's default verification routes often include signed URLs, which might need adjustments for API usage.
-    // Route::get("/email/verify/{id}/{hash}", [VerificationController::class, "verify"])->name("verification.verify"); // Example if needed
 
-    // User profile routes
-    Route::get("/profile", [UserProfileController::class, "index"]);
-    Route::post("/profile", [UserProfileController::class, "store"]);
-    Route::get("/profile/me", [UserProfileController::class, "show"]);
-    Route::put("/profile/me", [UserProfileController::class, "update"]);
+    // User profile routes (NEW - Using ProfileController)
+    Route::put("/profile", [ProfileController::class, "update"]); // Update name/email
+    Route::put("/password", [ProfileController::class, "updatePassword"]); // Update password
+
+    // User route (Get current user)
+    Route::get("/user", function (Request $request) {
+        return $request->user();
+    });
 
     // Onboarding routes
     Route::get("/onboarding", [OnboardingController::class, "index"]);
@@ -63,13 +64,6 @@ Route::middleware("auth:sanctum")->group(function () {
     Route::get("/grades/current-week", [CalendarGradeController::class, "getCurrentWeekGrade"]);
     Route::get("/grades/{id}", [CalendarGradeController::class, "show"]);
     Route::post("/grades/date-range", [CalendarGradeController::class, "getGradesByDateRange"]);
-
-    // Google Calendar routes (Legacy - Single Calendar)
-//    Route::get("/google/redirect", [GoogleCalendarController::class, "redirectToGoogle"]);
-//    Route::get("/google/callback", [GoogleCalendarController::class, "handleGoogleCallback"]);
-    Route::get("/google/check-connection", [GoogleCalendarController::class, "checkConnection"]);
-    Route::post("/google/events", [GoogleCalendarController::class, "getEvents"]);
-    Route::post("/google/disconnect", [GoogleCalendarController::class, "disconnect"]);
 
     // Multiple Google Calendar routes
     Route::get("/calendars/auth", [MultiCalendarController::class, "getAuthUrl"]);
@@ -94,18 +88,6 @@ Route::middleware("auth:sanctum")->group(function () {
     Route::get("/subscription/can-grade", [SubscriptionController::class, "canGradeCalendar"]);
     Route::post("/subscription/increment-grades", [SubscriptionController::class, "incrementGradesUsed"]);
 
-    // Google Calendar Routes (Refactored)
-    Route::prefix("calendars")->group(function () {
-        Route::get("/", [GoogleCalendarController::class, "getCalendars"]);
-        Route::get("/auth", [GoogleCalendarController::class, "getAuthUrl"]);
-        Route::get("/check-connection", [GoogleCalendarController::class, "checkConnection"]);
-        Route::post("/update-selection", [GoogleCalendarController::class, "updateSelection"]);
-        Route::post("/visibility", [GoogleCalendarController::class, "updateVisibility"]);
-        Route::post("/disconnect", [GoogleCalendarController::class, "disconnectCalendar"]);
-        Route::post("/disconnect-all", [GoogleCalendarController::class, "disconnectAll"]);
-        Route::post("/disconnect-google", [GoogleCalendarController::class, "disconnectGoogle"]);
-    });
-
     // Stripe Routes
     Route::post("/stripe/create-checkout-session", [StripeController::class, "createCheckoutSession"]);
     Route::get("/stripe/checkout/success", [StripeController::class, "handleCheckoutSuccess"]);
@@ -120,13 +102,12 @@ Route::middleware("auth:sanctum")->group(function () {
     Route::post("/extension/features", [ExtensionController::class, "updateFeature"]);
     Route::post("/extension/settings", [ExtensionController::class, "updateSetting"]);
 
-    // User route
-    Route::get("/user", function (Request $request) {
-        return $request->user();
-    });
+    // Notification Settings (Assuming a NotificationController exists or needs creation)
+    // Route::get("/notifications/settings", [NotificationController::class, "getSettings"]);
+    // Route::put("/notifications/settings", [NotificationController::class, "updateSettings"]);
 
 });
 
-// Note: The /user route was moved inside the auth:sanctum group for consistency
-
+// Note: Removed old /profile routes that used UserProfileController
+// Note: Added PUT routes for /profile and /password using ProfileController
 
