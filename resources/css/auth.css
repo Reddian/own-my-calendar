@@ -1,0 +1,20 @@
+/* CSS styles specific to authentication pages */
+
+/* Import Bootstrap CSS */
+@import 'bootstrap/dist/css/bootstrap.min.css';
+
+/* Import Font Awesome CSS (Consider installing via npm if preferred) */
+@import url('//cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
+
+/* Import the custom CSS files previously linked in auth.blade.php */
+@import './bootstrap-custom.css';
+@import './login.css';
+@import './modern-login.css';
+@import './auth-custom.css';
+@import './logo.css';
+@import './logo-theme.css';
+@import './input-text.css';
+@import './verify-email.css';
+
+/* Add any other auth-specific styles here */
+
