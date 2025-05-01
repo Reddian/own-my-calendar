@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Middleware\VerifyCsrfToken; // Import VerifyCsrfToken
 use App\Http\Controllers\Auth\LoginController; // Import LoginController
 use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\CalendarGradeController;

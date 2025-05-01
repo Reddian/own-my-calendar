@@ -112,10 +112,15 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, onMounted } from 'vue'; // Add onMounted
 import axios from 'axios';
 import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
+
+// Add log message on component mount
+onMounted(() => {
+  console.log("Login.vue component mounted successfully.");
+});
 
 const router = useRouter();
 const store = useStore();
