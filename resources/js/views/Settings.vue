@@ -425,7 +425,68 @@ async function toggleCalendarSelection(calendar) {
 }
 
 
-// Watch for route changes, specifically when entering the Settings route
+// Watch for Google callback query parameters
+watch(() => route.query, (newQuery, oldQuery) => {
+  // Only react if the google_callback parameter actually changes or appears
+  if (newQuery.google_callback && newQuery.google_callback !== oldQuery.google_callback) {
+      console.log("Query parameters changed with google_callback:", newQuery); // DEBUG
+      if (newQuery.google_callback === 'success') {
+          googleSuccessMessage.value = 'Google Calendar connected successfully!';
+          setActiveTab('calendar'); // Switch to calendar tab on success
+          console.log("Google callback success, fetching data via query watcher..."); // DEBUG
+          fetchGoogleData(); // Re-fetch data after successful connection
+      } else if (newQuery.google_callback === 'error') {
+          googleErrorMessage.value = newQuery.message || 'Failed to connect Google Calendar.';
+          setActiveTab('calendar'); // Switch to calendar tab even on error
+          console.log("Google callback error, fetching data via query watcher..."); // DEBUG
+          fetchGoogleData(); // Re-fetch data even on error to update status
+      }
+      // Clear the query params after handling them
+      router.replace({ query: {} });
+  }
+}, { deep: true });
+
+// Watch for changes in the active tab
+watch(activeTab, (newTab, oldTab) => {
+  if (newTab === 'calendar') {
+    // Fetch data only if not currently handling a google callback (which fetches separately)
+    if (!route.query.google_callback) {
+      console.log("Calendar tab activated, fetching data..."); // DEBUG
+      fetchGoogleData();
+    } else {
+      console.log("Calendar tab activated, but callback watcher will handle fetch."); // DEBUG
+    }
+  }
+});
+
+onMounted(() => {
+  // Initialize Bootstrap modal
+  if (cancelModal.value) {
+    bsCancelModal = new Modal(cancelModal.value);
+  }
+
+  // Set active tab based on hash
+  if (route.hash) {
+    const tabName = route.hash.substring(1);
+    if (['account', 'notifications', 'subscription', 'calendar'].includes(tabName)) {
+      activeTab.value = tabName;
+    }
+  }
+
+  // Fetch initial non-calendar data (placeholders)
+  accountForm.name = 'John Doe'; 
+  accountForm.email = 'john.doe@example.com'; 
+
+  // Initial fetch if calendar tab is active on mount AND not a callback
+  if (activeTab.value === 'calendar' && !route.query.google_callback) {
+    console.log("Component mounted on Calendar tab, fetching data..."); // DEBUG
+    fetchGoogleData();
+  }
+  console.log("Component mounted."); // DEBUG
+});
+
+// Remove the old route.name watcher
+/*
 watch(
   () => route.name,
   (newName) => {
@@ -441,68 +502,6 @@ watch(
     }
   },
   { immediate: true } // Run immediately when component is setup/mounted
-);
-
-// Keep the existing route.query watcher for Google callback
-watch(() => route.query, (newQuery, oldQuery) => {
-  // Only react if the google_callback parameter actually changes or appears
-  if (newQuery.google_callback && newQuery.google_callback !== oldQuery.google_callback) {
-      console.log("Query parameters changed with google_callback:", newQuery); // DEBUG
-      if (newQuery.google_callback === 'success') {
-          googleSuccessMessage.value = 'Google Calendar connected successfully!';
-          setActiveTab('calendar');
-          console.log("Google callback success, fetching data via query watcher..."); // DEBUG
-          fetchGoogleData(); // Re-fetch data after successful connection
-      } else if (newQuery.google_callback === 'error') {
-          googleErrorMessage.value = newQuery.message || 'Failed to connect Google Calendar.';
-          setActiveTab('calendar');
-          console.log("Google callback error, fetching data via query watcher..."); // DEBUG
-          fetchGoogleData(); // Re-fetch data even on error to update status
-      }
-      // Clear the query params after handling them
-      router.replace({ query: {} });
-  }
-}, { deep: true });
-
-
-onMounted(() => {
-  // Initialize Bootstrap modal
-  if (cancelModal.value) {
-    bsCancelModal = new Modal(cancelModal.value);
-  }
-
-  // Set active tab based on hash (keep this)
-  if (route.hash) {
-    const tabName = route.hash.substring(1);
-    if (['account', 'notifications', 'subscription', 'calendar'].includes(tabName)) {
-      activeTab.value = tabName;
-    }
-  }
-
-  // Fetch initial non-calendar data (keep placeholders or implement actual fetch)
-  accountForm.name = 'John Doe'; // Placeholder
-  accountForm.email = 'john.doe@example.com'; // Placeholder
-
-  // DO NOT call fetchGoogleData() here anymore, the immediate watcher handles it.
-  console.log("Component mounted."); // DEBUG
-});
-
-// Remove the old route.name watcher
-/*
-watch(
-  () => route.name,
-  (newName, oldName) => {
-    // Trigger fetch only when navigating TO the Settings route
-    if (newName === 'Settings') { 
-      // Avoid refetching if triggered by query param change handled by the other watcher
-      if (!route.query.google_callback) {
-        console.log("Navigated to Settings route (watcher), fetching data..."); // DEBUG: Updated log
-        fetchGoogleData();
-      } else {
-        console.log("Navigated to Settings route (watcher), but callback watcher will handle fetch."); // DEBUG: Updated log
-      }
-    }
-  }
 );
 */
 
