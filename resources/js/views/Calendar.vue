@@ -9,7 +9,7 @@
       <router-link to="/settings#subscription" class="btn btn-sm btn-primary ms-3">Upgrade Now</router-link>
     </div>
 
-    <div v-if="isLoading" class="loading-indicator">
+    <div v-if="isLoading && !isRefreshing" class="loading-indicator">
       <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">Loading events...</span>
       </div>
@@ -25,7 +25,7 @@
           <button 
             class="btn btn-outline-primary prev-week-btn" 
             @click="prevWeek" 
-            :disabled="!canNavigateBackward"
+            :disabled="!canNavigateBackward || isRefreshing"
             title="Previous Week">
             <i class="fas fa-chevron-left"></i>
           </button>
@@ -33,9 +33,16 @@
           <button 
             class="btn btn-outline-primary next-week-btn" 
             @click="nextWeek" 
-            :disabled="!canNavigateForward"
+            :disabled="!canNavigateForward || isRefreshing"
             title="Next Week">
             <i class="fas fa-chevron-right"></i>
+          </button>
+          <button 
+            class="btn btn-outline-secondary refresh-btn ms-3" 
+            @click="manualRefresh" 
+            :disabled="isRefreshing"
+            title="Refresh Events">
+            <i class="fas fa-sync-alt" :class="{ 'fa-spin': isRefreshing }"></i>
           </button>
         </div>
       </div>
@@ -54,12 +61,12 @@
           </div>
           <div v-for="day in weekDays" :key="day.dateStr" class="day-column">
             <!-- Debug: Log day being processed -->
-            <!-- {{ console.log('Processing day:', day.dateStr) }} -->
+            <!-- {{ console.log("Processing day:", day.dateStr) }} -->
             <div v-for="event in getEventsForDay(day.dateStr)" :key="event.id" 
                  class="week-event" 
                  :style="getEventStyle(event)">
               <!-- Debug: Log event being rendered -->
-              <!-- {{ console.log('Rendering event:', event.title, event.id) }} -->
+              <!-- {{ console.log("Rendering event:", event.title, event.id) }} -->
               {{ event.title }}<br>{{ event.timeRange }}
             </div>
           </div>
@@ -72,10 +79,10 @@
           id="grade-calendar-btn" 
           class="btn btn-primary btn-lg" 
           @click="gradeCurrentWeek" 
-          :disabled="isGrading || !canGradeWeek">
+          :disabled="isGrading || !canGradeWeek || isRefreshing">
           <span v-if="isGrading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
           <i v-else class="fas fa-check-circle"></i> 
-          {{ isGrading ? 'Grading...' : 'Grade This Week' }}
+          {{ isGrading ? "Grading..." : "Grade This Week" }}
         </button>
         <div v-if="gradeError" class="alert alert-danger mt-3">{{ gradeError }}</div>
       </div>
@@ -91,12 +98,12 @@
             <div class="modal-body">
               <div v-if="gradeResult" class="grade-result">
                 <div class="grade-header">
-                  <div class="grade-letter">{{ gradeResult.overall_grade || 'N/A' }}</div>
+                  <div class="grade-letter">{{ gradeResult.overall_grade || "N/A" }}</div>
                   <!-- Assuming score is part of the result, otherwise remove -->
-                  <!-- <div class="grade-score">{{ gradeResult.score || '--' }}<span>/100</span></div> -->
+                  <!-- <div class="grade-score">{{ gradeResult.score || "--" }}<span>/100</span></div> -->
                 </div>
                 <div class="grade-summary">
-                  <p>{{ gradeResult.summary || 'Grading complete.' }}</p> 
+                  <p>{{ gradeResult.summary || "Grading complete." }}</p> 
                 </div>
                 <div v-if="gradeResult.strengths && gradeResult.strengths.length > 0" class="grade-section">
                   <h4>Strengths</h4>
@@ -118,7 +125,7 @@
                   <h4>Recommendations</h4>
                   <ul class="recommendations-list">
                     <li v-for="(rec, index) in gradeResult.recommendations" :key="`rec-${index}`">
-                      <div class="recommendation-title">{{ rec.title || 'Recommendation' }}</div>
+                      <div class="recommendation-title">{{ rec.title || "Recommendation" }}</div>
                       <div class="recommendation-description">{{ rec.description }}</div>
                     </li>
                   </ul>
@@ -156,10 +163,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
-import { useStore } from 'vuex';
-import axios from 'axios';
-import { Modal } from 'bootstrap';
+import { ref, computed, onMounted, watch } from "vue";
+import { useStore } from "vuex";
+import axios from "axios";
+import { Modal } from "bootstrap";
 
 // Store
 const store = useStore();
@@ -170,6 +177,7 @@ today.setHours(0, 0, 0, 0);
 const currentDate = ref(new Date(today));
 const events = ref([]);
 const isLoading = ref(true);
+const isRefreshing = ref(false); // Added for manual refresh
 const fetchError = ref(null);
 const gradeModal = ref(null);
 let bsModal = null;
@@ -178,8 +186,13 @@ const gradeError = ref(null);
 const gradeResult = ref(null);
 const canGradeWeek = ref(true); // Will be checked on mount
 
+// Constants for grid
+const GRID_START_HOUR = 8;
+const GRID_END_HOUR = 17; // Exclusive end hour (displays up to 4:59 PM)
+const HOUR_HEIGHT_PX = 60;
+
 // --- Subscription Status ---
-const isPremium = computed(() => store.getters['user/isSubscribed']);
+const isPremium = computed(() => store.getters["user/isSubscribed"]);
 
 // --- Date Formatting and Calculation Helpers ---
 function getStartOfWeek(date) {
@@ -198,13 +211,22 @@ function getEndOfWeek(date) {
 }
 
 function formatDate(date) {
-  return date.toISOString().split('T')[0];
+  return date.toISOString().split("T")[0];
 }
 
 function formatTime(dateTimeString) {
-    if (!dateTimeString) return '';
+  if (!dateTimeString) return "";
+  try {
     const date = new Date(dateTimeString);
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  } catch (e) {
+    console.error("[Calendar] Error formatting time:", dateTimeString, e);
+    return "Invalid Time";
+  }
 }
 
 // --- Computed Properties ---
@@ -212,8 +234,15 @@ const currentWeekStart = computed(() => getStartOfWeek(currentDate.value));
 const currentWeekEnd = computed(() => getEndOfWeek(currentDate.value));
 
 const currentWeekRange = computed(() => {
-  const start = currentWeekStart.value.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const end = currentWeekEnd.value.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const start = currentWeekStart.value.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+  const end = currentWeekEnd.value.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
   return `${start} - ${end}`;
 });
 
@@ -225,9 +254,9 @@ const weekDays = computed(() => {
     day.setDate(day.getDate() + i);
     days.push({
       dateStr: formatDate(day),
-      shortDayName: day.toLocaleDateString('en-US', { weekday: 'short' }),
+      shortDayName: day.toLocaleDateString("en-US", { weekday: "short" }),
       dayOfMonth: day.getDate(),
-      isToday: day.toDateString() === today.toDateString()
+      isToday: day.toDateString() === today.toDateString(),
     });
   }
   return days;
@@ -235,9 +264,9 @@ const weekDays = computed(() => {
 
 const timeSlots = computed(() => {
   const slots = [];
-  for (let i = 8; i <= 17; i++) {
+  for (let i = GRID_START_HOUR; i < GRID_END_HOUR; i++) {
     const hour = i % 12 === 0 ? 12 : i % 12;
-    const ampm = i < 12 ? 'AM' : 'PM';
+    const ampm = i < 12 ? "AM" : "PM";
     slots.push(`${hour} ${ampm}`);
   }
   return slots;
@@ -247,141 +276,227 @@ const timeSlots = computed(() => {
 const todayWeekStart = computed(() => getStartOfWeek(today));
 
 const minAllowedWeekStart = computed(() => {
-    const date = new Date(todayWeekStart.value);
-    if (isPremium.value) {
-        date.setDate(date.getDate() - 7 * 2);
-    } // Free: min is current week (todayWeekStart)
-    return date;
+  const date = new Date(todayWeekStart.value);
+  if (isPremium.value) {
+    date.setDate(date.getDate() - 7 * 2);
+  } // Free: min is current week (todayWeekStart)
+  return date;
 });
 
 const maxAllowedWeekStart = computed(() => {
-    const date = new Date(todayWeekStart.value);
-    if (isPremium.value) {
-        date.setDate(date.getDate() + 7 * 8);
-    } else {
-        date.setDate(date.getDate() + 7 * 2);
-    }
-    return date;
+  const date = new Date(todayWeekStart.value);
+  if (isPremium.value) {
+    date.setDate(date.getDate() + 7 * 8);
+  } else {
+    date.setDate(date.getDate() + 7 * 2);
+  }
+  return date;
 });
 
 const canNavigateBackward = computed(() => {
-    const prevWeekStartDate = new Date(currentWeekStart.value);
-    prevWeekStartDate.setDate(prevWeekStartDate.getDate() - 7);
-    return prevWeekStartDate >= minAllowedWeekStart.value;
+  const prevWeekStartDate = new Date(currentWeekStart.value);
+  prevWeekStartDate.setDate(prevWeekStartDate.getDate() - 7);
+  return prevWeekStartDate >= minAllowedWeekStart.value;
 });
 
 const canNavigateForward = computed(() => {
-    const nextWeekStartDate = new Date(currentWeekStart.value);
-    nextWeekStartDate.setDate(nextWeekStartDate.getDate() + 7);
-    return nextWeekStartDate <= maxAllowedWeekStart.value;
+  const nextWeekStartDate = new Date(currentWeekStart.value);
+  nextWeekStartDate.setDate(nextWeekStartDate.getDate() + 7);
+  return nextWeekStartDate <= maxAllowedWeekStart.value;
 });
 
 // --- Event Fetching ---
-async function fetchEventsForWeek(startDate, endDate) {
-  isLoading.value = true;
+async function fetchEventsForWeek(startDate, endDate, forceRefresh = false) {
+  if (!forceRefresh) {
+      isLoading.value = true;
+  } else {
+      isRefreshing.value = true;
+  }
   fetchError.value = null;
-  console.log(`[Calendar] Fetching events from ${formatDate(startDate)} to ${formatDate(endDate)}`);
+  console.log(
+    `[Calendar] Fetching events from ${formatDate(startDate)} to ${formatDate(
+      endDate
+    )}. Force Refresh: ${forceRefresh}`
+  );
   try {
-    const response = await axios.post('/api/calendars/events', {
+    const response = await axios.post("/api/calendars/events", {
       start_date: formatDate(startDate),
       end_date: formatDate(endDate),
+      force_refresh: forceRefresh, // Pass force_refresh flag to backend
     });
     // Debug: Log raw response
-    console.log('[Calendar] Raw events received:', response.data.events);
+    console.log("[Calendar] Raw events received:", response.data.events);
 
-    events.value = response.data.events.map(event => {
-        const start = event.start ? new Date(event.start) : null;
-        const end = event.end ? new Date(event.end) : null;
-        let timeRange = 'All Day';
-        let startHour = 0;
-        let durationMinutes = 24 * 60;
-        let dateStr = null;
+    events.value = response.data.events.map((event) => {
+      let start = null;
+      let end = null;
+      let dateStr = null;
+      let timeRange = "All Day";
+      let startHour = 0;
+      let startMinute = 0;
+      let endHour = 24;
+      let endMinute = 0;
+      let durationMinutes = 24 * 60;
 
-        if (start) {
-            dateStr = start.toISOString().split('T')[0]; // Use ISO string for reliable date part
+      try {
+        if (event.start) {
+          start = new Date(event.start);
+          dateStr = start.toISOString().split("T")[0]; // Use ISO string for reliable date part
+          startHour = start.getHours();
+          startMinute = start.getMinutes();
+        }
+        if (event.end) {
+          end = new Date(event.end);
+          endHour = end.getHours();
+          endMinute = end.getMinutes();
         }
 
         if (start && end && !event.allDay) {
-            timeRange = `${formatTime(event.start)} - ${formatTime(event.end)}`;
-            startHour = start.getHours();
-            durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+          timeRange = `${formatTime(event.start)} - ${formatTime(event.end)}`;
+          durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+          // Handle cases where event spans midnight incorrectly
+          if (durationMinutes < 0) durationMinutes += 24 * 60;
         } else if (start && !event.allDay) {
-            timeRange = formatTime(event.start);
-            startHour = start.getHours();
-            durationMinutes = 60; // Default duration if end is missing?
+          timeRange = formatTime(event.start);
+          durationMinutes = 60; // Default duration if end is missing
+          endHour = startHour + 1;
         }
+      } catch (e) {
+        console.error("[Calendar] Error processing event dates:", event, e);
+        // Keep default values if date parsing fails
+      }
 
-        const processedEvent = {
-            ...event,
-            dateStr: dateStr,
-            timeRange,
-            startHour,
-            durationMinutes,
-            color: 'var(--primary-purple)' // Default color
-        };
-        // Debug: Log processed event
-        // console.log('[Calendar] Processed event:', processedEvent);
-        return processedEvent;
+      const processedEvent = {
+        ...event,
+        dateStr: dateStr,
+        timeRange,
+        startHour,
+        startMinute,
+        endHour,
+        endMinute,
+        durationMinutes,
+        color: "var(--primary-purple)", // Default color
+      };
+      // Debug: Log processed event
+      // console.log("[Calendar] Processed event:", processedEvent);
+      return processedEvent;
     });
     console.log("[Calendar] Processed events array:", events.value);
   } catch (error) {
-    console.error('[Calendar] Error fetching calendar events:', error);
-    fetchError.value = 'Failed to load calendar events. Please ensure your Google Calendar is connected and try again.';
+    console.error("[Calendar] Error fetching calendar events:", error);
+    fetchError.value =
+      error.response?.data?.error ||
+      "Failed to load calendar events. Please ensure your Google Calendar is connected and try again.";
     events.value = [];
   } finally {
     isLoading.value = false;
+    isRefreshing.value = false;
   }
+}
+
+// --- Manual Refresh ---
+function manualRefresh() {
+    console.log("[Calendar] Manual refresh triggered.");
+    fetchEventsForWeek(currentWeekStart.value, currentWeekEnd.value, true);
 }
 
 // --- Event Display Logic ---
 function getEventsForDay(dateStr) {
   // Debug: Log filtering process
-  console.log(`[Calendar] Filtering events for day: ${dateStr}`);
-  const dayEvents = events.value.filter(event => event.dateStr === dateStr);
-  console.log(`[Calendar] Found ${dayEvents.length} events for ${dateStr}:`, dayEvents);
+  // console.log(`[Calendar] Filtering events for day: ${dateStr}`);
+  const dayEvents = events.value.filter((event) => event.dateStr === dateStr);
+  // console.log(
+  //   `[Calendar] Found ${dayEvents.length} events for ${dateStr}:`,
+  //   dayEvents
+  // );
   return dayEvents;
 }
 
 function getEventStyle(event) {
   // Debug: Log style calculation
-  console.log(`[Calendar] Calculating style for event: ${event.title} (ID: ${event.id})`);
-  if (event.allDay) {
-      const style = {
-          top: '0px',
-          height: '20px',
-          backgroundColor: event.color || 'var(--secondary-color)',
-          opacity: 0.8,
-          fontSize: '10px',
-          lineHeight: '20px',
-          zIndex: 0
-      };
-      console.log('[Calendar] All-day event style:', style);
-      return style;
+  // console.log(
+  //   `[Calendar] Calculating style for event: ${event.title} (ID: ${event.id})`
+  // );
+  if (event.allDay || !event.start) {
+    // Render all-day events or events without a start time in a compact way at the top
+    const style = {
+      position: "relative", // Use relative for all-day to stack them
+      top: "0px",
+      height: "20px",
+      backgroundColor: event.color || "var(--secondary-color)",
+      opacity: 0.8,
+      fontSize: "10px",
+      lineHeight: "20px",
+      zIndex: 0,
+      marginBottom: "2px", // Add margin between stacked all-day events
+      overflow: "hidden",
+      whiteSpace: "nowrap",
+      textOverflow: "ellipsis",
+      padding: "0 4px",
+      borderRadius: "3px",
+      border: "1px solid rgba(0, 0, 0, 0.1)",
+      cursor: "pointer",
+    };
+    // console.log("[Calendar] All-day/Invalid event style:", style);
+    return style;
   }
-  const hourHeight = 60;
-  const startOffsetHours = event.startHour - 8; // Assuming calendar starts at 8 AM
-  const top = Math.max(0, startOffsetHours * hourHeight + (new Date(event.start).getMinutes() / 60) * hourHeight);
-  const height = Math.max(15, (event.durationMinutes / 60) * hourHeight);
+
+  // Calculate position for timed events within the GRID_START_HOUR to GRID_END_HOUR range
+  const startTotalMinutes = event.startHour * 60 + event.startMinute;
+  const endTotalMinutes = event.endHour * 60 + event.endMinute;
+
+  const gridStartTotalMinutes = GRID_START_HOUR * 60;
+  const gridEndTotalMinutes = GRID_END_HOUR * 60;
+
+  // Clamp event start and end times to the visible grid boundaries
+  const clampedStartMinutes = Math.max(startTotalMinutes, gridStartTotalMinutes);
+  const clampedEndMinutes = Math.min(endTotalMinutes, gridEndTotalMinutes);
+
+  // Calculate top position relative to the grid start time
+  const topMinutes = clampedStartMinutes - gridStartTotalMinutes;
+  const top = (topMinutes / 60) * HOUR_HEIGHT_PX;
+
+  // Calculate height based on the duration within the grid
+  const durationInGridMinutes = Math.max(0, clampedEndMinutes - clampedStartMinutes);
+  // Ensure minimum height, prevent zero height for very short events within grid
+  const height = Math.max(15, (durationInGridMinutes / 60) * HOUR_HEIGHT_PX); 
+
+  // Only render if the event overlaps with the grid time range
+  if (durationInGridMinutes <= 0 || startTotalMinutes >= gridEndTotalMinutes || endTotalMinutes <= gridStartTotalMinutes) {
+      // console.log("[Calendar] Event outside grid time range, skipping render:", event.title);
+      return { display: 'none' }; // Hide events completely outside the grid
+  }
 
   const style = {
+    position: "absolute",
     top: `${top}px`,
     height: `${height}px`,
-    backgroundColor: event.color || 'var(--primary-purple)'
+    backgroundColor: event.color || "var(--primary-purple)",
+    left: "5px", // Add some padding from the column border
+    right: "5px",
+    padding: "2px 4px",
+    borderRadius: "3px",
+    fontSize: "11px",
+    color: "white",
+    overflow: "hidden",
+    zIndex: 1,
+    cursor: "pointer",
+    border: "1px solid rgba(0, 0, 0, 0.2)",
   };
-  console.log('[Calendar] Timed event style:', style);
+  // console.log("[Calendar] Timed event style:", style);
   return style;
 }
 
 // --- Navigation ---
 function prevWeek() {
-  if (!canNavigateBackward.value) return;
+  if (!canNavigateBackward.value || isRefreshing.value) return;
   const newDate = new Date(currentDate.value);
   newDate.setDate(newDate.getDate() - 7);
   currentDate.value = newDate;
 }
 
 function nextWeek() {
-  if (!canNavigateForward.value) return;
+  if (!canNavigateForward.value || isRefreshing.value) return;
   const newDate = new Date(currentDate.value);
   newDate.setDate(newDate.getDate() + 7);
   currentDate.value = newDate;
@@ -389,23 +504,27 @@ function nextWeek() {
 
 // --- Grading Logic ---
 async function checkGradingAbility() {
-    try {
-        const response = await axios.get('/api/subscription/can-grade');
-        canGradeWeek.value = response.data.can_grade;
-        if (!canGradeWeek.value && !isPremium.value) {
-            gradeError.value = 'You have reached your free grading limit. Upgrade to Premium for unlimited grading.';
-        }
-    } catch (error) {
-        console.error('[Calendar] Error checking grading ability:', error);
-        canGradeWeek.value = false; // Assume cannot grade if check fails
-        gradeError.value = 'Could not verify grading ability.';
+  try {
+    const response = await axios.get("/api/subscription/can-grade");
+    canGradeWeek.value = response.data.can_grade;
+    if (!canGradeWeek.value && !isPremium.value) {
+      gradeError.value =
+        "You have reached your free grading limit. Upgrade to Premium for unlimited grading.";
     }
+  } catch (error) {
+    console.error("[Calendar] Error checking grading ability:", error);
+    canGradeWeek.value = false; // Assume cannot grade if check fails
+    gradeError.value = "Could not verify grading ability.";
+  }
 }
 
 async function gradeCurrentWeek() {
   if (!canGradeWeek.value) {
-      gradeError.value = isPremium.value ? 'An error occurred checking grade status.' : 'You have reached your free grading limit. Upgrade to Premium for unlimited grading.';
-      return;
+    gradeError.value =
+      isPremium.value
+        ? "An error occurred checking grade status."
+        : "You have reached your free grading limit. Upgrade to Premium for unlimited grading.";
+    return;
   }
 
   isGrading.value = true;
@@ -413,8 +532,12 @@ async function gradeCurrentWeek() {
   gradeResult.value = null; // Clear previous results
 
   try {
-    console.log(`[Calendar] Grading week: ${formatDate(currentWeekStart.value)} to ${formatDate(currentWeekEnd.value)}`);
-    const response = await axios.post('/api/ai/grade-calendar', {
+    console.log(
+      `[Calendar] Grading week: ${formatDate(
+        currentWeekStart.value
+      )} to ${formatDate(currentWeekEnd.value)}`
+    );
+    const response = await axios.post("/api/ai/grade-calendar", {
       start_date: formatDate(currentWeekStart.value),
       end_date: formatDate(currentWeekEnd.value),
     });
@@ -425,18 +548,19 @@ async function gradeCurrentWeek() {
 
     // Increment grade count for non-premium users after successful grading
     if (!isPremium.value) {
-        try {
-            await axios.post('/api/subscription/increment-grades');
-            checkGradingAbility(); // Re-check ability after incrementing
-        } catch (incError) {
-            console.error('[Calendar] Error incrementing grade count:', incError);
-            // Handle this? Maybe just log it.
-        }
+      try {
+        await axios.post("/api/subscription/increment-grades");
+        checkGradingAbility(); // Re-check ability after incrementing
+      } catch (incError) {
+        console.error("[Calendar] Error incrementing grade count:", incError);
+        // Handle this? Maybe just log it.
+      }
     }
-
   } catch (error) {
-    console.error('[Calendar] Error grading calendar:', error);
-    gradeError.value = error.response?.data?.error || 'An unexpected error occurred while grading the calendar.';
+    console.error("[Calendar] Error grading calendar:", error);
+    gradeError.value =
+      error.response?.data?.error ||
+      "An unexpected error occurred while grading the calendar.";
   } finally {
     isGrading.value = false;
   }
@@ -458,11 +582,11 @@ function closeGradeModal() {
 // --- Watchers ---
 watch(currentWeekStart, (newStart, oldStart) => {
   if (newStart && (!oldStart || newStart.getTime() !== oldStart.getTime())) {
-    fetchEventsForWeek(newStart, currentWeekEnd.value);
+    fetchEventsForWeek(newStart, currentWeekEnd.value); // Fetch without forcing refresh on navigation
     // Reset grade error when navigating
     gradeError.value = null;
     // Re-check grading ability for the new week (optional, depends on logic)
-    // checkGradingAbility(); 
+    // checkGradingAbility();
   }
 });
 
@@ -471,56 +595,59 @@ onMounted(async () => {
   if (gradeModal.value) {
     bsModal = new Modal(gradeModal.value);
   }
-  
+
   // Ensure user data is loaded before initial fetch and checks
   if (!store.state.user.user) {
-      console.log("[Calendar] Waiting for user data...");
-      // Wait for fetchUser to complete if it hasn't already
-      // This assumes fetchUser is dispatched reliably in App.vue or similar entry point
-      await store.dispatch('user/fetchUser'); 
+    console.log("[Calendar] Waiting for user data...");
+    // Wait for fetchUser to complete if it hasn't already
+    // This assumes fetchUser is dispatched reliably in App.vue or similar entry point
+    await store.dispatch("user/fetchUser");
   }
 
   if (store.state.user.user) {
-      console.log("[Calendar] User data loaded. Fetching initial data...");
-      await checkGradingAbility(); // Check if user can grade initially
-      await fetchEventsForWeek(currentWeekStart.value, currentWeekEnd.value);
+    console.log("[Calendar] User data loaded. Fetching initial data...");
+    await checkGradingAbility(); // Check if user can grade initially
+    await fetchEventsForWeek(currentWeekStart.value, currentWeekEnd.value);
   } else {
-      console.error("[Calendar] User data not loaded after waiting. Cannot fetch events or check grading status.");
-      isLoading.value = false;
-      fetchError.value = "User data not loaded. Cannot fetch events or check grading status.";
-      canGradeWeek.value = false;
+    console.error(
+      "[Calendar] User data not loaded after waiting. Cannot fetch events or check grading status."
+    );
+    isLoading.value = false;
+    fetchError.value =
+      "User data not loaded. Cannot fetch events or check grading status.";
+    canGradeWeek.value = false;
   }
 });
-
 </script>
 
 <style scoped>
 /* Styles remain largely the same */
 .loading-indicator {
-    text-align: center;
-    padding: 50px;
-    color: var(--text-color-secondary);
+  text-align: center;
+  padding: 50px;
+  color: var(--text-color-secondary);
 }
 
 .loading-indicator .spinner-border {
-    width: 3rem;
-    height: 3rem;
-    margin-bottom: 1rem;
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 1rem;
 }
 
 .prev-week-btn[disabled],
-.next-week-btn[disabled] {
-    opacity: 0.5;
-    cursor: not-allowed;
-    background-color: transparent;
-    color: var(--primary-purple);
+.next-week-btn[disabled],
+.refresh-btn[disabled] { /* Added refresh-btn */
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: transparent;
+  /* color: var(--primary-purple); */ /* Keep secondary color for refresh */
 }
 
 .week-title {
-    margin: 0 15px;
-    font-style: italic;
-    min-width: 200px;
-    text-align: center;
+  margin: 0 15px;
+  font-style: italic;
+  min-width: 200px;
+  text-align: center;
 }
 
 .calendar-navigation {
@@ -530,7 +657,8 @@ onMounted(async () => {
   margin-bottom: 20px;
 }
 
-.prev-week-btn, .next-week-btn {
+.prev-week-btn,
+.next-week-btn {
   width: 40px;
   height: 40px;
   border-radius: 10px;
@@ -543,16 +671,34 @@ onMounted(async () => {
   transition: all 0.2s ease;
 }
 
+.refresh-btn { /* Added styles for refresh button */
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-color: var(--text-color-secondary);
+  color: var(--text-color-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
 .prev-week-btn:not([disabled]):hover,
 .next-week-btn:not([disabled]):hover {
   background-color: var(--primary-purple);
   color: white;
 }
 
+.refresh-btn:not([disabled]):hover {
+  background-color: var(--text-color-secondary);
+  color: var(--background-color);
+}
+
 .week-header {
   display: grid;
   grid-template-columns: 60px repeat(7, 1fr);
-  gap: 5px;
+  /* gap: 5px; */ /* Remove gap to allow borders to connect */
   margin-bottom: 10px;
 }
 
@@ -562,6 +708,11 @@ onMounted(async () => {
   background-color: rgba(255, 255, 255, 0.1);
   border-radius: 5px;
   font-weight: bold;
+  border-right: 1px solid rgba(255, 255, 255, 0.1); /* Add border */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* Add border */
+}
+.week-day:last-child {
+    border-right: none;
 }
 
 .week-day.today {
@@ -572,11 +723,15 @@ onMounted(async () => {
 .week-grid {
   display: grid;
   grid-template-columns: 60px repeat(7, 1fr);
-  min-height: 600px;
+  min-height: calc(var(--hour-height, 60px) * (var(--grid-end-hour, 17) - var(--grid-start-hour, 8))); /* Calculate height based on hours */
   position: relative;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   overflow: hidden;
+  /* Define CSS variables for grid parameters */
+  --hour-height: 60px;
+  --grid-start-hour: 8;
+  --grid-end-hour: 17;
 }
 
 .time-slots {
@@ -586,7 +741,7 @@ onMounted(async () => {
 }
 
 .time-slot {
-  height: 60px;
+  height: var(--hour-height);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -595,32 +750,35 @@ onMounted(async () => {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 .time-slot:last-child {
-    border-bottom: none;
+  border-bottom: none;
 }
 
 .day-column {
   position: relative;
   border-right: 1px solid rgba(255, 255, 255, 0.1);
-  min-height: 600px;
+  min-height: calc(var(--hour-height) * (var(--grid-end-hour) - var(--grid-start-hour)));
 }
 
 .day-column:last-child {
   border-right: none;
 }
 
+/* Add horizontal lines for hours */
+.day-column::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+    background-size: 100% var(--hour-height);
+    z-index: -1; /* Place behind events */
+}
+
+
 .week-event {
-  position: absolute;
-  left: 5px;
-  right: 5px;
-  padding: 5px;
-  border-radius: 5px;
-  font-size: 12px;
-  color: white;
-  overflow: hidden;
-  z-index: 1;
-  cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  /* Styles updated in getEventStyle function */
 }
 
 .calendar-grading-action {
@@ -643,8 +801,8 @@ onMounted(async () => {
 }
 
 #grade-calendar-btn[disabled] {
-    opacity: 0.6;
-    cursor: not-allowed;
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .grade-header {
@@ -681,7 +839,7 @@ onMounted(async () => {
 }
 
 .grade-section {
-    margin-bottom: 20px;
+  margin-bottom: 20px;
 }
 
 .recommendations-list {
@@ -723,16 +881,15 @@ onMounted(async () => {
 }
 
 .modal {
-    color: #333;
+  color: #333;
 }
 
 .premium-cta {
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 }
-
 </style>
 
