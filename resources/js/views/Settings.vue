@@ -14,7 +14,7 @@
           {{ errorMessage }}
           <button type="button" class="btn-close" @click="errorMessage = ''" aria-label="Close"></button>
         </div>
-        <!-- Google Specific Messages (Keep separate for clarity) -->
+        <!-- Google Specific Messages -->
         <div v-if="googleSuccessMessage" class="alert alert-success alert-dismissible fade show" role="alert">
           {{ googleSuccessMessage }}
           <button type="button" class="btn-close" @click="clearGoogleMessages" aria-label="Close"></button>
@@ -88,16 +88,16 @@
                 <h3>Notification Preferences</h3>
                 <form @submit.prevent="updateNotifications">
                   <div class="mb-3 form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="weekly_grade_email" v-model="notificationForm.weekly_grade_email">
+                    <input class="form-check-input" type="checkbox" id="weekly_grade_email" v-model="notificationForm.weekly_grade_email" :disabled="isUpdatingNotifications">
                     <label class="form-check-label" for="weekly_grade_email">Send me weekly grade emails</label>
                   </div>
                   <div class="mb-3 form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="planning_reminder" v-model="notificationForm.planning_reminder">
+                    <input class="form-check-input" type="checkbox" id="planning_reminder" v-model="notificationForm.planning_reminder" :disabled="isUpdatingNotifications">
                     <label class="form-check-label" for="planning_reminder">Send me weekly planning reminders</label>
                   </div>
                   <div class="mb-3">
                     <label for="reminder_day" class="form-label">Reminder Day</label>
-                    <select class="form-select" id="reminder_day" v-model="notificationForm.reminder_day">
+                    <select class="form-select" id="reminder_day" v-model="notificationForm.reminder_day" :disabled="isUpdatingNotifications">
                       <option value="Sunday">Sunday</option>
                       <option value="Monday">Monday</option>
                       <option value="Tuesday">Tuesday</option>
@@ -109,53 +109,68 @@
                   </div>
                   <div class="mb-3">
                     <label for="reminder_time" class="form-label">Reminder Time</label>
-                    <input type="time" class="form-control" id="reminder_time" v-model="notificationForm.reminder_time">
+                    <input type="time" class="form-control" id="reminder_time" v-model="notificationForm.reminder_time" :disabled="isUpdatingNotifications">
                   </div>
-                  <button type="submit" class="btn btn-primary">Save Notification Settings</button>
+                  <button type="submit" class="btn btn-primary" :disabled="isUpdatingNotifications">
+                    <span v-if="isUpdatingNotifications" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    {{ isUpdatingNotifications ? 'Saving...' : 'Save Notification Settings' }}
+                  </button>
                 </form>
               </div>
 
               <!-- Subscription Settings -->
               <div class="tab-pane fade" :class="{ 'show active': activeTab === 'subscription' }">
                 <h3>Subscription Status</h3>
-                <div class="card mb-4">
-                  <div class="card-body">
-                    <div v-if="isSubscribed" class="subscription-status active">
-                      <div class="status-icon"><i class="fas fa-check-circle"></i></div>
-                      <div class="status-details">
-                        <h4>Premium Plan</h4>
-                        <p>Your subscription is active.</p>
-                        <p class="text-muted">Next billing date: {{ nextBillingDate }}</p>
-                      </div>
+                <div v-if="isLoadingSubscription" class="text-center my-3">
+                    <div class="spinner-border text-primary" role="status">
+                      <span class="visually-hidden">Loading subscription status...</span>
                     </div>
-                    <div v-else class="subscription-status inactive">
-                      <div class="status-icon"><i class="fas fa-info-circle"></i></div>
-                      <div class="status-details">
-                        <h4>Free Plan</h4>
-                        <p>You are currently on the free plan.</p>
-                        <p class="text-muted">{{ gradesRemaining }} grades remaining</p>
+                </div>
+                <div v-else-if="subscriptionError" class="alert alert-warning">
+                    {{ subscriptionError }}
+                </div>
+                <div v-else>
+                  <div class="card mb-4">
+                    <div class="card-body">
+                      <div v-if="subscriptionStatus.isActive" class="subscription-status active">
+                        <div class="status-icon"><i class="fas fa-check-circle"></i></div>
+                        <div class="status-details">
+                          <h4>{{ subscriptionStatus.planName || 'Premium Plan' }}</h4>
+                          <p>Your subscription is active.</p>
+                          <p v-if="subscriptionStatus.nextBillingDate" class="text-muted">Next billing date: {{ subscriptionStatus.nextBillingDate }}</p>
+                          <p v-if="subscriptionStatus.cancelAtPeriodEnd" class="text-warning">Cancels on: {{ subscriptionStatus.cancelAtDate }}</p>
+                        </div>
                       </div>
-                    </div>
+                      <div v-else class="subscription-status inactive">
+                        <div class="status-icon"><i class="fas fa-info-circle"></i></div>
+                        <div class="status-details">
+                          <h4>{{ subscriptionStatus.planName || 'Free Plan' }}</h4>
+                          <p>You are currently on the free plan.</p>
+                          <p v-if="subscriptionStatus.gradesRemaining !== null" class="text-muted">{{ subscriptionStatus.gradesRemaining }} grades remaining</p>
+                        </div>
+                      </div>
 
-                    <div class="mt-4">
-                      <button v-if="isSubscribed" type="button" class="btn btn-outline-danger" @click="openCancelModal">
-                        Cancel Subscription
-                      </button>
-                      <router-link v-else to="/subscription" class="btn btn-primary">Upgrade to Premium</router-link>
+                      <div class="mt-4">
+                        <button v-if="subscriptionStatus.isActive && !subscriptionStatus.cancelAtPeriodEnd" type="button" class="btn btn-outline-danger" @click="openCancelModal">
+                          Cancel Subscription
+                        </button>
+                        <router-link v-else-if="!subscriptionStatus.isActive" to="/subscription" class="btn btn-primary">Upgrade to Premium</router-link>
+                        <!-- Add button to manage billing/reactivate if needed -->
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div v-if="isSubscribed" class="card">
-                  <div class="card-header"><h5>Subscription Benefits</h5></div>
-                  <div class="card-body">
-                    <ul class="subscription-benefits">
-                      <li><i class="fas fa-check text-success"></i> Connect unlimited calendars</li>
-                      <li><i class="fas fa-check text-success"></i> Unlimited calendar grades</li>
-                      <li><i class="fas fa-check text-success"></i> Advanced AI recommendations</li>
-                      <li><i class="fas fa-check text-success"></i> Priority support</li>
-                      <li><i class="fas fa-check text-success"></i> Detailed analytics</li>
-                    </ul>
+                  <div v-if="subscriptionStatus.isActive" class="card">
+                    <div class="card-header"><h5>Subscription Benefits</h5></div>
+                    <div class="card-body">
+                      <ul class="subscription-benefits">
+                        <li><i class="fas fa-check text-success"></i> Connect unlimited calendars</li>
+                        <li><i class="fas fa-check text-success"></i> Unlimited calendar grades</li>
+                        <li><i class="fas fa-check text-success"></i> Advanced AI recommendations</li>
+                        <li><i class="fas fa-check text-success"></i> Priority support</li>
+                        <li><i class="fas fa-check text-success"></i> Detailed analytics</li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -249,15 +264,15 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch, computed } from 'vue'; // Added computed
+import { ref, reactive, onMounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useStore } from 'vuex'; // Import useStore
+import { useStore } from 'vuex';
 import axios from 'axios';
 import { Modal } from 'bootstrap';
 
 const route = useRoute();
 const router = useRouter();
-const store = useStore(); // Initialize store
+const store = useStore();
 
 const activeTab = ref('account');
 
@@ -280,11 +295,19 @@ const notificationForm = reactive({
 });
 const isUpdatingAccount = ref(false);
 const isUpdatingPassword = ref(false);
+const isUpdatingNotifications = ref(false); // Added state for notifications
 
-// --- Subscription Data ---
-const isSubscribed = ref(true); // Placeholder
-const nextBillingDate = ref('May 30, 2025'); // Placeholder
-const gradesRemaining = ref(0); // Placeholder
+// --- Subscription Data & State ---
+const subscriptionStatus = reactive({ // Changed to reactive object
+  isActive: false,
+  planName: null,
+  nextBillingDate: null,
+  gradesRemaining: null,
+  cancelAtPeriodEnd: false,
+  cancelAtDate: null,
+});
+const isLoadingSubscription = ref(false);
+const subscriptionError = ref('');
 const isCancelling = ref(false);
 
 // --- Calendar Data ---
@@ -327,22 +350,17 @@ async function updateAccount() {
   try {
     const response = await axios.put('/api/profile', accountForm);
     successMessage.value = response.data.message;
-    // Update user data in Vuex store
     store.commit('user/SET_USER', response.data.user);
-    // Repopulate form in case backend modified data (e.g., email verification status)
-    populateAccountForm(); 
+    populateAccountForm();
   } catch (error) {
     console.error('Error updating account:', error);
-    if (error.response && error.response.data && error.response.data.message) {
-      errorMessage.value = error.response.data.message;
-      // Handle validation errors specifically
+    if (error.response && error.response.data) {
+      errorMessage.value = error.response.data.message || 'Failed to update account.';
       if (error.response.status === 422 && error.response.data.errors) {
-        const errors = error.response.data.errors;
-        const errorMessages = Object.values(errors).flat();
-        errorMessage.value = errorMessages.join(' ');
+        errorMessage.value = Object.values(error.response.data.errors).flat().join(' ');
       }
     } else {
-      errorMessage.value = 'An unexpected error occurred while updating your account.';
+      errorMessage.value = 'An unexpected error occurred.';
     }
   } finally {
     isUpdatingAccount.value = false;
@@ -356,41 +374,94 @@ async function updatePassword() {
   try {
     const response = await axios.put('/api/password', passwordForm);
     successMessage.value = response.data.message;
-    // Clear password form fields after successful update
     passwordForm.current_password = '';
     passwordForm.password = '';
     passwordForm.password_confirmation = '';
   } catch (error) {
     console.error('Error updating password:', error);
-    if (error.response && error.response.data && error.response.data.message) {
-      errorMessage.value = error.response.data.message;
-      // Handle validation errors specifically
+     if (error.response && error.response.data) {
+      errorMessage.value = error.response.data.message || 'Failed to update password.';
       if (error.response.status === 422 && error.response.data.errors) {
-        const errors = error.response.data.errors;
-        const errorMessages = Object.values(errors).flat();
-        errorMessage.value = errorMessages.join(' ');
+        errorMessage.value = Object.values(error.response.data.errors).flat().join(' ');
       }
     } else {
-      errorMessage.value = 'An unexpected error occurred while updating your password.';
+      errorMessage.value = 'An unexpected error occurred.';
     }
   } finally {
     isUpdatingPassword.value = false;
   }
 }
 
-async function updateNotifications() { /* ... API call ... */ }
+// Fetch Notification Settings
+async function fetchNotificationSettings() {
+  try {
+    const response = await axios.get('/api/notifications/settings');
+    // Update the reactive form object directly
+    Object.assign(notificationForm, response.data);
+    console.log('Fetched notification settings:', notificationForm);
+  } catch (error) {
+    console.error('Error fetching notification settings:', error);
+    errorMessage.value = 'Failed to load notification settings.';
+  }
+}
+
+// Update Notification Settings
+async function updateNotifications() {
+  isUpdatingNotifications.value = true;
+  successMessage.value = '';
+  errorMessage.value = '';
+  try {
+    const response = await axios.put('/api/notifications/settings', notificationForm);
+    successMessage.value = response.data.message;
+  } catch (error) {
+    console.error('Error updating notification settings:', error);
+    if (error.response && error.response.data) {
+      errorMessage.value = error.response.data.message || 'Failed to save notification settings.';
+      if (error.response.status === 422 && error.response.data.errors) {
+        errorMessage.value = Object.values(error.response.data.errors).flat().join(' ');
+      }
+    } else {
+      errorMessage.value = 'An unexpected error occurred.';
+    }
+  } finally {
+    isUpdatingNotifications.value = false;
+  }
+}
+
+// Fetch Subscription Status
+async function fetchSubscriptionStatus() {
+  isLoadingSubscription.value = true;
+  subscriptionError.value = '';
+  try {
+    // Assuming the endpoint returns an object like the subscriptionStatus reactive object
+    const response = await axios.get('/api/subscription/status'); 
+    Object.assign(subscriptionStatus, response.data); // Update reactive object
+    console.log('Fetched subscription status:', subscriptionStatus);
+  } catch (error) {
+    console.error('Error fetching subscription status:', error);
+    subscriptionError.value = 'Failed to load subscription status.';
+  } finally {
+    isLoadingSubscription.value = false;
+  }
+}
 
 function openCancelModal() { if (bsCancelModal) bsCancelModal.show(); }
 function closeCancelModal() { if (bsCancelModal) bsCancelModal.hide(); }
 
 async function confirmCancelSubscription() {
   isCancelling.value = true;
+  errorMessage.value = ''; // Clear previous errors
+  successMessage.value = '';
   try {
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    isSubscribed.value = false;
+    // Use the correct endpoint from api.php
+    const response = await axios.post('/api/subscription/cancel'); 
+    successMessage.value = response.data.message || 'Subscription cancelled successfully. You will retain access until the end of the current billing period.';
+    // Re-fetch status to update UI
+    await fetchSubscriptionStatus(); 
     closeCancelModal();
   } catch (error) {
     console.error('Failed to cancel subscription:', error);
+    errorMessage.value = error.response?.data?.message || 'Failed to cancel subscription. Please try again or contact support.';
   } finally {
     isCancelling.value = false;
   }
@@ -402,7 +473,7 @@ async function connectGoogleCalendar() {
     window.location.href = response.data.authUrl;
   } catch (error) {
     console.error('Error getting Google auth URL:', error);
-    errorMessage.value = 'Failed to initiate Google Calendar connection. Please try again.';
+    errorMessage.value = 'Failed to initiate Google Calendar connection.';
   }
 }
 
@@ -414,7 +485,7 @@ async function disconnectGoogleCalendar() {
     googleSuccessMessage.value = 'Google Calendar disconnected successfully.';
   } catch (error) {
     console.error('Error disconnecting Google Calendar:', error);
-    errorMessage.value = 'Failed to disconnect Google Calendar. Please try again.';
+    errorMessage.value = 'Failed to disconnect Google Calendar.';
   }
 }
 
@@ -432,7 +503,7 @@ async function fetchGoogleData() {
     }
   } catch (error) {
     console.error('Error fetching Google Calendar data:', error);
-    calendarFetchError.value = 'Failed to load calendar data. Please try reconnecting or refresh.';
+    calendarFetchError.value = 'Failed to load calendar data.';
   } finally {
     isLoadingCalendars.value = false;
   }
@@ -479,8 +550,10 @@ onMounted(() => {
   // Populate form with initial user data
   populateAccountForm();
 
+  // Fetch other settings data
+  fetchNotificationSettings();
+  fetchSubscriptionStatus();
   fetchGoogleData();
-  // TODO: Fetch notification, subscription data
 });
 
 // Watch for route query changes

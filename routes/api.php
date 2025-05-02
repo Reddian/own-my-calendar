@@ -16,7 +16,7 @@ use App\Http\Controllers\GoogleCalendarController;
 use App\Http\Controllers\MultiCalendarController;
 use App\Http\Controllers\AIGradingController;
 use App\Http\Controllers\SubscriptionController;
-use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\NotificationSettingsController; // Import NotificationSettingsController
 use App\Http\Controllers\StripeController;
 use App\Http\Controllers\ExtensionController;
 
@@ -54,6 +54,10 @@ Route::middleware("auth:sanctum")->group(function () {
         return $request->user();
     });
 
+    // Notification Settings
+    Route::get("/notifications/settings", [NotificationSettingsController::class, "getSettings"]);
+    Route::put("/notifications/settings", [NotificationSettingsController::class, "updateSettings"]);
+
     // Onboarding routes
     Route::get("/onboarding", [OnboardingController::class, "index"]);
     Route::post("/onboarding", [OnboardingController::class, "store"]);
@@ -87,6 +91,8 @@ Route::middleware("auth:sanctum")->group(function () {
     Route::post("/subscription/cancel", [SubscriptionController::class, "cancelSubscription"]);
     Route::get("/subscription/can-grade", [SubscriptionController::class, "canGradeCalendar"]);
     Route::post("/subscription/increment-grades", [SubscriptionController::class, "incrementGradesUsed"]);
+    // Add route to get subscription status for settings page
+    Route::get("/subscription/status", [SubscriptionController::class, "getStatus"]); // Assuming getStatus method exists
 
     // Stripe Routes
     Route::post("/stripe/create-checkout-session", [StripeController::class, "createCheckoutSession"]);
@@ -94,7 +100,8 @@ Route::middleware("auth:sanctum")->group(function () {
     Route::post("/stripe/subscription/cancel", [StripeController::class, "cancelSubscription"]);
     Route::post("/stripe/payment-method", [StripeController::class, "updatePaymentMethod"]);
     Route::get("/stripe/payment-methods", [StripeController::class, "getPaymentMethods"]);
-    Route::get("/stripe/subscription/status", [StripeController::class, "getSubscriptionStatus"]);
+    // Keep the existing Stripe status route if it serves a different purpose, or use the one above
+    // Route::get("/stripe/subscription/status", [StripeController::class, "getSubscriptionStatus"]);
 
     // Extension routes
     Route::get("/extension/status", [ExtensionController::class, "getStatus"]);
@@ -102,12 +109,10 @@ Route::middleware("auth:sanctum")->group(function () {
     Route::post("/extension/features", [ExtensionController::class, "updateFeature"]);
     Route::post("/extension/settings", [ExtensionController::class, "updateSetting"]);
 
-    // Notification Settings (Assuming a NotificationController exists or needs creation)
-    // Route::get("/notifications/settings", [NotificationController::class, "getSettings"]);
-    // Route::put("/notifications/settings", [NotificationController::class, "updateSettings"]);
-
 });
 
 // Note: Removed old /profile routes that used UserProfileController
 // Note: Added PUT routes for /profile and /password using ProfileController
+// Note: Added GET and PUT routes for /notifications/settings using NotificationSettingsController
+// Note: Added GET route for /subscription/status using SubscriptionController
 
