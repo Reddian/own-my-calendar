@@ -53,9 +53,13 @@
             <div v-for="hour in timeSlots" :key="hour" class="time-slot">{{ hour }}</div>
           </div>
           <div v-for="day in weekDays" :key="day.dateStr" class="day-column">
+            <!-- Debug: Log day being processed -->
+            <!-- {{ console.log('Processing day:', day.dateStr) }} -->
             <div v-for="event in getEventsForDay(day.dateStr)" :key="event.id" 
                  class="week-event" 
                  :style="getEventStyle(event)">
+              <!-- Debug: Log event being rendered -->
+              <!-- {{ console.log('Rendering event:', event.title, event.id) }} -->
               {{ event.title }}<br>{{ event.timeRange }}
             </div>
           </div>
@@ -276,18 +280,26 @@ const canNavigateForward = computed(() => {
 async function fetchEventsForWeek(startDate, endDate) {
   isLoading.value = true;
   fetchError.value = null;
-  console.log(`Fetching events from ${formatDate(startDate)} to ${formatDate(endDate)}`);
+  console.log(`[Calendar] Fetching events from ${formatDate(startDate)} to ${formatDate(endDate)}`);
   try {
     const response = await axios.post('/api/calendars/events', {
       start_date: formatDate(startDate),
       end_date: formatDate(endDate),
     });
+    // Debug: Log raw response
+    console.log('[Calendar] Raw events received:', response.data.events);
+
     events.value = response.data.events.map(event => {
         const start = event.start ? new Date(event.start) : null;
         const end = event.end ? new Date(event.end) : null;
         let timeRange = 'All Day';
         let startHour = 0;
         let durationMinutes = 24 * 60;
+        let dateStr = null;
+
+        if (start) {
+            dateStr = start.toISOString().split('T')[0]; // Use ISO string for reliable date part
+        }
 
         if (start && end && !event.allDay) {
             timeRange = `${formatTime(event.start)} - ${formatTime(event.end)}`;
@@ -296,21 +308,24 @@ async function fetchEventsForWeek(startDate, endDate) {
         } else if (start && !event.allDay) {
             timeRange = formatTime(event.start);
             startHour = start.getHours();
-            durationMinutes = 60;
+            durationMinutes = 60; // Default duration if end is missing?
         }
 
-        return {
+        const processedEvent = {
             ...event,
-            dateStr: event.start ? event.start.split('T')[0] : null,
+            dateStr: dateStr,
             timeRange,
             startHour,
             durationMinutes,
-            color: 'var(--primary-purple)'
+            color: 'var(--primary-purple)' // Default color
         };
+        // Debug: Log processed event
+        // console.log('[Calendar] Processed event:', processedEvent);
+        return processedEvent;
     });
-    console.log("Fetched events:", events.value);
+    console.log("[Calendar] Processed events array:", events.value);
   } catch (error) {
-    console.error('Error fetching calendar events:', error);
+    console.error('[Calendar] Error fetching calendar events:', error);
     fetchError.value = 'Failed to load calendar events. Please ensure your Google Calendar is connected and try again.';
     events.value = [];
   } finally {
@@ -320,12 +335,18 @@ async function fetchEventsForWeek(startDate, endDate) {
 
 // --- Event Display Logic ---
 function getEventsForDay(dateStr) {
-  return events.value.filter(event => event.dateStr === dateStr);
+  // Debug: Log filtering process
+  console.log(`[Calendar] Filtering events for day: ${dateStr}`);
+  const dayEvents = events.value.filter(event => event.dateStr === dateStr);
+  console.log(`[Calendar] Found ${dayEvents.length} events for ${dateStr}:`, dayEvents);
+  return dayEvents;
 }
 
 function getEventStyle(event) {
+  // Debug: Log style calculation
+  console.log(`[Calendar] Calculating style for event: ${event.title} (ID: ${event.id})`);
   if (event.allDay) {
-      return {
+      const style = {
           top: '0px',
           height: '20px',
           backgroundColor: event.color || 'var(--secondary-color)',
@@ -334,17 +355,21 @@ function getEventStyle(event) {
           lineHeight: '20px',
           zIndex: 0
       };
+      console.log('[Calendar] All-day event style:', style);
+      return style;
   }
   const hourHeight = 60;
-  const startOffsetHours = event.startHour - 8;
+  const startOffsetHours = event.startHour - 8; // Assuming calendar starts at 8 AM
   const top = Math.max(0, startOffsetHours * hourHeight + (new Date(event.start).getMinutes() / 60) * hourHeight);
   const height = Math.max(15, (event.durationMinutes / 60) * hourHeight);
 
-  return {
+  const style = {
     top: `${top}px`,
     height: `${height}px`,
     backgroundColor: event.color || 'var(--primary-purple)'
   };
+  console.log('[Calendar] Timed event style:', style);
+  return style;
 }
 
 // --- Navigation ---
@@ -371,7 +396,7 @@ async function checkGradingAbility() {
             gradeError.value = 'You have reached your free grading limit. Upgrade to Premium for unlimited grading.';
         }
     } catch (error) {
-        console.error('Error checking grading ability:', error);
+        console.error('[Calendar] Error checking grading ability:', error);
         canGradeWeek.value = false; // Assume cannot grade if check fails
         gradeError.value = 'Could not verify grading ability.';
     }
@@ -388,14 +413,14 @@ async function gradeCurrentWeek() {
   gradeResult.value = null; // Clear previous results
 
   try {
-    console.log(`Grading week: ${formatDate(currentWeekStart.value)} to ${formatDate(currentWeekEnd.value)}`);
+    console.log(`[Calendar] Grading week: ${formatDate(currentWeekStart.value)} to ${formatDate(currentWeekEnd.value)}`);
     const response = await axios.post('/api/ai/grade-calendar', {
       start_date: formatDate(currentWeekStart.value),
       end_date: formatDate(currentWeekEnd.value),
     });
 
     gradeResult.value = response.data.grade; // Assuming the grade object is nested under 'grade'
-    console.log("Grading successful:", gradeResult.value);
+    console.log("[Calendar] Grading successful:", gradeResult.value);
     openGradeModal();
 
     // Increment grade count for non-premium users after successful grading
@@ -404,13 +429,13 @@ async function gradeCurrentWeek() {
             await axios.post('/api/subscription/increment-grades');
             checkGradingAbility(); // Re-check ability after incrementing
         } catch (incError) {
-            console.error('Error incrementing grade count:', incError);
+            console.error('[Calendar] Error incrementing grade count:', incError);
             // Handle this? Maybe just log it.
         }
     }
 
   } catch (error) {
-    console.error('Error grading calendar:', error);
+    console.error('[Calendar] Error grading calendar:', error);
     gradeError.value = error.response?.data?.error || 'An unexpected error occurred while grading the calendar.';
   } finally {
     isGrading.value = false;
@@ -449,16 +474,18 @@ onMounted(async () => {
   
   // Ensure user data is loaded before initial fetch and checks
   if (!store.state.user.user) {
-      console.log("Waiting for user data...");
+      console.log("[Calendar] Waiting for user data...");
       // Wait for fetchUser to complete if it hasn't already
       // This assumes fetchUser is dispatched reliably in App.vue or similar entry point
       await store.dispatch('user/fetchUser'); 
   }
 
   if (store.state.user.user) {
+      console.log("[Calendar] User data loaded. Fetching initial data...");
       await checkGradingAbility(); // Check if user can grade initially
       await fetchEventsForWeek(currentWeekStart.value, currentWeekEnd.value);
   } else {
+      console.error("[Calendar] User data not loaded after waiting. Cannot fetch events or check grading status.");
       isLoading.value = false;
       fetchError.value = "User data not loaded. Cannot fetch events or check grading status.";
       canGradeWeek.value = false;
