@@ -288,17 +288,17 @@ const googleErrorMessage = ref('');
 const accountForm = reactive({ name: '', email: '' });
 const passwordForm = reactive({ current_password: '', password: '', password_confirmation: '' });
 const notificationForm = reactive({
-  weekly_grade_email: true,
+  weekly_grade_email: true, // Default values
   planning_reminder: true,
   reminder_day: 'Sunday',
   reminder_time: '18:00'
 });
 const isUpdatingAccount = ref(false);
 const isUpdatingPassword = ref(false);
-const isUpdatingNotifications = ref(false); // Added state for notifications
+const isUpdatingNotifications = ref(false);
 
 // --- Subscription Data & State ---
-const subscriptionStatus = reactive({ // Changed to reactive object
+const subscriptionStatus = reactive({
   isActive: false,
   planName: null,
   nextBillingDate: null,
@@ -394,14 +394,16 @@ async function updatePassword() {
 
 // Fetch Notification Settings
 async function fetchNotificationSettings() {
+  errorMessage.value = ''; // Clear previous errors
   try {
     const response = await axios.get('/api/notifications/settings');
     // Update the reactive form object directly
     Object.assign(notificationForm, response.data);
-    console.log('Fetched notification settings:', notificationForm);
+    console.log('Fetched notification settings:', JSON.parse(JSON.stringify(notificationForm))); // Log fetched data
   } catch (error) {
     console.error('Error fetching notification settings:', error);
-    errorMessage.value = 'Failed to load notification settings.';
+    // Don't overwrite other error messages, maybe show a specific notification error?
+    errorMessage.value = 'Failed to load notification settings. Default values may be shown.';
   }
 }
 
@@ -411,6 +413,7 @@ async function updateNotifications() {
   successMessage.value = '';
   errorMessage.value = '';
   try {
+    console.log('Saving notification settings:', JSON.parse(JSON.stringify(notificationForm))); // Log data being sent
     const response = await axios.put('/api/notifications/settings', notificationForm);
     successMessage.value = response.data.message;
   } catch (error) {
@@ -421,7 +424,7 @@ async function updateNotifications() {
         errorMessage.value = Object.values(error.response.data.errors).flat().join(' ');
       }
     } else {
-      errorMessage.value = 'An unexpected error occurred.';
+      errorMessage.value = 'An unexpected error occurred while saving notification settings.';
     }
   } finally {
     isUpdatingNotifications.value = false;
@@ -433,10 +436,9 @@ async function fetchSubscriptionStatus() {
   isLoadingSubscription.value = true;
   subscriptionError.value = '';
   try {
-    // Assuming the endpoint returns an object like the subscriptionStatus reactive object
-    const response = await axios.get('/api/subscription/status'); 
-    Object.assign(subscriptionStatus, response.data); // Update reactive object
-    console.log('Fetched subscription status:', subscriptionStatus);
+    const response = await axios.get('/api/subscription/status');
+    Object.assign(subscriptionStatus, response.data);
+    console.log('Fetched subscription status:', JSON.parse(JSON.stringify(subscriptionStatus)));
   } catch (error) {
     console.error('Error fetching subscription status:', error);
     subscriptionError.value = 'Failed to load subscription status.';
@@ -450,18 +452,16 @@ function closeCancelModal() { if (bsCancelModal) bsCancelModal.hide(); }
 
 async function confirmCancelSubscription() {
   isCancelling.value = true;
-  errorMessage.value = ''; // Clear previous errors
+  errorMessage.value = '';
   successMessage.value = '';
   try {
-    // Use the correct endpoint from api.php
-    const response = await axios.post('/api/subscription/cancel'); 
-    successMessage.value = response.data.message || 'Subscription cancelled successfully. You will retain access until the end of the current billing period.';
-    // Re-fetch status to update UI
-    await fetchSubscriptionStatus(); 
+    const response = await axios.post('/api/subscription/cancel');
+    successMessage.value = response.data.message || 'Subscription cancelled successfully.';
+    await fetchSubscriptionStatus();
     closeCancelModal();
   } catch (error) {
     console.error('Failed to cancel subscription:', error);
-    errorMessage.value = error.response?.data?.message || 'Failed to cancel subscription. Please try again or contact support.';
+    errorMessage.value = error.response?.data?.message || 'Failed to cancel subscription.';
   } finally {
     isCancelling.value = false;
   }
@@ -526,7 +526,7 @@ async function toggleCalendarSelection(calendar) {
 }
 
 // --- Lifecycle Hooks ---
-onMounted(() => {
+onMounted(async () => { // Make onMounted async
   console.log('Settings.vue mounted');
   if (cancelModal.value) {
     bsCancelModal = new Modal(cancelModal.value);
@@ -550,10 +550,10 @@ onMounted(() => {
   // Populate form with initial user data
   populateAccountForm();
 
-  // Fetch other settings data
-  fetchNotificationSettings();
-  fetchSubscriptionStatus();
-  fetchGoogleData();
+  // Fetch other settings data - await them to ensure loading completes
+  await fetchNotificationSettings();
+  await fetchSubscriptionStatus();
+  await fetchGoogleData();
 });
 
 // Watch for route query changes
