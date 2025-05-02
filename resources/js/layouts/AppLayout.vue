@@ -27,30 +27,36 @@
           <img src="/upload/OwnMyCalendarLogoLight.png" alt="Own My Calendar">
         </div>
 
-        <!-- Navigation Links - Will be updated later with vue-router -->
-        <div class="nav-item" :class="{ active: $route.path === '/home' || $route.path === '/' }">
-          <i class="fas fa-home"></i>
-          <span><router-link to="/home">Dashboard</router-link></span>
+        <!-- Navigation Links -->
+        <div class="nav-item" :class="{ active: $route.path === '/home' }">
+          <router-link to="/home">
+            <i class="fas fa-home"></i>
+            <span>Dashboard</span>
+          </router-link>
         </div>
-
-        <div class="nav-item" :class="{ active: $route.path.startsWith('/calendar') }">
-          <i class="fas fa-calendar-alt"></i>
-          <span><router-link to="/calendar">Calendar</router-link></span>
+        <div class="nav-item" :class="{ active: $route.path === '/calendar' }">
+          <router-link to="/calendar">
+            <i class="fas fa-calendar-alt"></i>
+            <span>Calendar</span>
+          </router-link>
         </div>
-
-        <div class="nav-item" :class="{ active: $route.path.startsWith('/history') }">
-          <i class="fas fa-history"></i>
-          <span><router-link to="/history">History</router-link></span>
+        <div class="nav-item" :class="{ active: $route.path === '/grades' }">
+           <router-link to="/grades">
+             <i class="fas fa-chart-line"></i>
+             <span>Grades</span>
+           </router-link>
         </div>
-
-        <div class="nav-item" :class="{ active: $route.path.startsWith('/extension') }">
-          <i class="fas fa-puzzle-piece"></i>
-          <span><router-link to="/extension">Chrome Extension</router-link></span>
+        <div class="nav-item" :class="{ active: $route.path === '/extension' }">
+           <router-link to="/extension">
+             <i class="fas fa-puzzle-piece"></i>
+             <span>Extension</span>
+           </router-link>
         </div>
-
-        <div class="nav-item" :class="{ active: $route.path.startsWith('/settings') }">
-          <i class="fas fa-cog"></i>
-          <span><router-link to="/settings">Settings</router-link></span>
+        <div class="nav-item" :class="{ active: $route.path === '/settings' }">
+          <router-link to="/settings">
+            <i class="fas fa-cog"></i>
+            <span>Settings</span>
+          </router-link>
         </div>
 
         <div class="nav-item mt-auto">
@@ -63,14 +69,14 @@
 
       <!-- Main Content Area -->
       <div class="main-content">
-        <!-- Subscription CTA - Logic needs to be added -->
-        <!-- <div class="subscription-cta">
+        <!-- Subscription CTA -->
+        <div v-if="showPremiumCTA" class="subscription-cta">
           <div class="cta-content">
             <h4>Upgrade to Premium</h4>
-            <p>You have used X of 3 free grades. Get unlimited grades for just $9/month.</p>
+            <p>You have used {{ gradesUsed }} of {{ gradesLimit }} free grades. Get unlimited grades for just $9/month.</p>
           </div>
-          <router-link to="/subscription" class="btn btn-primary">Upgrade Now</router-link>
-        </div> -->
+          <router-link to="/settings#subscription" class="btn btn-primary">Upgrade Now</router-link>
+        </div>
 
         <router-view></router-view> <!-- Where nested routes will be rendered -->
       </div>
@@ -92,73 +98,81 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router'; // Assuming vue-router is used
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useStore } from "vuex";
+import { useRouter } from "vue-router";
+import axios from "axios"; // Ensure axios is imported
 
-const isMenuActive = ref(false);
+const store = useStore();
 const router = useRouter();
+const isMenuActive = ref(false);
 
+// --- Computed properties for user and subscription status ---
+const isAuthenticated = computed(() => store.getters["user/isAuthenticated"]);
+const user = computed(() => store.getters["user/getUser"]);
+
+// Check subscription status based on local data (assuming fetchUser populates this)
+const isSubscribed = computed(() => {
+  // Check for an active status in the local subscription data
+  // This logic might need adjustment based on exactly how subscription status is stored
+  // For now, assume a simple boolean or status string
+  return user.value?.subscription?.stripe_status === "active" || user.value?.subscription?.stripe_status === "trialing";
+});
+
+const gradesUsed = computed(() => user.value?.subscription?.grades_used ?? 0);
+const gradesLimit = computed(() => user.value?.subscription?.grades_limit ?? 3);
+
+const showPremiumCTA = computed(() => {
+  // Show CTA if user is authenticated, not subscribed, and not on the settings page (where subscription tab exists)
+  return isAuthenticated.value && !isSubscribed.value && router.currentRoute.value.path !== "/settings"; 
+});
+
+// --- Menu Logic ---
 function openMenu() {
   isMenuActive.value = true;
-  // Optionally hide the toggle button if needed
-  // document.querySelector('.mobile-menu-toggle')?.classList.add('hidden');
 }
 
 function closeMenu() {
   isMenuActive.value = false;
-  // Optionally show the toggle button if needed
-  // document.querySelector('.mobile-menu-toggle')?.classList.remove('hidden');
 }
 
 function toggleMenu() {
-  if (isMenuActive.value) {
-    closeMenu();
-  } else {
-    openMenu();
-  }
+  isMenuActive.value = !isMenuActive.value;
 }
 
+// --- Logout Logic ---
 async function logout() {
   console.log("Logout action triggered");
   try {
-    console.log("Attempting axios.post(\"/logout\")..."); // DEBUG
-    const response = await axios.post("/api/logout");
-    console.log("Logout request successful:", response); // DEBUG
-    // On successful logout, redirect to the login page
-    console.log("Redirecting to /login..."); // DEBUG
-    window.location.href = "/login"; // Use window.location for a full page reload to clear SPA state
+    await store.dispatch("user/logout");
+    console.log("Logout successful, redirecting...");
+    // Use window.location for a full page reload to clear SPA state and ensure redirect
+    window.location.href = "/login";
   } catch (error) {
-    console.error("Logout failed:", error); // DEBUG
-    if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
-      console.error("Logout error response data:", error.response.data); // DEBUG
-      console.error("Logout error response status:", error.response.status); // DEBUG
-      console.error("Logout error response headers:", error.response.headers); // DEBUG
-    } else if (error.request) {
-      // The request was made but no response was received
-      console.error("Logout error request:", error.request); // DEBUG
-    } else {
-      // Something happened in setting up the request that triggered an Error
-      console.error("Logout error message:", error.message); // DEBUG
-    }
-    console.error("Logout error config:", error.config); // DEBUG
-    // Optionally show an error message to the user
+    console.error("Logout failed in component:", error);
     alert("Logout failed. Please check the console for details.");
   }
 }
 
+// --- Lifecycle Hooks ---
 // Close menu when route changes
 router.afterEach(() => {
   closeMenu();
 });
 
-// Add/remove event listeners if needed, e.g., for window resize
-onMounted(() => {
-  // Add any necessary listeners
+// Fetch user data on mount if not already authenticated (e.g., page refresh)
+// This ensures subscription status is available for the CTA
+onMounted(async () => {
+  if (!isAuthenticated.value) {
+    console.log("AppLayout mounted: User not authenticated, attempting fetchUser...");
+    await store.dispatch("user/fetchUser");
+  } else {
+    console.log("AppLayout mounted: User already authenticated.");
+  }
 });
+
 onUnmounted(() => {
-  // Remove listeners to prevent memory leaks
+  // Clean up listeners if any were added
 });
 
 </script>
@@ -170,15 +184,71 @@ onUnmounted(() => {
 .nav-item a {
     color: inherit; /* Ensure router-links inherit text color */
     text-decoration: none;
+    display: flex; /* Ensure icon and text are aligned */
+    align-items: center;
+    gap: 10px; /* Space between icon and text */
+    padding: 10px 15px; /* Add padding to the link itself */
 }
 
-.nav-item.active span a,
-.nav-item:hover span a {
+.nav-item.active span,
+.nav-item:hover span {
     color: var(--primary-purple); /* Or your active/hover color */
+}
+
+.nav-item.active i,
+.nav-item:hover i {
+    color: var(--primary-purple); /* Apply color to icon too */
 }
 
 /* Ensure router-link clicks work */
 .nav-item span {
     cursor: pointer;
 }
+
+/* Styles for the Subscription CTA (copied from dashboard.blade.php) */
+.subscription-cta {
+    background-color: #e9ecef; /* Light grey background */
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.5rem; /* Space below the CTA */
+    border-radius: 0.375rem; /* Rounded corners */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+}
+
+.cta-content {
+    flex-grow: 1;
+    margin-right: 1rem; /* Space between text and button */
+}
+
+.subscription-cta h4 {
+    margin-bottom: 0.25rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.subscription-cta p {
+    margin-bottom: 0;
+    font-size: 0.9rem;
+    color: #495057; /* Darker grey text */
+}
+
+.subscription-cta .btn-primary {
+    /* Styles for the button if needed - Bootstrap should cover most */
+    white-space: nowrap; /* Prevent button text wrapping */
+}
+
+@media (max-width: 768px) {
+    .subscription-cta {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .cta-content {
+        margin-right: 0;
+        margin-bottom: 0.75rem; /* Space between text and button on mobile */
+    }
+}
+
 </style>
+

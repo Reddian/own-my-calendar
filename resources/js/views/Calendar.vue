@@ -2,44 +2,46 @@
   <div>
     <h1 class="page-title">Calendar</h1>
 
-    <div class="calendar-container">
+    <!-- Premium CTA -->
+    <div v-if="!isPremium" class="alert alert-info premium-cta">
+      <i class="fas fa-star"></i>
+      <strong>Upgrade to Premium!</strong> Unlock unlimited calendar grading, extended history, and more features.
+      <router-link to="/settings#subscription" class="btn btn-sm btn-primary ms-3">Upgrade Now</router-link>
+    </div>
+
+    <div v-if="isLoading" class="loading-indicator">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading events...</span>
+      </div>
+      <p>Loading calendar events...</p>
+    </div>
+    <div v-else-if="fetchError" class="alert alert-danger">
+      {{ fetchError }}
+    </div>
+
+    <div v-else class="calendar-container">
       <div class="calendar-header">
         <div class="calendar-navigation">
-          <button class="btn btn-outline-primary prev-month-btn" @click="prevMonth"><i class="fas fa-chevron-left"></i></button>
-          <h2 class="month-title">{{ currentMonthYear }}</h2>
-          <button class="btn btn-outline-primary next-month-btn" @click="nextMonth"><i class="fas fa-chevron-right"></i></button>
-        </div>
-        <div class="calendar-view-options">
-          <button class="btn btn-outline-primary" :class="{ active: currentView === 'month' }" @click="setView('month')">Month</button>
-          <button class="btn btn-outline-primary" :class="{ active: currentView === 'week' }" @click="setView('week')">Week</button>
-          <button class="btn btn-outline-primary" :class="{ active: currentView === 'day' }" @click="setView('day')">Day</button>
-        </div>
-      </div>
-      
-      <!-- Month View -->
-      <div class="calendar-view month-view" v-if="currentView === 'month'">
-        <div class="calendar-grid">
-          <div class="calendar-day-header">Sun</div>
-          <div class="calendar-day-header">Mon</div>
-          <div class="calendar-day-header">Tue</div>
-          <div class="calendar-day-header">Wed</div>
-          <div class="calendar-day-header">Thu</div>
-          <div class="calendar-day-header">Fri</div>
-          <div class="calendar-day-header">Sat</div>
-          <!-- Calendar days will be dynamically generated -->
-          <div v-for="day in monthDays" :key="day.dateStr" 
-               :class="[
-                 'calendar-day', 
-                 { 'prev-month': day.isPrevMonth, 'next-month': day.isNextMonth, 'today': day.isToday, 'has-events': day.hasEvents }
-               ]">
-            {{ day.dayOfMonth }}
-            <!-- Event indicators can be added here -->
-          </div>
+          <button 
+            class="btn btn-outline-primary prev-week-btn" 
+            @click="prevWeek" 
+            :disabled="!canNavigateBackward"
+            title="Previous Week">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <h2 class="week-title">{{ currentWeekRange }}</h2>
+          <button 
+            class="btn btn-outline-primary next-week-btn" 
+            @click="nextWeek" 
+            :disabled="!canNavigateForward"
+            title="Next Week">
+            <i class="fas fa-chevron-right"></i>
+          </button>
         </div>
       </div>
-      
+
       <!-- Week View -->
-      <div class="calendar-view week-view" v-if="currentView === 'week'">
+      <div class="calendar-view week-view">
         <div class="week-header">
           <div class="time-column"></div>
           <div v-for="day in weekDays" :key="day.dateStr" class="week-day" :class="{ today: day.isToday }">
@@ -51,7 +53,6 @@
             <div v-for="hour in timeSlots" :key="hour" class="time-slot">{{ hour }}</div>
           </div>
           <div v-for="day in weekDays" :key="day.dateStr" class="day-column">
-            <!-- Events will be dynamically placed here -->
             <div v-for="event in getEventsForDay(day.dateStr)" :key="event.id" 
                  class="week-event" 
                  :style="getEventStyle(event)">
@@ -60,76 +61,79 @@
           </div>
         </div>
       </div>
-      
-      <!-- Day View -->
-      <div class="calendar-view day-view" v-if="currentView === 'day'">
-        <div class="day-header">
-          <h3>{{ currentDayFormatted }}</h3>
-        </div>
-        <div class="day-schedule">
-          <div class="time-slots">
-             <div v-for="hour in timeSlots" :key="hour" class="time-slot">{{ hour }}</div>
-          </div>
-          <div class="day-events">
-             <!-- Events will be dynamically placed here -->
-            <div v-for="event in getEventsForDay(currentDay.dateStr)" :key="event.id" 
-                 class="day-event" 
-                 :style="getEventStyle(event)">
-              <div class="event-time">{{ event.timeRange }}</div>
-              <div class="event-title">{{ event.title }}</div>
-              <div class="event-location">{{ event.location }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Calendar Grading Button (Week View Only) -->
-      <div class="calendar-grading-action" v-if="currentView === 'week'">
-        <button id="grade-calendar-btn" class="btn btn-primary btn-lg" @click="openGradeModal">
-          <i class="fas fa-check-circle"></i> Grade This Week
+
+      <!-- Calendar Grading Button -->
+      <div class="calendar-grading-action">
+        <button 
+          id="grade-calendar-btn" 
+          class="btn btn-primary btn-lg" 
+          @click="gradeCurrentWeek" 
+          :disabled="isGrading || !canGradeWeek">
+          <span v-if="isGrading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+          <i v-else class="fas fa-check-circle"></i> 
+          {{ isGrading ? 'Grading...' : 'Grade This Week' }}
         </button>
+        <div v-if="gradeError" class="alert alert-danger mt-3">{{ gradeError }}</div>
       </div>
-      
+
       <!-- Calendar Grade Result Modal -->
       <div class="modal fade" id="gradeResultModal" tabindex="-1" aria-labelledby="gradeResultModalLabel" aria-hidden="true" ref="gradeModal">
         <div class="modal-dialog modal-lg">
           <div class="modal-content">
             <div class="modal-header">
-              <h5 class="modal-title" id="gradeResultModalLabel">Your Calendar Grade</h5>
+              <h5 class="modal-title" id="gradeResultModalLabel">Your Calendar Grade for {{ currentWeekRange }}</h5>
               <button type="button" class="btn-close" @click="closeGradeModal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-              <!-- Grade result content - needs dynamic data -->
-              <div class="grade-result">
+              <div v-if="gradeResult" class="grade-result">
                 <div class="grade-header">
-                  <div class="grade-letter">B+</div>
-                  <div class="grade-score">87<span>/100</span></div>
+                  <div class="grade-letter">{{ gradeResult.overall_grade || 'N/A' }}</div>
+                  <!-- Assuming score is part of the result, otherwise remove -->
+                  <!-- <div class="grade-score">{{ gradeResult.score || '--' }}<span>/100</span></div> -->
                 </div>
                 <div class="grade-summary">
-                  <p>Your calendar is well-organized but has some room for improvement.</p>
+                  <p>{{ gradeResult.summary || 'Grading complete.' }}</p> 
                 </div>
-                <div class="grade-recommendations">
-                  <h4>Recommendations</h4>
+                <div v-if="gradeResult.strengths && gradeResult.strengths.length > 0" class="grade-section">
+                  <h4>Strengths</h4>
                   <ul class="recommendations-list">
-                    <li>
-                      <div class="recommendation-title">Add buffer time between meetings</div>
-                      <div class="recommendation-description">Your back-to-back meetings on Tuesday could lead to burnout. Try adding 15-minute buffers.</div>
+                    <li v-for="(strength, index) in gradeResult.strengths" :key="`strength-${index}`">
+                      {{ strength }}
                     </li>
-                    <!-- Add other recommendations -->
                   </ul>
                 </div>
+                <div v-if="gradeResult.improvement_areas && gradeResult.improvement_areas.length > 0" class="grade-section">
+                  <h4>Areas for Improvement</h4>
+                  <ul class="recommendations-list">
+                    <li v-for="(area, index) in gradeResult.improvement_areas" :key="`improve-${index}`">
+                       {{ area }}
+                    </li>
+                  </ul>
+                </div>
+                <div v-if="gradeResult.recommendations && gradeResult.recommendations.length > 0" class="grade-section">
+                  <h4>Recommendations</h4>
+                  <ul class="recommendations-list">
+                    <li v-for="(rec, index) in gradeResult.recommendations" :key="`rec-${index}`">
+                      <div class="recommendation-title">{{ rec.title || 'Recommendation' }}</div>
+                      <div class="recommendation-description">{{ rec.description }}</div>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <div v-else>
+                <p>Loading grade results...</p>
               </div>
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" @click="closeGradeModal">Close</button>
-              <button type="button" class="btn btn-primary">Save Recommendations</button>
+              <!-- <button type="button" class="btn btn-primary">Save Recommendations</button> -->
             </div>
           </div>
         </div>
       </div>
-      
+
       <div class="calendar-legend">
-        <!-- Legend items - can be made dynamic -->
+        <!-- Legend items -->
         <div class="legend-item">
           <div class="legend-color" style="background-color: var(--primary-purple);"></div>
           <span>Meetings</span>
@@ -148,99 +152,273 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-// Assuming Bootstrap's JS is loaded globally or imported
-// import { Modal } from 'bootstrap'; // If using Bootstrap's JS module
+import { ref, computed, onMounted, watch } from 'vue';
+import { useStore } from 'vuex';
+import axios from 'axios';
+import { Modal } from 'bootstrap';
 
-const currentView = ref('week'); // 'month', 'week', 'day'
-const currentDate = ref(new Date());
+// Store
+const store = useStore();
+
+// State
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+const currentDate = ref(new Date(today));
+const events = ref([]);
+const isLoading = ref(true);
+const fetchError = ref(null);
 const gradeModal = ref(null);
 let bsModal = null;
+const isGrading = ref(false);
+const gradeError = ref(null);
+const gradeResult = ref(null);
+const canGradeWeek = ref(true); // Will be checked on mount
 
-// --- Computed Properties for Display ---
-const currentMonthYear = computed(() => {
-  return currentDate.value.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+// --- Subscription Status ---
+const isPremium = computed(() => store.getters['user/isSubscribed']);
+
+// --- Date Formatting and Calculation Helpers ---
+function getStartOfWeek(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  const diff = d.getDate() - day;
+  return new Date(d.setDate(diff));
+}
+
+function getEndOfWeek(date) {
+  const startOfWeek = getStartOfWeek(date);
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 6);
+  return endOfWeek;
+}
+
+function formatDate(date) {
+  return date.toISOString().split('T')[0];
+}
+
+function formatTime(dateTimeString) {
+    if (!dateTimeString) return '';
+    const date = new Date(dateTimeString);
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
+// --- Computed Properties ---
+const currentWeekStart = computed(() => getStartOfWeek(currentDate.value));
+const currentWeekEnd = computed(() => getEndOfWeek(currentDate.value));
+
+const currentWeekRange = computed(() => {
+  const start = currentWeekStart.value.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const end = currentWeekEnd.value.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${start} - ${end}`;
 });
 
-const currentDayFormatted = computed(() => {
-  return currentDate.value.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-});
-
-// --- Placeholder Data & Logic (Needs actual implementation) ---
-const monthDays = computed(() => { 
-  // Logic to generate days for the month view based on currentDate
-  // Mark today, prev/next month days, days with events
-  console.log("Generating month days for", currentDate.value);
-  return []; // Placeholder
-}); 
-
-const weekDays = computed(() => { 
-  // Logic to generate days for the week view based on currentDate
-  // Mark today
-  console.log("Generating week days for", currentDate.value);
-  const startOfWeek = new Date(currentDate.value);
-  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay()); // Assuming Sunday start
+const weekDays = computed(() => {
+  const start = currentWeekStart.value;
   const days = [];
   for (let i = 0; i < 7; i++) {
-    const day = new Date(startOfWeek);
+    const day = new Date(start);
     day.setDate(day.getDate() + i);
     days.push({
-        dateStr: day.toISOString().split('T')[0],
-        shortDayName: day.toLocaleDateString('en-US', { weekday: 'short' }),
-        dayOfMonth: day.getDate(),
-        isToday: day.toDateString() === new Date().toDateString()
+      dateStr: formatDate(day),
+      shortDayName: day.toLocaleDateString('en-US', { weekday: 'short' }),
+      dayOfMonth: day.getDate(),
+      isToday: day.toDateString() === today.toDateString()
     });
   }
   return days;
 });
 
 const timeSlots = computed(() => {
-  // Generate time slots (e.g., 8 AM to 5 PM)
   const slots = [];
   for (let i = 8; i <= 17; i++) {
-      const hour = i % 12 === 0 ? 12 : i % 12;
-      const ampm = i < 12 ? 'AM' : 'PM';
-      slots.push(`${hour} ${ampm}`);
+    const hour = i % 12 === 0 ? 12 : i % 12;
+    const ampm = i < 12 ? 'AM' : 'PM';
+    slots.push(`${hour} ${ampm}`);
   }
   return slots;
 });
 
-const events = ref([ // Placeholder event data
-  { id: 1, dateStr: '2025-04-30', title: 'Team Meeting', timeRange: '10:00 - 11:00 AM', location: 'Conference Room A', startHour: 10, durationMinutes: 60, color: 'var(--primary-purple)' },
-  { id: 2, dateStr: '2025-05-01', title: 'Client Presentation', timeRange: '2:00 - 3:30 PM', location: 'Online', startHour: 14, durationMinutes: 90, color: 'var(--accent-yellow)' },
-]);
+// --- Navigation Limits ---
+const todayWeekStart = computed(() => getStartOfWeek(today));
 
+const minAllowedWeekStart = computed(() => {
+    const date = new Date(todayWeekStart.value);
+    if (isPremium.value) {
+        date.setDate(date.getDate() - 7 * 2);
+    } // Free: min is current week (todayWeekStart)
+    return date;
+});
+
+const maxAllowedWeekStart = computed(() => {
+    const date = new Date(todayWeekStart.value);
+    if (isPremium.value) {
+        date.setDate(date.getDate() + 7 * 8);
+    } else {
+        date.setDate(date.getDate() + 7 * 2);
+    }
+    return date;
+});
+
+const canNavigateBackward = computed(() => {
+    const prevWeekStartDate = new Date(currentWeekStart.value);
+    prevWeekStartDate.setDate(prevWeekStartDate.getDate() - 7);
+    return prevWeekStartDate >= minAllowedWeekStart.value;
+});
+
+const canNavigateForward = computed(() => {
+    const nextWeekStartDate = new Date(currentWeekStart.value);
+    nextWeekStartDate.setDate(nextWeekStartDate.getDate() + 7);
+    return nextWeekStartDate <= maxAllowedWeekStart.value;
+});
+
+// --- Event Fetching ---
+async function fetchEventsForWeek(startDate, endDate) {
+  isLoading.value = true;
+  fetchError.value = null;
+  console.log(`Fetching events from ${formatDate(startDate)} to ${formatDate(endDate)}`);
+  try {
+    const response = await axios.post('/api/calendars/events', {
+      start_date: formatDate(startDate),
+      end_date: formatDate(endDate),
+    });
+    events.value = response.data.events.map(event => {
+        const start = event.start ? new Date(event.start) : null;
+        const end = event.end ? new Date(event.end) : null;
+        let timeRange = 'All Day';
+        let startHour = 0;
+        let durationMinutes = 24 * 60;
+
+        if (start && end && !event.allDay) {
+            timeRange = `${formatTime(event.start)} - ${formatTime(event.end)}`;
+            startHour = start.getHours();
+            durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+        } else if (start && !event.allDay) {
+            timeRange = formatTime(event.start);
+            startHour = start.getHours();
+            durationMinutes = 60;
+        }
+
+        return {
+            ...event,
+            dateStr: event.start ? event.start.split('T')[0] : null,
+            timeRange,
+            startHour,
+            durationMinutes,
+            color: 'var(--primary-purple)'
+        };
+    });
+    console.log("Fetched events:", events.value);
+  } catch (error) {
+    console.error('Error fetching calendar events:', error);
+    fetchError.value = 'Failed to load calendar events. Please ensure your Google Calendar is connected and try again.';
+    events.value = [];
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+// --- Event Display Logic ---
 function getEventsForDay(dateStr) {
   return events.value.filter(event => event.dateStr === dateStr);
 }
 
 function getEventStyle(event) {
-  // Calculate top and height based on startHour and durationMinutes
-  // Assuming 60px per hour slot starting at 8 AM
-  const topOffset = (event.startHour - 8) * 60; 
-  const height = (event.durationMinutes / 60) * 60;
+  if (event.allDay) {
+      return {
+          top: '0px',
+          height: '20px',
+          backgroundColor: event.color || 'var(--secondary-color)',
+          opacity: 0.8,
+          fontSize: '10px',
+          lineHeight: '20px',
+          zIndex: 0
+      };
+  }
+  const hourHeight = 60;
+  const startOffsetHours = event.startHour - 8;
+  const top = Math.max(0, startOffsetHours * hourHeight + (new Date(event.start).getMinutes() / 60) * hourHeight);
+  const height = Math.max(15, (event.durationMinutes / 60) * hourHeight);
+
   return {
-    top: `${topOffset}px`,
+    top: `${top}px`,
     height: `${height}px`,
-    backgroundColor: event.color
+    backgroundColor: event.color || 'var(--primary-purple)'
   };
 }
 
-// --- Methods ---
-function setView(view) {
-  currentView.value = view;
+// --- Navigation ---
+function prevWeek() {
+  if (!canNavigateBackward.value) return;
+  const newDate = new Date(currentDate.value);
+  newDate.setDate(newDate.getDate() - 7);
+  currentDate.value = newDate;
 }
 
-function prevMonth() {
-  currentDate.value = new Date(currentDate.value.setMonth(currentDate.value.getMonth() - 1));
+function nextWeek() {
+  if (!canNavigateForward.value) return;
+  const newDate = new Date(currentDate.value);
+  newDate.setDate(newDate.getDate() + 7);
+  currentDate.value = newDate;
 }
 
-function nextMonth() {
-  currentDate.value = new Date(currentDate.value.setMonth(currentDate.value.getMonth() + 1));
+// --- Grading Logic ---
+async function checkGradingAbility() {
+    try {
+        const response = await axios.get('/api/subscription/can-grade');
+        canGradeWeek.value = response.data.can_grade;
+        if (!canGradeWeek.value && !isPremium.value) {
+            gradeError.value = 'You have reached your free grading limit. Upgrade to Premium for unlimited grading.';
+        }
+    } catch (error) {
+        console.error('Error checking grading ability:', error);
+        canGradeWeek.value = false; // Assume cannot grade if check fails
+        gradeError.value = 'Could not verify grading ability.';
+    }
 }
 
+async function gradeCurrentWeek() {
+  if (!canGradeWeek.value) {
+      gradeError.value = isPremium.value ? 'An error occurred checking grade status.' : 'You have reached your free grading limit. Upgrade to Premium for unlimited grading.';
+      return;
+  }
+
+  isGrading.value = true;
+  gradeError.value = null;
+  gradeResult.value = null; // Clear previous results
+
+  try {
+    console.log(`Grading week: ${formatDate(currentWeekStart.value)} to ${formatDate(currentWeekEnd.value)}`);
+    const response = await axios.post('/api/ai/grade-calendar', {
+      start_date: formatDate(currentWeekStart.value),
+      end_date: formatDate(currentWeekEnd.value),
+    });
+
+    gradeResult.value = response.data.grade; // Assuming the grade object is nested under 'grade'
+    console.log("Grading successful:", gradeResult.value);
+    openGradeModal();
+
+    // Increment grade count for non-premium users after successful grading
+    if (!isPremium.value) {
+        try {
+            await axios.post('/api/subscription/increment-grades');
+            checkGradingAbility(); // Re-check ability after incrementing
+        } catch (incError) {
+            console.error('Error incrementing grade count:', incError);
+            // Handle this? Maybe just log it.
+        }
+    }
+
+  } catch (error) {
+    console.error('Error grading calendar:', error);
+    gradeError.value = error.response?.data?.error || 'An unexpected error occurred while grading the calendar.';
+  } finally {
+    isGrading.value = false;
+  }
+}
+
+// --- Modal Logic ---
 function openGradeModal() {
-  // Logic to fetch grade data might go here
   if (bsModal) {
     bsModal.show();
   }
@@ -252,20 +430,72 @@ function closeGradeModal() {
   }
 }
 
-// --- Lifecycle Hooks ---
-onMounted(() => {
-  // Initialize Bootstrap modal if loaded globally
-  if (window.bootstrap && gradeModal.value) {
-      bsModal = new window.bootstrap.Modal(gradeModal.value);
+// --- Watchers ---
+watch(currentWeekStart, (newStart, oldStart) => {
+  if (newStart && (!oldStart || newStart.getTime() !== oldStart.getTime())) {
+    fetchEventsForWeek(newStart, currentWeekEnd.value);
+    // Reset grade error when navigating
+    gradeError.value = null;
+    // Re-check grading ability for the new week (optional, depends on logic)
+    // checkGradingAbility(); 
   }
-  // Fetch initial calendar data if needed
+});
+
+// --- Lifecycle Hooks ---
+onMounted(async () => {
+  if (gradeModal.value) {
+    bsModal = new Modal(gradeModal.value);
+  }
+  
+  // Ensure user data is loaded before initial fetch and checks
+  if (!store.state.user.user) {
+      console.log("Waiting for user data...");
+      // Wait for fetchUser to complete if it hasn't already
+      // This assumes fetchUser is dispatched reliably in App.vue or similar entry point
+      await store.dispatch('user/fetchUser'); 
+  }
+
+  if (store.state.user.user) {
+      await checkGradingAbility(); // Check if user can grade initially
+      await fetchEventsForWeek(currentWeekStart.value, currentWeekEnd.value);
+  } else {
+      isLoading.value = false;
+      fetchError.value = "User data not loaded. Cannot fetch events or check grading status.";
+      canGradeWeek.value = false;
+  }
 });
 
 </script>
 
 <style scoped>
-/* Import styles from calendar.blade.php @section('styles') */
-/* Calendar Navigation Styling */
+/* Styles remain largely the same */
+.loading-indicator {
+    text-align: center;
+    padding: 50px;
+    color: var(--text-color-secondary);
+}
+
+.loading-indicator .spinner-border {
+    width: 3rem;
+    height: 3rem;
+    margin-bottom: 1rem;
+}
+
+.prev-week-btn[disabled],
+.next-week-btn[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: transparent;
+    color: var(--primary-purple);
+}
+
+.week-title {
+    margin: 0 15px;
+    font-style: italic;
+    min-width: 200px;
+    text-align: center;
+}
+
 .calendar-navigation {
   display: flex;
   align-items: center;
@@ -273,12 +503,7 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.month-title {
-  margin: 0 15px;
-  font-style: italic;
-}
-
-.prev-month-btn, .next-month-btn {
+.prev-week-btn, .next-week-btn {
   width: 40px;
   height: 40px;
   border-radius: 10px;
@@ -291,73 +516,12 @@ onMounted(() => {
   transition: all 0.2s ease;
 }
 
-.prev-month-btn:hover, .next-month-btn:hover {
+.prev-week-btn:not([disabled]):hover,
+.next-week-btn:not([disabled]):hover {
   background-color: var(--primary-purple);
   color: white;
 }
 
-/* Calendar View Options */
-.calendar-view-options {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  margin-bottom: 20px;
-}
-
-/* Add active class styling if not covered by Bootstrap */
-.calendar-view-options .btn.active {
-    background-color: var(--primary-purple);
-    color: white;
-    border-color: var(--primary-purple);
-}
-
-/* Month View Styling */
-.calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 10px;
-}
-
-.calendar-day-header {
-  text-align: center;
-  font-weight: bold;
-  padding: 10px;
-}
-
-.calendar-day {
-  min-height: 100px; /* Use min-height */
-  border-radius: 10px;
-  padding: 10px;
-  background-color: rgba(255, 255, 255, 0.1);
-  position: relative;
-}
-
-.calendar-day.prev-month,
-.calendar-day.next-month {
-  opacity: 0.5;
-}
-
-.calendar-day.today {
-  background-color: rgba(126, 87, 255, 0.2);
-  border: 2px solid var(--primary-purple);
-}
-
-.calendar-day.has-events {
-  background-color: rgba(255, 255, 255, 0.2);
-}
-
-.event-indicator {
-  font-size: 12px;
-  padding: 3px 6px;
-  border-radius: 4px;
-  margin-top: 5px;
-  color: white;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Week View Styling */
 .week-header {
   display: grid;
   grid-template-columns: 60px repeat(7, 1fr);
@@ -381,7 +545,7 @@ onMounted(() => {
 .week-grid {
   display: grid;
   grid-template-columns: 60px repeat(7, 1fr);
-  height: 600px;
+  min-height: 600px;
   position: relative;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
@@ -403,11 +567,14 @@ onMounted(() => {
   color: rgba(255, 255, 255, 0.7);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
+.time-slot:last-child {
+    border-bottom: none;
+}
 
 .day-column {
   position: relative;
   border-right: 1px solid rgba(255, 255, 255, 0.1);
-  height: 600px;
+  min-height: 600px;
 }
 
 .day-column:last-child {
@@ -424,51 +591,11 @@ onMounted(() => {
   color: white;
   overflow: hidden;
   z-index: 1;
-  cursor: pointer; /* Add cursor for potential interaction */
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
-/* Day View Styling */
-.day-header {
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-.day-schedule {
-  display: grid;
-  grid-template-columns: 60px 1fr;
-  height: 600px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.day-events {
-  position: relative;
-  height: 600px;
-}
-
-.day-event {
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  padding: 10px;
-  border-radius: 5px;
-  color: white;
-  z-index: 1;
-  cursor: pointer; /* Add cursor for potential interaction */
-}
-
-.event-time {
-  font-weight: bold;
-  margin-bottom: 5px;
-}
-
-.event-location {
-  font-size: 12px;
-  opacity: 0.8;
-}
-
-/* Calendar Grading Action */
 .calendar-grading-action {
   margin-top: 30px;
   text-align: center;
@@ -483,12 +610,16 @@ onMounted(() => {
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
-#grade-calendar-btn:hover {
+#grade-calendar-btn:hover:not([disabled]) {
   transform: translateY(-2px);
   box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
 }
 
-/* Grade Result Modal Styling */
+#grade-calendar-btn[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .grade-header {
   display: flex;
   justify-content: center;
@@ -522,6 +653,10 @@ onMounted(() => {
   margin-bottom: 30px;
 }
 
+.grade-section {
+    margin-bottom: 20px;
+}
+
 .recommendations-list {
   list-style: none;
   padding: 0;
@@ -541,7 +676,6 @@ onMounted(() => {
   color: var(--primary-teal);
 }
 
-/* Calendar Legend */
 .calendar-legend {
   display: flex;
   justify-content: center;
@@ -561,19 +695,17 @@ onMounted(() => {
   margin-right: 5px;
 }
 
-/* Ensure modal styles work correctly */
 .modal {
-    color: #333; /* Set default text color for modal content */
+    color: #333;
 }
 
-.modal-content {
-    background-color: #fff; /* Or your desired modal background */
-}
-
-.modal-header,
-.modal-body,
-.modal-footer {
-    color: inherit;
+.premium-cta {
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
 }
 
 </style>
+
