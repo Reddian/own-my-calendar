@@ -27,6 +27,13 @@ const userModule = {
       state.user = null;
       state.isAuthenticated = false;
     },
+    // Mutation to update specific user properties (like timezone)
+    UPDATE_USER_PROPERTY(state, { key, value }) {
+      if (state.user) {
+        console.log(`[Vuex Mutation] UPDATE_USER_PROPERTY: Setting ${key} to`, value); // DEBUG
+        state.user = { ...state.user, [key]: value };
+      }
+    },
   },
   actions: {
     // Action to fetch user data (e.g., after login or on app load)
@@ -110,6 +117,33 @@ const userModule = {
       } finally {
         commit('SET_LOADING', false);
         console.log('[Vuex Action] logout: Finished.'); // DEBUG
+      }
+    },
+
+    // Action to update user profile (name, email, timezone)
+    async updateProfile({ commit, state }, profileData) {
+      console.log('[Vuex Action] updateProfile: Starting with data:', profileData); // DEBUG
+      commit('SET_LOADING', true);
+      commit('SET_ERROR', null);
+      try {
+        console.log('[Vuex Action] updateProfile: Calling PUT /api/profile...'); // DEBUG
+        const response = await axios.put('/api/profile', profileData);
+        const updatedUser = response.data.user; // Assuming backend returns updated user object
+        console.log('[Vuex Action] updateProfile: Received updated user data:', updatedUser); // DEBUG
+        
+        // Update the user state with the new data
+        commit('SET_USER', updatedUser);
+        console.log('[Vuex Action] updateProfile: SET_USER mutation committed.'); // DEBUG
+        return updatedUser; // Return updated user data on success
+      } catch (error) {
+        console.error('[Vuex Action] updateProfile: Error updating profile:', error.response ? error.response.data : error.message); // DEBUG
+        const errorMessage = error.response?.data?.message || 'Failed to update profile.';
+        commit('SET_ERROR', errorMessage);
+        // Re-throw the error so the component can display it
+        throw new Error(errorMessage);
+      } finally {
+        commit('SET_LOADING', false);
+        console.log('[Vuex Action] updateProfile: Finished.'); // DEBUG
       }
     },
   },
