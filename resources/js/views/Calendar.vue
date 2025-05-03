@@ -37,37 +37,36 @@
             title="Next Week">
             <i class="fas fa-chevron-right"></i>
           </button>
-          <button 
+          <!-- Removed Refresh Button as per user request to remove caching -->
+          <!-- <button 
             class="btn btn-outline-secondary refresh-btn ms-3" 
             @click="manualRefresh" 
             :disabled="isRefreshing"
             title="Refresh Events">
             <i class="fas fa-sync-alt" :class="{ 'fa-spin': isRefreshing }"></i>
-          </button>
+          </button> -->
         </div>
       </div>
 
       <!-- Week View -->
       <div class="calendar-view week-view">
         <div class="week-header">
-          <div class="time-column"></div>
+          <div class="time-column"></div> <!-- Placeholder for time slots column header -->
           <div v-for="day in weekDays" :key="day.dateStr" class="week-day" :class="{ today: day.isToday }">
             {{ day.shortDayName }}<br>{{ day.dayOfMonth }}
           </div>
         </div>
-        <div class="week-grid">
-          <div class="time-slots">
-            <div v-for="hour in timeSlots" :key="hour" class="time-slot">{{ hour }}</div>
-          </div>
-          <div v-for="day in weekDays" :key="day.dateStr" class="day-column">
-            <!-- Debug: Log day being processed -->
-            <!-- {{ console.log("Processing day:", day.dateStr) }} -->
-            <div v-for="event in getEventsForDay(day.dateStr)" :key="event.id" 
-                 class="week-event" 
-                 :style="getEventStyle(event)">
-              <!-- Debug: Log event being rendered -->
-              <!-- {{ console.log("Rendering event:", event.title, event.id) }} -->
-              {{ event.title }}<br>{{ event.timeRange }}
+        <div class="week-grid-scroll-container" ref="gridScrollContainer"> <!-- Added scroll container -->
+          <div class="week-grid">
+            <div class="time-slots">
+              <div v-for="hour in timeSlots" :key="hour" class="time-slot">{{ hour }}</div>
+            </div>
+            <div v-for="day in weekDays" :key="day.dateStr" class="day-column">
+              <div v-for="event in getEventsForDay(day.dateStr)" :key="event.id" 
+                   class="week-event" 
+                   :style="getEventStyle(event)">
+                {{ event.title }}<br>{{ event.timeRange }}
+              </div>
             </div>
           </div>
         </div>
@@ -99,8 +98,6 @@
               <div v-if="gradeResult" class="grade-result">
                 <div class="grade-header">
                   <div class="grade-letter">{{ gradeResult.overall_grade || "N/A" }}</div>
-                  <!-- Assuming score is part of the result, otherwise remove -->
-                  <!-- <div class="grade-score">{{ gradeResult.score || "--" }}<span>/100</span></div> -->
                 </div>
                 <div class="grade-summary">
                   <p>{{ gradeResult.summary || "Grading complete." }}</p> 
@@ -137,14 +134,12 @@
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" @click="closeGradeModal">Close</button>
-              <!-- <button type="button" class="btn btn-primary">Save Recommendations</button> -->
             </div>
           </div>
         </div>
       </div>
 
       <div class="calendar-legend">
-        <!-- Legend items -->
         <div class="legend-item">
           <div class="legend-color" style="background-color: var(--primary-purple);"></div>
           <span>Meetings</span>
@@ -163,7 +158,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch, nextTick } from "vue"; // Added nextTick
 import { useStore } from "vuex";
 import axios from "axios";
 import { Modal } from "bootstrap";
@@ -177,7 +172,7 @@ today.setHours(0, 0, 0, 0);
 const currentDate = ref(new Date(today));
 const events = ref([]);
 const isLoading = ref(true);
-const isRefreshing = ref(false); // Added for manual refresh
+const isRefreshing = ref(false); // Kept for potential future use, but button removed
 const fetchError = ref(null);
 const gradeModal = ref(null);
 let bsModal = null;
@@ -185,11 +180,13 @@ const isGrading = ref(false);
 const gradeError = ref(null);
 const gradeResult = ref(null);
 const canGradeWeek = ref(true); // Will be checked on mount
+const gridScrollContainer = ref(null); // Ref for the scrollable container
 
 // Constants for grid
-const GRID_START_HOUR = 8;
-const GRID_END_HOUR = 17; // Exclusive end hour (displays up to 4:59 PM)
-const HOUR_HEIGHT_PX = 60;
+const GRID_START_HOUR = 0; // Changed to 0 for 12 AM
+const GRID_END_HOUR = 24; // Changed to 24 for up to 11:59 PM
+const HOUR_HEIGHT_PX = 60; // Height of one hour slot in pixels
+const SCROLL_TO_HOUR = 8; // Hour to scroll to initially (8 AM)
 
 // --- Subscription Status ---
 const isPremium = computed(() => store.getters["user/isSubscribed"]);
@@ -266,7 +263,7 @@ const timeSlots = computed(() => {
   const slots = [];
   for (let i = GRID_START_HOUR; i < GRID_END_HOUR; i++) {
     const hour = i % 12 === 0 ? 12 : i % 12;
-    const ampm = i < 12 ? "AM" : "PM";
+    const ampm = i < 12 || i === 24 ? "AM" : "PM"; // Handle 12 AM and 12 PM correctly
     slots.push(`${hour} ${ampm}`);
   }
   return slots;
@@ -279,7 +276,7 @@ const minAllowedWeekStart = computed(() => {
   const date = new Date(todayWeekStart.value);
   if (isPremium.value) {
     date.setDate(date.getDate() - 7 * 2);
-  } // Free: min is current week (todayWeekStart)
+  }
   return date;
 });
 
@@ -306,25 +303,21 @@ const canNavigateForward = computed(() => {
 });
 
 // --- Event Fetching ---
-async function fetchEventsForWeek(startDate, endDate, forceRefresh = false) {
-  if (!forceRefresh) {
-      isLoading.value = true;
-  } else {
-      isRefreshing.value = true;
-  }
+async function fetchEventsForWeek(startDate, endDate) {
+  // Removed forceRefresh parameter
+  isLoading.value = true;
   fetchError.value = null;
   console.log(
     `[Calendar] Fetching events from ${formatDate(startDate)} to ${formatDate(
       endDate
-    )}. Force Refresh: ${forceRefresh}`
+    )} directly from API.`
   );
   try {
     const response = await axios.post("/api/calendars/events", {
       start_date: formatDate(startDate),
       end_date: formatDate(endDate),
-      force_refresh: forceRefresh, // Pass force_refresh flag to backend
+      // force_refresh: false, // Removed force_refresh flag
     });
-    // Debug: Log raw response
     console.log("[Calendar] Raw events received:", response.data.events);
 
     events.value = response.data.events.map((event) => {
@@ -341,7 +334,7 @@ async function fetchEventsForWeek(startDate, endDate, forceRefresh = false) {
       try {
         if (event.start) {
           start = new Date(event.start);
-          dateStr = start.toISOString().split("T")[0]; // Use ISO string for reliable date part
+          dateStr = start.toISOString().split("T")[0];
           startHour = start.getHours();
           startMinute = start.getMinutes();
         }
@@ -354,19 +347,17 @@ async function fetchEventsForWeek(startDate, endDate, forceRefresh = false) {
         if (start && end && !event.allDay) {
           timeRange = `${formatTime(event.start)} - ${formatTime(event.end)}`;
           durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
-          // Handle cases where event spans midnight incorrectly
           if (durationMinutes < 0) durationMinutes += 24 * 60;
         } else if (start && !event.allDay) {
           timeRange = formatTime(event.start);
-          durationMinutes = 60; // Default duration if end is missing
+          durationMinutes = 60;
           endHour = startHour + 1;
         }
       } catch (e) {
         console.error("[Calendar] Error processing event dates:", event, e);
-        // Keep default values if date parsing fails
       }
 
-      const processedEvent = {
+      return {
         ...event,
         dateStr: dateStr,
         timeRange,
@@ -375,13 +366,14 @@ async function fetchEventsForWeek(startDate, endDate, forceRefresh = false) {
         endHour,
         endMinute,
         durationMinutes,
-        color: "var(--primary-purple)", // Default color
+        color: "var(--primary-purple)",
       };
-      // Debug: Log processed event
-      // console.log("[Calendar] Processed event:", processedEvent);
-      return processedEvent;
     });
     console.log("[Calendar] Processed events array:", events.value);
+    // Scroll to 8 AM after events are loaded
+    await nextTick(); // Wait for DOM update
+    scrollToTime();
+
   } catch (error) {
     console.error("[Calendar] Error fetching calendar events:", error);
     fetchError.value =
@@ -390,37 +382,22 @@ async function fetchEventsForWeek(startDate, endDate, forceRefresh = false) {
     events.value = [];
   } finally {
     isLoading.value = false;
-    isRefreshing.value = false;
+    isRefreshing.value = false; // Still set this although button is removed
   }
 }
 
-// --- Manual Refresh ---
-function manualRefresh() {
-    console.log("[Calendar] Manual refresh triggered.");
-    fetchEventsForWeek(currentWeekStart.value, currentWeekEnd.value, true);
-}
+// Removed manualRefresh function
 
 // --- Event Display Logic ---
 function getEventsForDay(dateStr) {
-  // Debug: Log filtering process
-  // console.log(`[Calendar] Filtering events for day: ${dateStr}`);
-  const dayEvents = events.value.filter((event) => event.dateStr === dateStr);
-  // console.log(
-  //   `[Calendar] Found ${dayEvents.length} events for ${dateStr}:`,
-  //   dayEvents
-  // );
-  return dayEvents;
+  return events.value.filter((event) => event.dateStr === dateStr);
 }
 
 function getEventStyle(event) {
-  // Debug: Log style calculation
-  // console.log(
-  //   `[Calendar] Calculating style for event: ${event.title} (ID: ${event.id})`
-  // );
   if (event.allDay || !event.start) {
-    // Render all-day events or events without a start time in a compact way at the top
-    const style = {
-      position: "relative", // Use relative for all-day to stack them
+    // Render all-day events at the top (no change needed)
+    return {
+      position: "relative",
       top: "0px",
       height: "20px",
       backgroundColor: event.color || "var(--secondary-color)",
@@ -428,7 +405,7 @@ function getEventStyle(event) {
       fontSize: "10px",
       lineHeight: "20px",
       zIndex: 0,
-      marginBottom: "2px", // Add margin between stacked all-day events
+      marginBottom: "2px",
       overflow: "hidden",
       whiteSpace: "nowrap",
       textOverflow: "ellipsis",
@@ -437,140 +414,105 @@ function getEventStyle(event) {
       border: "1px solid rgba(0, 0, 0, 0.1)",
       cursor: "pointer",
     };
-    // console.log("[Calendar] All-day/Invalid event style:", style);
-    return style;
   }
 
-  // Calculate position for timed events within the GRID_START_HOUR to GRID_END_HOUR range
+  // Calculate position for timed events within the 0-24 hour grid
   const startTotalMinutes = event.startHour * 60 + event.startMinute;
   const endTotalMinutes = event.endHour * 60 + event.endMinute;
 
-  const gridStartTotalMinutes = GRID_START_HOUR * 60;
-  const gridEndTotalMinutes = GRID_END_HOUR * 60;
+  // Calculate top position based on minutes from 12 AM (GRID_START_HOUR = 0)
+  const topPosition = (startTotalMinutes / 60) * HOUR_HEIGHT_PX;
 
-  // Clamp event start and end times to the visible grid boundaries
-  const clampedStartMinutes = Math.max(startTotalMinutes, gridStartTotalMinutes);
-  const clampedEndMinutes = Math.min(endTotalMinutes, gridEndTotalMinutes);
-
-  // Calculate top position relative to the grid start time
-  const topMinutes = clampedStartMinutes - gridStartTotalMinutes;
-  const top = (topMinutes / 60) * HOUR_HEIGHT_PX;
-
-  // Calculate height based on the duration within the grid
-  const durationInGridMinutes = Math.max(0, clampedEndMinutes - clampedStartMinutes);
-  // Ensure minimum height, prevent zero height for very short events within grid
-  const height = Math.max(15, (durationInGridMinutes / 60) * HOUR_HEIGHT_PX); 
-
-  // Only render if the event overlaps with the grid time range
-  if (durationInGridMinutes <= 0 || startTotalMinutes >= gridEndTotalMinutes || endTotalMinutes <= gridStartTotalMinutes) {
-      // console.log("[Calendar] Event outside grid time range, skipping render:", event.title);
-      return { display: 'none' }; // Hide events completely outside the grid
-  }
+  // Calculate height based on duration
+  let duration = event.durationMinutes;
+  if (duration <= 0) duration = 30; // Min height for 0 duration events
+  const height = (duration / 60) * HOUR_HEIGHT_PX;
 
   const style = {
     position: "absolute",
-    top: `${top}px`,
-    height: `${height}px`,
+    top: `${topPosition}px`,
+    height: `${height - 2}px`, // Subtract a bit for visual spacing
+    left: "2px",
+    right: "2px",
     backgroundColor: event.color || "var(--primary-purple)",
-    left: "5px", // Add some padding from the column border
-    right: "5px",
-    padding: "2px 4px",
     borderRadius: "3px",
-    fontSize: "11px",
+    padding: "2px 4px",
+    fontSize: "12px",
     color: "white",
     overflow: "hidden",
     zIndex: 1,
-    cursor: "pointer",
     border: "1px solid rgba(0, 0, 0, 0.2)",
+    cursor: "pointer",
   };
-  // console.log("[Calendar] Timed event style:", style);
+  // console.log(`[Calendar] Style for ${event.title}:`, style);
   return style;
 }
 
 // --- Navigation ---
 function prevWeek() {
-  if (!canNavigateBackward.value || isRefreshing.value) return;
+  if (!canNavigateBackward.value) return;
   const newDate = new Date(currentDate.value);
   newDate.setDate(newDate.getDate() - 7);
   currentDate.value = newDate;
 }
 
 function nextWeek() {
-  if (!canNavigateForward.value || isRefreshing.value) return;
+  if (!canNavigateForward.value) return;
   const newDate = new Date(currentDate.value);
   newDate.setDate(newDate.getDate() + 7);
   currentDate.value = newDate;
 }
 
-// --- Grading Logic ---
+// --- Grading ---
 async function checkGradingAbility() {
   try {
     const response = await axios.get("/api/subscription/can-grade");
     canGradeWeek.value = response.data.can_grade;
-    if (!canGradeWeek.value && !isPremium.value) {
-      gradeError.value =
-        "You have reached your free grading limit. Upgrade to Premium for unlimited grading.";
+    if (!canGradeWeek.value) {
+      gradeError.value = response.data.reason || "Grading limit reached for this period.";
     }
   } catch (error) {
     console.error("[Calendar] Error checking grading ability:", error);
-    canGradeWeek.value = false; // Assume cannot grade if check fails
-    gradeError.value = "Could not verify grading ability.";
+    // Keep button enabled but show error on click if check fails
+    canGradeWeek.value = true; // Assume can grade, let backend handle error on attempt
+    gradeError.value = "Could not verify grading ability."; // Set the error message
   }
 }
 
 async function gradeCurrentWeek() {
-  if (!canGradeWeek.value) {
-    gradeError.value =
-      isPremium.value
-        ? "An error occurred checking grade status."
-        : "You have reached your free grading limit. Upgrade to Premium for unlimited grading.";
-    return;
-  }
-
   isGrading.value = true;
   gradeError.value = null;
-  gradeResult.value = null; // Clear previous results
+  gradeResult.value = null;
+
+  // Re-check ability right before grading
+  await checkGradingAbility();
+  if (!canGradeWeek.value) {
+      isGrading.value = false;
+      // gradeError is already set by checkGradingAbility
+      return; 
+  }
 
   try {
-    console.log(
-      `[Calendar] Grading week: ${formatDate(
-        currentWeekStart.value
-      )} to ${formatDate(currentWeekEnd.value)}`
-    );
-    const response = await axios.post("/api/ai/grade-calendar", {
+    const response = await axios.post("/api/calendar/grade", {
       start_date: formatDate(currentWeekStart.value),
       end_date: formatDate(currentWeekEnd.value),
     });
-
-    gradeResult.value = response.data.grade; // Assuming the grade object is nested under 'grade'
-    console.log("[Calendar] Grading successful:", gradeResult.value);
+    gradeResult.value = response.data.grade;
     openGradeModal();
-
-    // Increment grade count for non-premium users after successful grading
-    if (!isPremium.value) {
-      try {
-        await axios.post("/api/subscription/increment-grades");
-        checkGradingAbility(); // Re-check ability after incrementing
-      } catch (incError) {
-        console.error("[Calendar] Error incrementing grade count:", incError);
-        // Handle this? Maybe just log it.
-      }
-    }
   } catch (error) {
     console.error("[Calendar] Error grading calendar:", error);
     gradeError.value =
-      error.response?.data?.error ||
-      "An unexpected error occurred while grading the calendar.";
+      error.response?.data?.error || "An error occurred while grading the calendar.";
   } finally {
     isGrading.value = false;
   }
 }
 
-// --- Modal Logic ---
 function openGradeModal() {
-  if (bsModal) {
-    bsModal.show();
+  if (!bsModal) {
+    bsModal = new Modal(gradeModal.value);
   }
+  bsModal.show();
 }
 
 function closeGradeModal() {
@@ -579,317 +521,165 @@ function closeGradeModal() {
   }
 }
 
-// --- Watchers ---
-watch(currentWeekStart, (newStart, oldStart) => {
-  if (newStart && (!oldStart || newStart.getTime() !== oldStart.getTime())) {
-    fetchEventsForWeek(newStart, currentWeekEnd.value); // Fetch without forcing refresh on navigation
-    // Reset grade error when navigating
-    gradeError.value = null;
-    // Re-check grading ability for the new week (optional, depends on logic)
-    // checkGradingAbility();
+// --- Auto Scroll --- 
+function scrollToTime(hour = SCROLL_TO_HOUR) {
+  if (gridScrollContainer.value) {
+    const scrollTop = hour * HOUR_HEIGHT_PX; // Calculate scroll position for the target hour
+    gridScrollContainer.value.scrollTop = scrollTop;
+    console.log(`[Calendar] Scrolled to hour ${hour} (scrollTop: ${scrollTop}px)`);
   }
-});
+}
 
 // --- Lifecycle Hooks ---
-onMounted(async () => {
+onMounted(() => {
+  fetchEventsForWeek(currentWeekStart.value, currentWeekEnd.value);
+  checkGradingAbility();
+  // Initialize modal instance
   if (gradeModal.value) {
     bsModal = new Modal(gradeModal.value);
   }
-
-  // Ensure user data is loaded before initial fetch and checks
-  if (!store.state.user.user) {
-    console.log("[Calendar] Waiting for user data...");
-    // Wait for fetchUser to complete if it hasn't already
-    // This assumes fetchUser is dispatched reliably in App.vue or similar entry point
-    await store.dispatch("user/fetchUser");
-  }
-
-  if (store.state.user.user) {
-    console.log("[Calendar] User data loaded. Fetching initial data...");
-    await checkGradingAbility(); // Check if user can grade initially
-    await fetchEventsForWeek(currentWeekStart.value, currentWeekEnd.value);
-  } else {
-    console.error(
-      "[Calendar] User data not loaded after waiting. Cannot fetch events or check grading status."
-    );
-    isLoading.value = false;
-    fetchError.value =
-      "User data not loaded. Cannot fetch events or check grading status.";
-    canGradeWeek.value = false;
-  }
 });
+
+watch(currentDate, (newDate) => {
+  const newWeekStart = getStartOfWeek(newDate);
+  const newWeekEnd = getEndOfWeek(newDate);
+  fetchEventsForWeek(newWeekStart, newWeekEnd);
+});
+
 </script>
 
 <style scoped>
-/* Styles remain largely the same */
+.page-title {
+  margin-bottom: 1.5rem;
+}
+
+.premium-cta {
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.premium-cta i {
+  margin-right: 0.5rem;
+  color: var(--primary-purple);
+}
+
 .loading-indicator {
   text-align: center;
-  padding: 50px;
-  color: var(--text-color-secondary);
+  padding: 4rem 0;
 }
 
-.loading-indicator .spinner-border {
-  width: 3rem;
-  height: 3rem;
+.calendar-container {
+  /* Add styles for the overall container if needed */
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: center; /* Center navigation */
+  align-items: center;
   margin-bottom: 1rem;
-}
-
-.prev-week-btn[disabled],
-.next-week-btn[disabled],
-.refresh-btn[disabled] { /* Added refresh-btn */
-  opacity: 0.5;
-  cursor: not-allowed;
-  background-color: transparent;
-  /* color: var(--primary-purple); */ /* Keep secondary color for refresh */
-}
-
-.week-title {
-  margin: 0 15px;
-  font-style: italic;
-  min-width: 200px;
-  text-align: center;
 }
 
 .calendar-navigation {
   display: flex;
   align-items: center;
-  justify-content: center;
-  margin-bottom: 20px;
+}
+
+.week-title {
+  margin: 0 1rem;
+  min-width: 200px; /* Ensure space for date range */
+  text-align: center;
+  font-size: 1.5rem;
 }
 
 .prev-week-btn,
 .next-week-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-color: var(--primary-purple);
-  color: var(--primary-purple);
-  cursor: pointer;
-  transition: all 0.2s ease;
+  /* Styles for navigation buttons */
 }
 
-.refresh-btn { /* Added styles for refresh button */
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-color: var(--text-color-secondary);
-  color: var(--text-color-secondary);
-  cursor: pointer;
-  transition: all 0.2s ease;
+.refresh-btn i.fa-spin {
+  animation: fa-spin 2s infinite linear;
 }
 
-.prev-week-btn:not([disabled]):hover,
-.next-week-btn:not([disabled]):hover {
-  background-color: var(--primary-purple);
-  color: white;
-}
-
-.refresh-btn:not([disabled]):hover {
-  background-color: var(--text-color-secondary);
-  color: var(--background-color);
+.calendar-view {
+  border: 1px solid #dee2e6;
+  border-radius: 0.25rem;
+  background-color: #fff;
 }
 
 .week-header {
-  display: grid;
-  grid-template-columns: 60px repeat(7, 1fr);
-  /* gap: 5px; */ /* Remove gap to allow borders to connect */
-  margin-bottom: 10px;
+  display: flex;
+  border-bottom: 1px solid #dee2e6;
+  background-color: #f8f9fa;
+}
+
+.time-column {
+  width: 60px; /* Width for time labels */
+  flex-shrink: 0;
+  border-right: 1px solid #dee2e6;
 }
 
 .week-day {
+  flex: 1;
   text-align: center;
-  padding: 10px;
-  background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 5px;
+  padding: 0.5rem 0;
   font-weight: bold;
-  border-right: 1px solid rgba(255, 255, 255, 0.1); /* Add border */
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* Add border */
+  border-left: 1px solid #dee2e6; /* Add border between days */
 }
-.week-day:last-child {
-    border-right: none;
+
+.week-day:first-of-type {
+  border-left: none; /* Remove border for the first day */
 }
 
 .week-day.today {
-  background-color: rgba(126, 87, 255, 0.2);
-  border: 2px solid var(--primary-purple);
+  background-color: #e9f5ff;
+  color: var(--primary-blue);
+}
+
+/* Added scroll container */
+.week-grid-scroll-container {
+  max-height: 70vh; /* Adjust max height as needed */
+  overflow-y: auto;
+  position: relative; /* Needed for absolute positioning of events */
 }
 
 .week-grid {
-  display: grid;
-  grid-template-columns: 60px repeat(7, 1fr);
-  min-height: calc(var(--hour-height, 60px) * (var(--grid-end-hour, 17) - var(--grid-start-hour, 8))); /* Calculate height based on hours */
-  position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  overflow: hidden;
-  /* Define CSS variables for grid parameters */
-  --hour-height: 60px;
-  --grid-start-hour: 8;
-  --grid-end-hour: 17;
+  display: flex;
+  position: relative; /* Needed for absolute positioning of events */
 }
 
 .time-slots {
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  width: 60px;
+  flex-shrink: 0;
+  border-right: 1px solid #dee2e6;
 }
 
 .time-slot {
-  height: var(--hour-height);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  height: 60px; /* Corresponds to HOUR_HEIGHT_PX */
+  border-bottom: 1px dotted #e0e0e0;
+  text-align: right;
+  padding-right: 5px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: #6c757d;
+  position: relative;
 }
+
 .time-slot:last-child {
   border-bottom: none;
 }
 
 .day-column {
-  position: relative;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-  min-height: calc(var(--hour-height) * (var(--grid-end-hour) - var(--grid-start-hour)));
+  flex: 1;
+  position: relative; /* Crucial for absolute positioning of events */
+  min-height: calc(24 * 60px); /* Ensure column has full height for 24 hours */
+  border-left: 1px solid #dee2e6; /* Add border between days */
 }
 
-.day-column:last-child {
-  border-right: none;
+.day-column:first-of-type {
+  border-left: none; /* Remove border for the first day */
 }
 
 /* Add horizontal lines for hours */
 .day-column::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
-    background-size: 100% var(--hour-height);
-    z-index: -1; /* Place behind events */
-}
-
-
-.week-event {
-  /* Styles updated in getEventStyle function */
-}
-
-.calendar-grading-action {
-  margin-top: 30px;
-  text-align: center;
-}
-
-#grade-calendar-btn {
-  padding: 12px 30px;
-  font-size: 18px;
-  background: linear-gradient(to right, var(--primary-purple), var(--primary-teal));
-  border: none;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-#grade-calendar-btn:hover:not([disabled]) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
-}
-
-#grade-calendar-btn[disabled] {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.grade-header {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 40px;
-  margin-bottom: 20px;
-}
-
-.grade-letter {
-  font-size: 72px;
-  font-weight: bold;
-  color: var(--primary-purple);
-  background: linear-gradient(to right, var(--primary-purple), var(--primary-teal));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.grade-score {
-  font-size: 48px;
-  font-weight: bold;
-}
-
-.grade-score span {
-  font-size: 24px;
-  opacity: 0.7;
-}
-
-.grade-summary {
-  text-align: center;
-  font-size: 18px;
-  margin-bottom: 30px;
-}
-
-.grade-section {
-  margin-bottom: 20px;
-}
-
-.recommendations-list {
-  list-style: none;
-  padding: 0;
-}
-
-.recommendations-list li {
-  background-color: rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
-  padding: 15px;
-  margin-bottom: 15px;
-}
-
-.recommendation-title {
-  font-weight: bold;
-  font-size: 18px;
-  margin-bottom: 5px;
-  color: var(--primary-teal);
-}
-
-.calendar-legend {
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-  margin-top: 20px;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-}
-
-.legend-color {
-  width: 15px;
-  height: 15px;
-  border-radius: 3px;
-  margin-right: 5px;
-}
-
-.modal {
-  color: #333;
-}
-
-.premium-cta {
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-</style>
+  content: 
 

@@ -54,6 +54,15 @@
                     <label for="email" class="form-label">Email</label>
                     <input type="email" class="form-control" id="email" v-model="accountForm.email" :disabled="isUpdatingAccount">
                   </div>
+                  <!-- Timezone Dropdown -->
+                  <div class="mb-3">
+                    <label for="timezone" class="form-label">Timezone</label>
+                    <select class="form-select" id="timezone" v-model="accountForm.timezone" :disabled="isUpdatingAccount || isLoadingTimezones">
+                      <option v-if="isLoadingTimezones" value="" disabled>Loading timezones...</option>
+                      <option v-else value="">Select Timezone</option>
+                      <option v-for="tz in timezones" :key="tz" :value="tz">{{ tz }}</option>
+                    </select>
+                  </div>
                   <button type="submit" class="btn btn-primary" :disabled="isUpdatingAccount">
                     <span v-if="isUpdatingAccount" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                     {{ isUpdatingAccount ? 'Updating...' : 'Update Account' }}
@@ -280,392 +289,431 @@ const activeTab = ref('account');
 const successMessage = ref('');
 const errorMessage = ref('');
 
-// --- Google Callback Messages ---
-const googleSuccessMessage = ref('');
-const googleErrorMessage = ref('');
-
-// --- Form Data & States ---
-const accountForm = reactive({ name: '', email: '' });
-const passwordForm = reactive({ current_password: '', password: '', password_confirmation: '' });
-const notificationForm = reactive({
-  weekly_grade_email: true, // Default values
-  planning_reminder: true,
-  reminder_day: 'Sunday',
-  reminder_time: '18:00'
+// --- Account Settings ---
+const accountForm = reactive({
+  name: '',
+  email: '',
+  timezone: '', // Add timezone
+});
+const passwordForm = reactive({
+  current_password: '',
+  password: '',
+  password_confirmation: '',
 });
 const isUpdatingAccount = ref(false);
 const isUpdatingPassword = ref(false);
+const timezones = ref([]); // Add timezones list
+const isLoadingTimezones = ref(false);
+
+// --- Notification Settings ---
+const notificationForm = reactive({
+  weekly_grade_email: false,
+  planning_reminder: false,
+  reminder_day: 'Sunday',
+  reminder_time: '18:00',
+});
 const isUpdatingNotifications = ref(false);
 
-// --- Subscription Data & State ---
-const subscriptionStatus = reactive({
-  isActive: false,
-  planName: null,
-  nextBillingDate: null,
-  gradesRemaining: null,
-  cancelAtPeriodEnd: false,
-  cancelAtDate: null,
-});
+// --- Subscription Settings ---
+const subscriptionStatus = ref({});
 const isLoadingSubscription = ref(false);
 const subscriptionError = ref('');
+const cancelModal = ref(null);
+let bsCancelModal = null;
 const isCancelling = ref(false);
 
-// --- Calendar Data ---
+// --- Calendar Integration ---
 const isGoogleConnected = ref(false);
 const connectedCalendars = ref([]);
 const isLoadingCalendars = ref(false);
 const calendarFetchError = ref('');
+const googleSuccessMessage = ref('');
+const googleErrorMessage = ref('');
 
-// --- Modals Refs ---
-const cancelModal = ref(null);
-let bsCancelModal = null;
-
-// --- Computed User Data ---
+// --- Computed Properties ---
 const user = computed(() => store.state.user.user);
 
 // --- Methods ---
-function setActiveTab(tabName) {
-  activeTab.value = tabName;
-  router.replace({ hash: `#${tabName}` });
-}
-
-function clearGoogleMessages() {
-  googleSuccessMessage.value = '';
-  googleErrorMessage.value = '';
-  router.replace({ query: {} });
-}
-
-// Fetch user data and populate form
-function populateAccountForm() {
-  if (user.value) {
-    accountForm.name = user.value.name;
-    accountForm.email = user.value.email;
-  }
-}
-
-async function updateAccount() {
-  isUpdatingAccount.value = true;
+const setActiveTab = (tab) => {
+  activeTab.value = tab;
+  // Clear messages when switching tabs
   successMessage.value = '';
   errorMessage.value = '';
+  googleSuccessMessage.value = '';
+  googleErrorMessage.value = '';
+
+  // Fetch data for the activated tab if needed
+  if (tab === 'subscription') {
+    fetchSubscriptionStatus();
+  } else if (tab === 'calendar') {
+    checkGoogleConnection();
+  } else if (tab === 'notifications') {
+    fetchNotificationSettings();
+  } else if (tab === 'account') {
+    fetchTimezones(); // Fetch timezones when account tab is active
+  }
+};
+
+const clearMessages = () => {
+  successMessage.value = '';
+  errorMessage.value = '';
+};
+
+const clearGoogleMessages = () => {
+  googleSuccessMessage.value = '';
+  googleErrorMessage.value = '';
+};
+
+// --- Account Methods ---
+const fetchTimezones = async () => {
+  if (timezones.value.length > 0) return; // Don't fetch if already loaded
+  isLoadingTimezones.value = true;
+  try {
+    const response = await axios.get('/api/timezones');
+    timezones.value = response.data.timezones;
+  } catch (error) {
+    console.error('Error fetching timezones:', error);
+    errorMessage.value = 'Could not load timezones.';
+  } finally {
+    isLoadingTimezones.value = false;
+  }
+};
+
+const updateAccount = async () => {
+  clearMessages();
+  isUpdatingAccount.value = true;
   try {
     const response = await axios.put('/api/profile', accountForm);
     successMessage.value = response.data.message;
+    // Update user data in Vuex store
     store.commit('user/SET_USER', response.data.user);
-    populateAccountForm();
   } catch (error) {
-    console.error('Error updating account:', error);
-    if (error.response && error.response.data) {
-      errorMessage.value = error.response.data.message || 'Failed to update account.';
-      if (error.response.status === 422 && error.response.data.errors) {
-        errorMessage.value = Object.values(error.response.data.errors).flat().join(' ');
-      }
+    if (error.response && error.response.data && error.response.data.message) {
+      errorMessage.value = error.response.data.message;
     } else {
-      errorMessage.value = 'An unexpected error occurred.';
+      errorMessage.value = 'Failed to update account. Please try again.';
     }
+    console.error('Account update error:', error);
   } finally {
     isUpdatingAccount.value = false;
   }
-}
+};
 
-async function updatePassword() {
+const updatePassword = async () => {
+  clearMessages();
   isUpdatingPassword.value = true;
-  successMessage.value = '';
-  errorMessage.value = '';
   try {
     const response = await axios.put('/api/password', passwordForm);
     successMessage.value = response.data.message;
+    // Clear password fields on success
     passwordForm.current_password = '';
     passwordForm.password = '';
     passwordForm.password_confirmation = '';
   } catch (error) {
-    console.error('Error updating password:', error);
-     if (error.response && error.response.data) {
-      errorMessage.value = error.response.data.message || 'Failed to update password.';
-      if (error.response.status === 422 && error.response.data.errors) {
-        errorMessage.value = Object.values(error.response.data.errors).flat().join(' ');
-      }
+    if (error.response && error.response.data && error.response.data.message) {
+      errorMessage.value = error.response.data.message;
+    } else if (error.response && error.response.data && error.response.data.errors) {
+      // Handle validation errors
+      const errors = error.response.data.errors;
+      errorMessage.value = Object.values(errors).flat().join(' ');
     } else {
-      errorMessage.value = 'An unexpected error occurred.';
+      errorMessage.value = 'Failed to update password. Please try again.';
     }
+    console.error('Password update error:', error);
   } finally {
     isUpdatingPassword.value = false;
   }
-}
+};
 
-// Fetch Notification Settings
-async function fetchNotificationSettings() {
-  errorMessage.value = ''; // Clear previous errors
+// --- Notification Methods ---
+const fetchNotificationSettings = async () => {
+  clearMessages();
+  isUpdatingNotifications.value = true; // Use loading state
   try {
     const response = await axios.get('/api/notifications/settings');
-    // Update the reactive form object directly
-    Object.assign(notificationForm, response.data);
-    console.log('Fetched notification settings:', JSON.parse(JSON.stringify(notificationForm))); // Log fetched data
+    const settings = response.data.settings || {};
+    notificationForm.weekly_grade_email = settings.weekly_grade_email || false;
+    notificationForm.planning_reminder = settings.planning_reminder || false;
+    notificationForm.reminder_day = settings.reminder_day || 'Sunday';
+    notificationForm.reminder_time = settings.reminder_time || '18:00';
+    console.log('Fetched notification settings:', settings);
   } catch (error) {
+    errorMessage.value = 'Could not load notification settings.';
     console.error('Error fetching notification settings:', error);
-    // Don't overwrite other error messages, maybe show a specific notification error?
-    errorMessage.value = 'Failed to load notification settings. Default values may be shown.';
-  }
-}
-
-// Update Notification Settings
-async function updateNotifications() {
-  isUpdatingNotifications.value = true;
-  successMessage.value = '';
-  errorMessage.value = '';
-  try {
-    console.log('Saving notification settings:', JSON.parse(JSON.stringify(notificationForm))); // Log data being sent
-    const response = await axios.put('/api/notifications/settings', notificationForm);
-    successMessage.value = response.data.message;
-  } catch (error) {
-    console.error('Error updating notification settings:', error);
-    if (error.response && error.response.data) {
-      errorMessage.value = error.response.data.message || 'Failed to save notification settings.';
-      if (error.response.status === 422 && error.response.data.errors) {
-        errorMessage.value = Object.values(error.response.data.errors).flat().join(' ');
-      }
-    } else {
-      errorMessage.value = 'An unexpected error occurred while saving notification settings.';
-    }
   } finally {
     isUpdatingNotifications.value = false;
   }
-}
+};
 
-// Fetch Subscription Status
-async function fetchSubscriptionStatus() {
+const updateNotifications = async () => {
+  clearMessages();
+  isUpdatingNotifications.value = true;
+  try {
+    const response = await axios.put('/api/notifications/settings', notificationForm);
+    successMessage.value = response.data.message;
+  } catch (error) {
+    if (error.response && error.response.data && error.response.data.message) {
+      errorMessage.value = error.response.data.message;
+    } else {
+      errorMessage.value = 'Failed to update notification settings. Please try again.';
+    }
+    console.error('Notification update error:', error);
+  } finally {
+    isUpdatingNotifications.value = false;
+  }
+};
+
+// --- Subscription Methods ---
+const fetchSubscriptionStatus = async () => {
   isLoadingSubscription.value = true;
   subscriptionError.value = '';
   try {
     const response = await axios.get('/api/subscription/status');
-    Object.assign(subscriptionStatus, response.data);
-    console.log('Fetched subscription status:', JSON.parse(JSON.stringify(subscriptionStatus)));
+    subscriptionStatus.value = response.data;
   } catch (error) {
     console.error('Error fetching subscription status:', error);
-    subscriptionError.value = 'Failed to load subscription status.';
+    subscriptionError.value = 'Could not load subscription status.';
   } finally {
     isLoadingSubscription.value = false;
   }
-}
+};
 
-function openCancelModal() { if (bsCancelModal) bsCancelModal.show(); }
-function closeCancelModal() { if (bsCancelModal) bsCancelModal.hide(); }
+const openCancelModal = () => {
+  if (bsCancelModal) {
+    bsCancelModal.show();
+  }
+};
 
-async function confirmCancelSubscription() {
+const closeCancelModal = () => {
+  if (bsCancelModal) {
+    bsCancelModal.hide();
+  }
+};
+
+const confirmCancelSubscription = async () => {
   isCancelling.value = true;
-  errorMessage.value = '';
-  successMessage.value = '';
+  clearMessages();
   try {
     const response = await axios.post('/api/subscription/cancel');
-    successMessage.value = response.data.message || 'Subscription cancelled successfully.';
-    await fetchSubscriptionStatus();
+    successMessage.value = response.data.message;
+    fetchSubscriptionStatus(); // Refresh status after cancellation
     closeCancelModal();
   } catch (error) {
-    console.error('Failed to cancel subscription:', error);
-    errorMessage.value = error.response?.data?.message || 'Failed to cancel subscription.';
+    if (error.response && error.response.data && error.response.data.message) {
+      errorMessage.value = error.response.data.message;
+    } else {
+      errorMessage.value = 'Failed to cancel subscription. Please try again.';
+    }
+    console.error('Subscription cancellation error:', error);
   } finally {
     isCancelling.value = false;
   }
-}
+};
 
-async function connectGoogleCalendar() {
+// --- Calendar Integration Methods ---
+const checkGoogleConnection = async () => {
+  isLoadingCalendars.value = true;
+  calendarFetchError.value = '';
+  try {
+    const response = await axios.get('/api/calendars/check-connection');
+    isGoogleConnected.value = response.data.isConnected;
+    if (isGoogleConnected.value) {
+      fetchConnectedCalendars();
+    } else {
+        isLoadingCalendars.value = false;
+    }
+  } catch (error) {
+    console.error('Error checking Google connection:', error);
+    calendarFetchError.value = 'Could not check Google Calendar connection status.';
+    isLoadingCalendars.value = false;
+  }
+};
+
+const connectGoogleCalendar = async () => {
   try {
     const response = await axios.get('/api/calendars/auth');
     window.location.href = response.data.authUrl;
   } catch (error) {
-    console.error('Error getting Google auth URL:', error);
-    errorMessage.value = 'Failed to initiate Google Calendar connection.';
+    console.error('Error getting Google Auth URL:', error);
+    googleErrorMessage.value = 'Could not initiate Google Calendar connection.';
   }
-}
+};
 
-async function disconnectGoogleCalendar() {
+const disconnectGoogleCalendar = async () => {
+  clearGoogleMessages();
   try {
-    await axios.post('/api/calendars/disconnect-all');
+    await axios.post('/api/calendars/disconnect-all'); // Assuming disconnect-all is appropriate
     isGoogleConnected.value = false;
     connectedCalendars.value = [];
     googleSuccessMessage.value = 'Google Calendar disconnected successfully.';
   } catch (error) {
     console.error('Error disconnecting Google Calendar:', error);
-    errorMessage.value = 'Failed to disconnect Google Calendar.';
+    googleErrorMessage.value = 'Failed to disconnect Google Calendar.';
   }
-}
+};
 
-async function fetchGoogleData() {
+const fetchConnectedCalendars = async () => {
   isLoadingCalendars.value = true;
   calendarFetchError.value = '';
   try {
-    const connectionStatusResponse = await axios.get('/api/calendars/check-connection');
-    isGoogleConnected.value = connectionStatusResponse.data.isConnected;
-    if (isGoogleConnected.value) {
-      const calendarsResponse = await axios.get('/api/calendars');
-      connectedCalendars.value = calendarsResponse.data;
-    } else {
-      connectedCalendars.value = [];
-    }
+    const response = await axios.get('/api/calendars');
+    connectedCalendars.value = response.data.calendars;
   } catch (error) {
-    console.error('Error fetching Google Calendar data:', error);
-    calendarFetchError.value = 'Failed to load calendar data.';
+    console.error('Error fetching connected calendars:', error);
+    calendarFetchError.value = 'Could not load connected calendars.';
   } finally {
     isLoadingCalendars.value = false;
   }
-}
+};
 
-async function toggleCalendarSelection(calendar) {
+const toggleCalendarSelection = async (calendar) => {
   const newSelectionState = !calendar.is_selected;
-  const originalState = calendar.is_selected;
-  calendar.is_selected = newSelectionState;
+  clearGoogleMessages();
   try {
     await axios.post('/api/calendars/selection', {
-      calendarId: calendar.id,
-      isSelected: newSelectionState
+      calendar_id: calendar.id,
+      is_selected: newSelectionState,
     });
+    // Update local state immediately for responsiveness
+    const index = connectedCalendars.value.findIndex(c => c.id === calendar.id);
+    if (index !== -1) {
+      connectedCalendars.value[index].is_selected = newSelectionState;
+    }
+    googleSuccessMessage.value = `Calendar '${calendar.summary}' ${newSelectionState ? 'included' : 'excluded'}.`;
   } catch (error) {
     console.error('Error updating calendar selection:', error);
-    calendar.is_selected = originalState;
-    errorMessage.value = `Failed to update selection for calendar '${calendar.summary}'.`;
+    googleErrorMessage.value = `Failed to update selection for calendar '${calendar.summary}'.`;
+    // Revert local state on error?
   }
-}
+};
 
 // --- Lifecycle Hooks ---
-onMounted(async () => { // Make onMounted async
-  console.log('Settings.vue mounted');
+onMounted(() => {
+  // Initialize Bootstrap Modal
   if (cancelModal.value) {
     bsCancelModal = new Modal(cancelModal.value);
   }
 
-  if (route.query.google_success) {
-    googleSuccessMessage.value = route.query.google_success;
-  }
-  if (route.query.google_error) {
-    googleErrorMessage.value = route.query.google_error;
-  }
-
-  if (route.hash) {
-    const hashTab = route.hash.substring(1);
-    const validTabs = ['account', 'notifications', 'subscription', 'calendar'];
-    if (validTabs.includes(hashTab)) {
-      activeTab.value = hashTab;
-    }
+  // Set initial user data in forms
+  if (user.value) {
+    accountForm.name = user.value.name;
+    accountForm.email = user.value.email;
+    accountForm.timezone = user.value.timezone || ''; // Load timezone
   }
 
-  // Populate form with initial user data
-  populateAccountForm();
+  // Check for Google callback parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const googleStatus = urlParams.get('google_status');
+  const googleMessage = urlParams.get('google_message');
 
-  // Fetch other settings data - await them to ensure loading completes
-  await fetchNotificationSettings();
-  await fetchSubscriptionStatus();
-  await fetchGoogleData();
+  if (googleStatus === 'success') {
+    googleSuccessMessage.value = googleMessage || 'Google Calendar connected successfully!';
+    setActiveTab('calendar'); // Switch to calendar tab on success
+  } else if (googleStatus === 'error') {
+    googleErrorMessage.value = googleMessage || 'Failed to connect Google Calendar.';
+    setActiveTab('calendar'); // Switch to calendar tab on error
+  }
+
+  // Clean the URL
+  if (googleStatus) {
+    router.replace({ query: {} });
+  }
+
+  // Fetch data for the initially active tab
+  setActiveTab(activeTab.value);
 });
 
-// Watch for route query changes
-watch(() => route.query, (newQuery) => {
-  if (newQuery.google_success) {
-    googleSuccessMessage.value = newQuery.google_success;
-    fetchGoogleData();
-  }
-  if (newQuery.google_error) {
-    googleErrorMessage.value = newQuery.google_error;
-  }
-});
-
-// Watch for changes in user data from Vuex store
+// Watch for changes in user data (e.g., after login) and update form
 watch(user, (newUser) => {
   if (newUser) {
-    populateAccountForm();
+    accountForm.name = newUser.name;
+    accountForm.email = newUser.email;
+    accountForm.timezone = newUser.timezone || ''; // Update timezone on user change
   }
 });
 
 </script>
 
 <style scoped>
-/* Styles remain the same */
 .page-container {
+  padding-top: 2rem; /* Match Extension page spacing */
   padding-bottom: 2rem;
 }
 
 .page-heading {
-  margin-bottom: 1.5rem;
-  color: var(--dark-blue);
-  font-weight: 600;
+  margin-bottom: 1.5rem; /* Match Extension page spacing */
+  font-weight: 300;
 }
 
 .settings-card {
-  background-color: #fff;
-  box-shadow: var(--shadow);
   border: none;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
 }
 
 .settings-tabs {
   border-bottom: 1px solid #dee2e6;
-  margin-bottom: 1rem;
-}
-
-.settings-tabs .nav-item {
-  margin-bottom: -1px;
 }
 
 .settings-tabs .nav-link {
+  color: #6c757d; /* Default tab text color */
   border: none;
-  border-top-left-radius: 0.375rem;
-  border-top-right-radius: 0.375rem;
-  color: #333;
-  background-color: transparent;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px; /* Overlap border */
   padding: 0.75rem 1.25rem;
   font-weight: 500;
-  transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
-}
-
-.settings-tabs .nav-link:hover,
-.settings-tabs .nav-link:focus {
-  border-color: transparent;
-  color: var(--primary-purple);
 }
 
 .settings-tabs .nav-link.active {
-  color: var(--primary-purple);
-  background-color: #fff;
-  border-bottom: 2px solid var(--primary-purple);
-  font-weight: 600;
+  color: #495057; /* Active tab text color */
+  border-bottom-color: #6f42c1; /* Use a theme color for the active indicator */
+  background-color: transparent;
+}
+
+.settings-tabs .nav-link:hover {
+  border-bottom-color: #e9ecef;
 }
 
 .settings-tab-content {
-  padding-top: 1rem;
+  padding: 1.5rem;
 }
 
 .settings-tab-content h3 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--dark-blue);
-    margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  font-weight: 400;
+}
+
+.form-label {
+  font-weight: 500;
 }
 
 .subscription-status {
   display: flex;
   align-items: center;
   padding: 1rem;
-  border-radius: 0.375rem;
+  border-radius: 0.25rem;
 }
 
 .subscription-status.active {
-  background-color: #e9f5e9;
-  border: 1px solid #a5d6a7;
+  background-color: #e8f5e9; /* Light green background */
+  border-left: 5px solid #4caf50; /* Green border */
 }
 
 .subscription-status.inactive {
-  background-color: #e3f2fd;
-  border: 1px solid #90caf9;
+  background-color: #f8f9fa; /* Light grey background */
+  border-left: 5px solid #adb5bd; /* Grey border */
 }
 
 .status-icon {
-  font-size: 1.5rem;
+  font-size: 1.8rem;
   margin-right: 1rem;
 }
 
 .subscription-status.active .status-icon {
-  color: #4caf50;
+  color: #4caf50; /* Green icon */
 }
 
 .subscription-status.inactive .status-icon {
-  color: #2196f3;
+  color: #6c757d; /* Grey icon */
 }
 
 .status-details h4 {
@@ -673,7 +721,7 @@ watch(user, (newUser) => {
 }
 
 .status-details p {
-  margin-bottom: 0;
+  margin-bottom: 0.25rem;
 }
 
 .subscription-benefits {
@@ -689,16 +737,35 @@ watch(user, (newUser) => {
   margin-right: 0.5rem;
 }
 
-.connected-calendars {
-  margin-top: 2rem;
+.connected-calendars .list-group-item {
+  padding: 0.75rem 1.25rem;
 }
 
-.list-group-item span[style*="color"] {
-  display: inline-block;
-  width: 1em;
-  height: 1em;
-  margin-right: 0.5em;
-  vertical-align: middle;
-  border: 1px solid rgba(0,0,0,0.2);
+.connected-calendars .form-check-input {
+  cursor: pointer;
 }
+
+/* Ensure alerts have enough contrast */
+.alert-success {
+    color: #0f5132;
+    background-color: #d1e7dd;
+    border-color: #badbcc;
+}
+.alert-danger {
+    color: #842029;
+    background-color: #f8d7da;
+    border-color: #f5c2c7;
+}
+.alert-warning {
+    color: #664d03;
+    background-color: #fff3cd;
+    border-color: #ffecb5;
+}
+.alert-info {
+    color: #055160;
+    background-color: #cff4fc;
+    border-color: #b6effb;
+}
+
 </style>
+

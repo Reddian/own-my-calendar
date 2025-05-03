@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\Log; // Add Log for debugging
+use DateTimeZone; // Import DateTimeZone for validation
 
 class ProfileController extends Controller
 {
@@ -22,6 +23,9 @@ class ProfileController extends Controller
         $user = Auth::user();
         Log::info("Profile update attempt", ["user_id" => $user->id]); // DEBUG
 
+        // Get list of valid timezones for validation
+        $validTimezones = DateTimeZone::listIdentifiers(DateTimeZone::ALL);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => [
@@ -31,6 +35,7 @@ class ProfileController extends Controller
                 'max:255',
                 Rule::unique('users')->ignore($user->id),
             ],
+            'timezone' => ['nullable', 'string', Rule::in($validTimezones)], // Validate timezone
         ]);
 
         try {
@@ -38,18 +43,16 @@ class ProfileController extends Controller
 
             if ($user->isDirty('email')) {
                 $user->email_verified_at = null; // Require re-verification if email changes
-                // Optionally: Send email verification notification here
-                // $user->sendEmailVerificationNotification();
                 Log::info("Profile update: Email changed, requires re-verification", ["user_id" => $user->id]); // DEBUG
             }
 
             $user->save();
-            Log::info("Profile update successful", ["user_id" => $user->id]); // DEBUG
+            Log::info("Profile update successful", ["user_id" => $user->id, "data" => $validated]); // DEBUG
 
             // Return the updated user data along with a success message
             return response()->json([
                 'message' => 'Profile updated successfully.',
-                'user' => $user->fresh() // Return fresh user data
+                'user' => $user->fresh() // Return fresh user data including timezone
             ]);
         } catch (\Exception $e) {
             Log::error("Profile update failed", ["user_id" => $user->id, "error" => $e->getMessage()]); // DEBUG

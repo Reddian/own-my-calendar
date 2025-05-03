@@ -19,6 +19,7 @@ use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\NotificationSettingsController; // Import NotificationSettingsController
 use App\Http\Controllers\StripeController;
 use App\Http\Controllers\ExtensionController;
+use App\Http\Controllers\TimezoneController; // Import TimezoneController
 
 /*
 |--------------------------------------------------------------------------
@@ -37,6 +38,9 @@ Route::post("/register", [RegisterController::class, "apiRegister"]); // Add API
 Route::post("/password/email", [ForgotPasswordController::class, "sendResetLinkEmailApi"]); // Add API forgot password route
 Route::post("/password/reset", [ResetPasswordController::class, "resetApi"]); // Add API reset password route
 
+// Public Timezone List
+Route::get("/timezones", [TimezoneController::class, "index"]); // Add timezone list route
+
 // Routes requiring authentication (Sanctum)
 Route::middleware("auth:sanctum")->group(function () {
     // Logout
@@ -46,12 +50,16 @@ Route::middleware("auth:sanctum")->group(function () {
     Route::post("/email/resend", [VerificationController::class, "resendApi"])->name("verification.resend.api"); // Add API resend verification route
 
     // User profile routes (NEW - Using ProfileController)
-    Route::put("/profile", [ProfileController::class, "update"]); // Update name/email
+    Route::put("/profile", [ProfileController::class, "update"]); // Update name/email/timezone
     Route::put("/password", [ProfileController::class, "updatePassword"]); // Update password
 
     // User route (Get current user)
     Route::get("/user", function (Request $request) {
-        return $request->user();
+        // Eager load timezone with user data
+        $user = $request->user();
+        // Ensure timezone is loaded if it exists
+        // $user->loadMissing('timezone'); // Not needed as it's a direct attribute
+        return $user;
     });
 
     // Notification Settings
@@ -81,7 +89,7 @@ Route::middleware("auth:sanctum")->group(function () {
     Route::get("/calendars/check-connection", [MultiCalendarController::class, "checkConnection"]);
 
     // AI Grading routes
-    Route::post("/ai/grade-calendar", [AIGradingController::class, "gradeCalendar"]);
+    Route::post("/ai/grade-calendar", [AIGradingController::class, "gradeCalendar"]); // Renamed from /calendar/grade
 
     // Subscription routes
     Route::get("/subscription", [SubscriptionController::class, "index"]);
@@ -100,8 +108,6 @@ Route::middleware("auth:sanctum")->group(function () {
     Route::post("/stripe/subscription/cancel", [StripeController::class, "cancelSubscription"]);
     Route::post("/stripe/payment-method", [StripeController::class, "updatePaymentMethod"]);
     Route::get("/stripe/payment-methods", [StripeController::class, "getPaymentMethods"]);
-    // Keep the existing Stripe status route if it serves a different purpose, or use the one above
-    // Route::get("/stripe/subscription/status", [StripeController::class, "getSubscriptionStatus"]);
 
     // Extension routes
     Route::get("/extension/status", [ExtensionController::class, "getStatus"]);
@@ -111,8 +117,4 @@ Route::middleware("auth:sanctum")->group(function () {
 
 });
 
-// Note: Removed old /profile routes that used UserProfileController
-// Note: Added PUT routes for /profile and /password using ProfileController
-// Note: Added GET and PUT routes for /notifications/settings using NotificationSettingsController
-// Note: Added GET route for /subscription/status using SubscriptionController
 
