@@ -211,7 +211,9 @@ function formatDate(date) {
 function formatTime(dateTimeString) {
   if (!dateTimeString) return "";
   try {
-    const date = new Date(dateTimeString);
+    // Handle potential date-only strings before creating Date object
+    const safeDateTimeString = dateTimeString.includes("T") ? dateTimeString : `${dateTimeString.split(" ")[0]}T00:00:00`;
+    const date = new Date(safeDateTimeString);
     // Display time in the user's selected timezone
     return date.toLocaleTimeString("en-US", {
       hour: "numeric",
@@ -326,70 +328,85 @@ async function fetchEventsForWeek(startDate, endDate) {
       let timeRange = "All Day";
       let startHour = 0;
       let startMinute = 0;
-      // Removed endHour, endMinute as they are not directly used for positioning
       let durationMinutes = 24 * 60;
+      let isAllDayEvent = event.allDay; // Use the flag from the event data
 
       try {
-        // Dates from backend are already in user's timezone (RFC3339 with offset)
         if (event.start) {
-          // Use the date part from the ISO string directly for day assignment
-          dateStr = event.start.split("T")[0]; 
+          // Determine date string based on format
+          const hasTimeSeparator = event.start.includes("T");
+          dateStr = hasTimeSeparator ? event.start.split("T")[0] : event.start.split(" ")[0];
 
-          // Parse time directly from ISO string (e.g., "2024-05-04T09:30:00-04:00")
-          const timePart = event.start.split("T")[1]; // e.g., "09:30:00-04:00"
-          if (timePart && !event.allDay) {
-              const timeComponents = timePart.split(":"); // e.g., ["09", "30", "00-04:00"]
-              if (timeComponents.length >= 2) {
-                  startHour = parseInt(timeComponents[0], 10);
-                  startMinute = parseInt(timeComponents[1], 10);
-              } else {
-                  console.warn("[Calendar] Could not parse time components from:", timePart);
-              }
-          } else if (event.allDay) {
-              // Keep default startHour/startMinute (0) for all-day events
+          // Check if it's effectively an all-day event (flag or no time part)
+          if (isAllDayEvent || !hasTimeSeparator) {
+            isAllDayEvent = true; // Ensure flag is set if format indicates all-day
+            startHour = 0;
+            startMinute = 0;
+            timeRange = "All Day";
+            durationMinutes = 24 * 60;
+            // Create Date object assuming start of the day in the provided date string
+            start = new Date(dateStr + "T00:00:00"); 
           } else {
-              console.warn("[Calendar] Missing time part in event.start:", event.start);
+            // It's a timed event with a 'T' separator
+            isAllDayEvent = false;
+            const timePart = event.start.split("T")[1];
+            const timeComponents = timePart.split(":");
+            if (timeComponents.length >= 2) {
+              startHour = parseInt(timeComponents[0], 10);
+              startMinute = parseInt(timeComponents[1], 10);
+            } else {
+              console.warn("[Calendar] Could not parse time components from:", timePart);
+              // Fallback to treating as all-day if time parsing fails?
+              isAllDayEvent = true;
+            }
+            start = new Date(event.start); // Create Date object from full ISO string
           }
-
-          start = new Date(event.start); // Still needed for duration calculation and formatTime
-        }
-        if (event.end) {
-          end = new Date(event.end); // Still needed for duration calculation and formatTime
         }
 
-        if (start && end && !event.allDay) {
+        // Process end time only if it's not an all-day event
+        if (!isAllDayEvent && event.end) {
+          end = new Date(event.end);
+        }
+
+        // Calculate duration and timeRange for timed events
+        if (!isAllDayEvent && start && end) {
           timeRange = `${formatTime(event.start)} - ${formatTime(event.end)}`;
-          // Duration calculation using getTime() is correct as it uses UTC milliseconds
           durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
           if (durationMinutes <= 0) {
-              // Handle potential day crossing or same start/end time from API
-              // If end time is on the next day, calculate correctly
-              if (end.getDate() !== start.getDate()) {
-                  durationMinutes += 24 * 60; 
-              } else {
-                  durationMinutes = 30; // Assign minimum duration for same start/end time
-              }
+            if (end.getDate() !== start.getDate()) {
+              durationMinutes += 24 * 60;
+            } else {
+              durationMinutes = 30; // Min duration for same start/end
+            }
           }
-        } else if (start && !event.allDay) {
+        } else if (!isAllDayEvent && start) {
+          // Timed event without an end time
           timeRange = formatTime(event.start);
-          durationMinutes = 60; // Default duration if end is missing
-        } else {
-          // All day event, keep defaults
-          timeRange = "All Day";
-          durationMinutes = 24 * 60;
+          durationMinutes = 60; // Default duration
         }
+        // For all-day events, timeRange and durationMinutes remain as initialized
+
       } catch (e) {
         console.error("[Calendar] Error processing event dates:", event, e);
+        // Fallback to treating as all-day on error?
+        isAllDayEvent = true;
+        startHour = 0;
+        startMinute = 0;
+        timeRange = "All Day";
+        durationMinutes = 24 * 60;
+        if (event.start) {
+            dateStr = event.start.includes("T") ? event.start.split("T")[0] : event.start.split(" ")[0];
+        }
       }
 
       return {
         ...event,
         dateStr: dateStr,
         timeRange,
-        startHour, // Parsed directly from ISO string time part
-        startMinute, // Parsed directly from ISO string time part
-        // Removed endHour, endMinute
+        startHour,
+        startMinute,
         durationMinutes,
+        isAllDay: isAllDayEvent, // Use the determined flag
         color: "var(--primary-purple)", // Placeholder color
       };
     });
@@ -421,7 +438,8 @@ function getEventsForDay(dateStr) {
 }
 
 function getEventStyle(event) {
-  if (event.allDay || !event.start) {
+  // Use the processed isAllDay flag
+  if (event.isAllDay || !event.start) { 
     // Render all-day events at the top (using relative positioning for stacking)
     return {
       position: "relative", 
