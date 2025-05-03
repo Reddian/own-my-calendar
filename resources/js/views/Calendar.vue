@@ -305,7 +305,6 @@ const canNavigateForward = computed(() => {
 
 // --- Event Fetching ---
 async function fetchEventsForWeek(startDate, endDate) {
-  // Removed forceRefresh parameter
   isLoading.value = true;
   fetchError.value = null;
   console.log(
@@ -317,7 +316,6 @@ async function fetchEventsForWeek(startDate, endDate) {
     const response = await axios.post("/api/calendars/events", {
       start_date: formatDate(startDate),
       end_date: formatDate(endDate),
-      // No need to pass timezone, backend uses authenticated user's timezone
     });
     console.log("[Calendar] Raw events received:", response.data.events);
 
@@ -333,42 +331,35 @@ async function fetchEventsForWeek(startDate, endDate) {
 
       try {
         if (event.start) {
-          // Determine date string based on format
           const hasTimeSeparator = event.start.includes("T");
           dateStr = hasTimeSeparator ? event.start.split("T")[0] : event.start.split(" ")[0];
 
-          // Check if it's effectively an all-day event (flag or no time part)
+          // Ensure dateStr is valid before proceeding
+          if (!dateStr || dateStr.length < 10) {
+            throw new Error(`Invalid date string derived from event.start: ${event.start}`);
+          }
+
           if (isAllDayEvent || !hasTimeSeparator) {
-            isAllDayEvent = true; // Ensure flag is set if format indicates all-day
+            isAllDayEvent = true;
             startHour = 0;
             startMinute = 0;
             timeRange = "All Day";
             durationMinutes = 24 * 60;
-            // Create Date object assuming start of the day in the provided date string
+            // Use dateStr to create Date object, assuming local timezone if no offset
             start = new Date(dateStr + "T00:00:00"); 
           } else {
-            // It's a timed event with a 'T' separator
             isAllDayEvent = false;
-            const timePart = event.start.split("T")[1];
-            const timeComponents = timePart.split(":");
-            if (timeComponents.length >= 2) {
-              startHour = parseInt(timeComponents[0], 10);
-              startMinute = parseInt(timeComponents[1], 10);
-            } else {
-              console.warn("[Calendar] Could not parse time components from:", timePart);
-              // Fallback to treating as all-day if time parsing fails?
-              isAllDayEvent = true;
-            }
             start = new Date(event.start); // Create Date object from full ISO string
+            // Get hour/minute from the created Date object, respecting its timezone
+            startHour = start.getHours();
+            startMinute = start.getMinutes();
           }
         }
 
-        // Process end time only if it's not an all-day event
         if (!isAllDayEvent && event.end) {
           end = new Date(event.end);
         }
 
-        // Calculate duration and timeRange for timed events
         if (!isAllDayEvent && start && end) {
           timeRange = `${formatTime(event.start)} - ${formatTime(event.end)}`;
           durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
@@ -380,22 +371,23 @@ async function fetchEventsForWeek(startDate, endDate) {
             }
           }
         } else if (!isAllDayEvent && start) {
-          // Timed event without an end time
           timeRange = formatTime(event.start);
           durationMinutes = 60; // Default duration
         }
-        // For all-day events, timeRange and durationMinutes remain as initialized
 
       } catch (e) {
         console.error("[Calendar] Error processing event dates:", event, e);
-        // Fallback to treating as all-day on error?
         isAllDayEvent = true;
         startHour = 0;
         startMinute = 0;
         timeRange = "All Day";
         durationMinutes = 24 * 60;
         if (event.start) {
-            dateStr = event.start.includes("T") ? event.start.split("T")[0] : event.start.split(" ")[0];
+            // Attempt to salvage dateStr even on error
+            try {
+                dateStr = event.start.includes("T") ? event.start.split("T")[0] : event.start.split(" ")[0];
+                if (!dateStr || dateStr.length < 10) dateStr = null;
+            } catch { dateStr = null; }
         }
       }
 
@@ -403,16 +395,15 @@ async function fetchEventsForWeek(startDate, endDate) {
         ...event,
         dateStr: dateStr,
         timeRange,
-        startHour,
-        startMinute,
+        startHour, // Correctly derived from Date object for timed events
+        startMinute, // Correctly derived from Date object for timed events
         durationMinutes,
-        isAllDay: isAllDayEvent, // Use the determined flag
+        isAllDay: isAllDayEvent,
         color: "var(--primary-purple)", // Placeholder color
       };
     });
     console.log("[Calendar] Processed events array:", events.value);
-    // Scroll to 8 AM after events are loaded
-    await nextTick(); // Wait for DOM update
+    await nextTick();
     scrollToTime();
 
   } catch (error) {
@@ -423,24 +414,18 @@ async function fetchEventsForWeek(startDate, endDate) {
     events.value = [];
   } finally {
     isLoading.value = false;
-    isRefreshing.value = false; // Still set this although button is removed
+    isRefreshing.value = false;
   }
 }
 
-// Removed manualRefresh function
-
 // --- Event Display Logic ---
 function getEventsForDay(dateStr) {
-  // console.log(`[Calendar] Filtering events for day: ${dateStr}`);
-  const dayEvents = events.value.filter((event) => event.dateStr === dateStr);
-  // console.log(`[Calendar] Found ${dayEvents.length} events for ${dateStr}`);
-  return dayEvents;
+  return events.value.filter((event) => event.dateStr === dateStr);
 }
 
 function getEventStyle(event) {
-  // Use the processed isAllDay flag
-  if (event.isAllDay || !event.start) { 
-    // Render all-day events at the top (using relative positioning for stacking)
+  if (event.isAllDay || !event.start || event.dateStr === null) { // Added check for null dateStr
+    // Style for all-day events (relative positioning for stacking)
     return {
       position: "relative", 
       top: "0px",
@@ -461,29 +446,28 @@ function getEventStyle(event) {
     };
   }
 
-  // Calculate position for timed events using directly parsed startHour/startMinute
+  // Style for timed events
   const startTotalMinutes = event.startHour * 60 + event.startMinute;
-
-  // Calculate top position based on minutes from 12 AM (GRID_START_HOUR = 0)
   const topPosition = (startTotalMinutes / 60) * HOUR_HEIGHT_PX;
 
-  // Calculate height based on duration
   let duration = event.durationMinutes;
-  if (duration <= 0) duration = 30; // Min duration for invalid/zero duration events
+  if (duration <= 0) duration = 30; // Minimum duration
   
-  // Ensure minimum height of ~15 mins for visibility
-  const minHeight = (15 / 60) * HOUR_HEIGHT_PX;
+  const minHeight = (15 / 60) * HOUR_HEIGHT_PX; // Min height ~15 mins
   let height = (duration / 60) * HOUR_HEIGHT_PX;
   if (height < minHeight) height = minHeight;
 
   // Ensure event doesn't overflow the 24-hour grid visually
   const maxTop = (GRID_END_HOUR * HOUR_HEIGHT_PX) - height;
   const finalTop = Math.min(topPosition, maxTop);
+  // Ensure height doesn't cause overflow if start time is near the end of the day
+  const finalHeight = Math.min(height, (GRID_END_HOUR * HOUR_HEIGHT_PX) - finalTop);
 
   const style = {
     position: "absolute",
     top: `${finalTop}px`,
-    height: `${height - 2}px`, // Subtract a bit for visual spacing
+    // Use finalHeight and subtract border/padding if needed, -2 seems reasonable
+    height: `${Math.max(0, finalHeight - 2)}px`, 
     left: "2px",
     right: "2px",
     backgroundColor: event.color || "var(--primary-purple)",
@@ -527,9 +511,8 @@ async function checkGradingAbility() {
     }
   } catch (error) {
     console.error("[Calendar] Error checking grading ability:", error);
-    // Keep button enabled but show error on click if check fails
     canGradeWeek.value = true; // Assume can grade, let backend handle error on attempt
-    gradeError.value = "Could not verify grading ability. Please try again."; // Set the error message
+    gradeError.value = "Could not verify grading ability. Please try again.";
   }
 }
 
@@ -538,16 +521,13 @@ async function gradeCurrentWeek() {
   gradeError.value = null;
   gradeResult.value = null;
 
-  // Re-check ability right before grading
   await checkGradingAbility();
   if (!canGradeWeek.value) {
       isGrading.value = false;
-      // gradeError is already set by checkGradingAbility
       return; 
   }
 
   try {
-    // Corrected endpoint for grading
     const response = await axios.post("/api/ai/grade-calendar", { 
       start_date: formatDate(currentWeekStart.value),
       end_date: formatDate(currentWeekEnd.value),
@@ -555,13 +535,10 @@ async function gradeCurrentWeek() {
     gradeResult.value = response.data.grade;
     openGradeModal();
 
-    // Increment grades used on successful grading
     try {
       await axios.post("/api/subscription/increment-grades");
-      // Optionally update local grade count if needed
     } catch (incError) {
       console.error("[Calendar] Failed to increment grades used count:", incError);
-      // Decide if this is critical enough to show an error to the user
     }
 
   } catch (error) {
@@ -589,7 +566,7 @@ function closeGradeModal() {
 // --- Auto Scroll --- 
 function scrollToTime(hour = SCROLL_TO_HOUR) {
   if (gridScrollContainer.value) {
-    const scrollTop = hour * HOUR_HEIGHT_PX; // Calculate scroll position for the target hour
+    const scrollTop = hour * HOUR_HEIGHT_PX;
     gridScrollContainer.value.scrollTop = scrollTop;
     console.log(`[Calendar] Scrolled to hour ${hour} (scrollTop: ${scrollTop}px)`);
   }
@@ -597,13 +574,11 @@ function scrollToTime(hour = SCROLL_TO_HOUR) {
 
 // --- Lifecycle Hooks ---
 onMounted(async () => {
-  // Ensure user data (including timezone) is loaded before fetching events
   if (!store.state.user.user) {
     await store.dispatch("user/fetchUser");
   }
   fetchEventsForWeek(currentWeekStart.value, currentWeekEnd.value);
   checkGradingAbility();
-  // Initialize modal instance
   if (gradeModal.value) {
     bsModal = new Modal(gradeModal.value);
   }
@@ -615,7 +590,6 @@ watch(currentDate, (newDate) => {
   fetchEventsForWeek(newWeekStart, newWeekEnd);
 });
 
-// Watch for timezone changes in the user profile
 watch(() => store.state.user.user?.timezone, (newTimezone, oldTimezone) => {
   if (newTimezone && newTimezone !== oldTimezone) {
     console.log(`[Calendar] Timezone changed to ${newTimezone}. Refetching events.`);

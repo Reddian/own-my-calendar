@@ -62,6 +62,7 @@
                       <option v-else value="">Select Timezone</option>
                       <option v-for="tz in timezones" :key="tz" :value="tz">{{ tz }}</option>
                     </select>
+                    <div v-if="!isLoadingTimezones && timezones.length === 0" class="form-text text-danger">Failed to load timezones. Please refresh.</div>
                   </div>
                   <button type="submit" class="btn btn-primary" :disabled="isUpdatingAccount">
                     <span v-if="isUpdatingAccount" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -262,7 +263,7 @@
             <button type="button" class="btn btn-secondary" @click="closeCancelModal">Keep Subscription</button>
             <button type="button" class="btn btn-danger" @click="confirmCancelSubscription" :disabled="isCancelling">
               <span v-if="isCancelling" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-              Yes, Cancel Subscription
+              {{ isCancelling ? 'Cancelling...' : 'Confirm Cancellation' }}
             </button>
           </div>
         </div>
@@ -274,197 +275,171 @@
 
 <script setup>
 import { ref, reactive, onMounted, watch, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
+import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { Modal } from 'bootstrap';
 
+const store = useStore();
 const route = useRoute();
 const router = useRouter();
-const store = useStore();
 
+// --- State --- 
+const user = computed(() => store.state.user.user);
 const activeTab = ref('account');
-
-// --- General Messages ---
 const successMessage = ref('');
 const errorMessage = ref('');
+const googleSuccessMessage = ref('');
+const googleErrorMessage = ref('');
 
-// --- Account Settings ---
+// Account Form
 const accountForm = reactive({
   name: '',
   email: '',
-  timezone: '', // Add timezone
+  timezone: '',
 });
+const isUpdatingAccount = ref(false);
+const timezones = ref([]);
+const isLoadingTimezones = ref(false);
+
+// Password Form
 const passwordForm = reactive({
   current_password: '',
   password: '',
   password_confirmation: '',
 });
-const isUpdatingAccount = ref(false);
 const isUpdatingPassword = ref(false);
-const timezones = ref([]); // Add timezones list
-const isLoadingTimezones = ref(false);
 
-// --- Notification Settings ---
+// Notification Form
 const notificationForm = reactive({
   weekly_grade_email: false,
   planning_reminder: false,
   reminder_day: 'Sunday',
-  reminder_time: '18:00',
+  reminder_time: '09:00',
 });
 const isUpdatingNotifications = ref(false);
 
-// --- Subscription Settings ---
-const subscriptionStatus = ref({});
+// Subscription
 const isLoadingSubscription = ref(false);
+const subscriptionStatus = ref({});
 const subscriptionError = ref('');
 const cancelModal = ref(null);
 let bsCancelModal = null;
 const isCancelling = ref(false);
 
-// --- Calendar Integration ---
-const isGoogleConnected = ref(false);
+// Calendar Integration
+const isGoogleConnected = computed(() => store.state.user.user?.google_calendar_connected || false);
 const connectedCalendars = ref([]);
 const isLoadingCalendars = ref(false);
 const calendarFetchError = ref('');
-const googleSuccessMessage = ref('');
-const googleErrorMessage = ref('');
 
-// --- Computed Properties ---
-const user = computed(() => store.state.user.user);
+// --- Methods --- 
 
-// --- Methods ---
-const setActiveTab = (tab) => {
-  activeTab.value = tab;
-  // Clear messages when switching tabs
-  successMessage.value = '';
-  errorMessage.value = '';
-  googleSuccessMessage.value = '';
-  googleErrorMessage.value = '';
-
-  // Fetch data for the activated tab if needed
-  if (tab === 'subscription') {
+// Tab Navigation
+function setActiveTab(tabName) {
+  activeTab.value = tabName;
+  router.replace({ hash: `#${tabName}` }); // Update URL hash without adding history
+  // Fetch data specific to the tab if needed
+  if (tabName === 'subscription') {
     fetchSubscriptionStatus();
-  } else if (tab === 'calendar') {
-    checkGoogleConnection();
-  } else if (tab === 'notifications') {
-    fetchNotificationSettings();
-  } else if (tab === 'account') {
+  } else if (tabName === 'calendar') {
+    fetchConnectedCalendars();
+  } else if (tabName === 'account') {
     fetchTimezones(); // Fetch timezones when account tab is active
   }
-};
+}
 
-const clearMessages = () => {
-  successMessage.value = '';
-  errorMessage.value = '';
-};
-
-const clearGoogleMessages = () => {
-  googleSuccessMessage.value = '';
-  googleErrorMessage.value = '';
-};
-
-// --- Account Methods ---
-const fetchTimezones = async () => {
-  if (timezones.value.length > 0) return; // Don't fetch if already loaded
+// Account Management
+async function fetchTimezones() {
+  if (timezones.value.length > 0) return; // Don't refetch if already loaded
   isLoadingTimezones.value = true;
+  console.log('[Settings] Fetching timezones...'); // Added log
   try {
     const response = await axios.get('/api/timezones');
-    timezones.value = response.data.timezones;
+    console.log('[Settings] Received timezone response:', response); // Added log
+    if (response.data && Array.isArray(response.data.timezones)) {
+        timezones.value = response.data.timezones;
+        console.log('[Settings] Assigned timezones:', timezones.value); // Added log
+    } else {
+        console.error('[Settings] Invalid timezone data received:', response.data); // Added log
+        errorMessage.value = 'Failed to load timezones: Invalid data format.';
+        timezones.value = []; // Ensure it's empty on error
+    }
   } catch (error) {
-    console.error('Error fetching timezones:', error);
-    errorMessage.value = 'Could not load timezones.';
+    console.error('[Settings] Error fetching timezones:', error); // Added log
+    errorMessage.value = 'Failed to load timezones. Please try refreshing the page.';
+    timezones.value = []; // Ensure it's empty on error
   } finally {
     isLoadingTimezones.value = false;
+    console.log('[Settings] Finished fetching timezones. Loading:', isLoadingTimezones.value, 'Count:', timezones.value.length); // Added log
   }
-};
+}
 
-const updateAccount = async () => {
-  clearMessages();
+async function updateAccount() {
   isUpdatingAccount.value = true;
+  successMessage.value = '';
+  errorMessage.value = '';
   try {
-    const response = await axios.put('/api/profile', accountForm);
-    successMessage.value = response.data.message;
-    // Update user data in Vuex store
-    store.commit('user/SET_USER', response.data.user);
+    await store.dispatch('user/updateProfile', accountForm);
+    successMessage.value = 'Account updated successfully!';
   } catch (error) {
-    if (error.response && error.response.data && error.response.data.message) {
-      errorMessage.value = error.response.data.message;
-    } else {
-      errorMessage.value = 'Failed to update account. Please try again.';
-    }
-    console.error('Account update error:', error);
+    errorMessage.value = error.message || 'Failed to update account.';
   } finally {
     isUpdatingAccount.value = false;
   }
-};
+}
 
-const updatePassword = async () => {
-  clearMessages();
+async function updatePassword() {
   isUpdatingPassword.value = true;
+  successMessage.value = '';
+  errorMessage.value = '';
   try {
-    const response = await axios.put('/api/password', passwordForm);
-    successMessage.value = response.data.message;
-    // Clear password fields on success
+    await axios.put('/user/password', passwordForm);
+    successMessage.value = 'Password updated successfully!';
+    // Clear password fields
     passwordForm.current_password = '';
     passwordForm.password = '';
     passwordForm.password_confirmation = '';
   } catch (error) {
-    if (error.response && error.response.data && error.response.data.message) {
-      errorMessage.value = error.response.data.message;
-    } else if (error.response && error.response.data && error.response.data.errors) {
-      // Handle validation errors
-      const errors = error.response.data.errors;
-      errorMessage.value = Object.values(errors).flat().join(' ');
-    } else {
-      errorMessage.value = 'Failed to update password. Please try again.';
-    }
-    console.error('Password update error:', error);
+    errorMessage.value = error.response?.data?.message || 'Failed to update password.';
+    console.error("Password update error:", error.response?.data);
   } finally {
     isUpdatingPassword.value = false;
   }
-};
+}
 
-// --- Notification Methods ---
-const fetchNotificationSettings = async () => {
-  clearMessages();
-  isUpdatingNotifications.value = true; // Use loading state
+// Notification Management
+async function fetchNotifications() {
   try {
     const response = await axios.get('/api/notifications/settings');
-    const settings = response.data.settings || {};
+    const settings = response.data;
     notificationForm.weekly_grade_email = settings.weekly_grade_email || false;
     notificationForm.planning_reminder = settings.planning_reminder || false;
     notificationForm.reminder_day = settings.reminder_day || 'Sunday';
-    notificationForm.reminder_time = settings.reminder_time || '18:00';
-    console.log('Fetched notification settings:', settings);
+    notificationForm.reminder_time = settings.reminder_time || '09:00';
   } catch (error) {
-    errorMessage.value = 'Could not load notification settings.';
     console.error('Error fetching notification settings:', error);
-  } finally {
-    isUpdatingNotifications.value = false;
+    errorMessage.value = 'Could not load notification settings.';
   }
-};
+}
 
-const updateNotifications = async () => {
-  clearMessages();
+async function updateNotifications() {
   isUpdatingNotifications.value = true;
+  successMessage.value = '';
+  errorMessage.value = '';
   try {
-    const response = await axios.put('/api/notifications/settings', notificationForm);
-    successMessage.value = response.data.message;
+    await axios.post('/api/notifications/settings', notificationForm);
+    successMessage.value = 'Notification settings saved!';
   } catch (error) {
-    if (error.response && error.response.data && error.response.data.message) {
-      errorMessage.value = error.response.data.message;
-    } else {
-      errorMessage.value = 'Failed to update notification settings. Please try again.';
-    }
-    console.error('Notification update error:', error);
+    errorMessage.value = error.response?.data?.message || 'Failed to save notification settings.';
+    console.error('Error saving notification settings:', error.response?.data);
   } finally {
     isUpdatingNotifications.value = false;
   }
-};
+}
 
-// --- Subscription Methods ---
-const fetchSubscriptionStatus = async () => {
+// Subscription Management
+async function fetchSubscriptionStatus() {
   isLoadingSubscription.value = true;
   subscriptionError.value = '';
   try {
@@ -472,163 +447,172 @@ const fetchSubscriptionStatus = async () => {
     subscriptionStatus.value = response.data;
   } catch (error) {
     console.error('Error fetching subscription status:', error);
-    subscriptionError.value = 'Could not load subscription status.';
+    subscriptionError.value = 'Could not load subscription status. Please try again later.';
   } finally {
     isLoadingSubscription.value = false;
   }
-};
+}
 
-const openCancelModal = () => {
-  if (bsCancelModal) {
-    bsCancelModal.show();
+function openCancelModal() {
+  if (!bsCancelModal) {
+    bsCancelModal = new Modal(cancelModal.value);
   }
-};
+  bsCancelModal.show();
+}
 
-const closeCancelModal = () => {
+function closeCancelModal() {
   if (bsCancelModal) {
     bsCancelModal.hide();
   }
-};
+}
 
-const confirmCancelSubscription = async () => {
+async function confirmCancelSubscription() {
   isCancelling.value = true;
-  clearMessages();
+  successMessage.value = '';
+  errorMessage.value = '';
   try {
-    const response = await axios.post('/api/subscription/cancel');
-    successMessage.value = response.data.message;
-    fetchSubscriptionStatus(); // Refresh status after cancellation
+    await axios.post('/api/subscription/cancel');
+    successMessage.value = 'Subscription cancelled successfully. You will retain access until the end of your billing period.';
+    await fetchSubscriptionStatus(); // Refresh status
     closeCancelModal();
   } catch (error) {
-    if (error.response && error.response.data && error.response.data.message) {
-      errorMessage.value = error.response.data.message;
-    } else {
-      errorMessage.value = 'Failed to cancel subscription. Please try again.';
-    }
-    console.error('Subscription cancellation error:', error);
+    errorMessage.value = error.response?.data?.error || 'Failed to cancel subscription.';
+    console.error('Error cancelling subscription:', error.response?.data);
   } finally {
     isCancelling.value = false;
   }
-};
+}
 
-// --- Calendar Integration Methods ---
-const checkGoogleConnection = async () => {
-  isLoadingCalendars.value = true;
-  calendarFetchError.value = '';
-  try {
-    const response = await axios.get('/api/calendars/check-connection');
-    isGoogleConnected.value = response.data.isConnected;
-    if (isGoogleConnected.value) {
-      fetchConnectedCalendars();
-    } else {
-        isLoadingCalendars.value = false;
-    }
-  } catch (error) {
-    console.error('Error checking Google connection:', error);
-    calendarFetchError.value = 'Could not check Google Calendar connection status.';
-    isLoadingCalendars.value = false;
-  }
-};
+// Calendar Integration Management
+function connectGoogleCalendar() {
+  // Redirect to backend route which initiates Google OAuth flow
+  window.location.href = '/auth/google/redirect';
+}
 
-const connectGoogleCalendar = async () => {
+async function disconnectGoogleCalendar() {
+  googleSuccessMessage.value = '';
+  googleErrorMessage.value = '';
   try {
-    const response = await axios.get('/api/calendars/auth');
-    window.location.href = response.data.authUrl;
-  } catch (error) {
-    console.error('Error getting Google Auth URL:', error);
-    googleErrorMessage.value = 'Could not initiate Google Calendar connection.';
-  }
-};
-
-const disconnectGoogleCalendar = async () => {
-  clearGoogleMessages();
-  try {
-    await axios.post('/api/calendars/disconnect-all'); // Assuming disconnect-all is appropriate
-    isGoogleConnected.value = false;
-    connectedCalendars.value = [];
+    await axios.post('/api/calendars/google/disconnect');
+    await store.dispatch('user/fetchUser'); // Refresh user state
     googleSuccessMessage.value = 'Google Calendar disconnected successfully.';
+    connectedCalendars.value = []; // Clear local calendar list
   } catch (error) {
-    console.error('Error disconnecting Google Calendar:', error);
-    googleErrorMessage.value = 'Failed to disconnect Google Calendar.';
+    googleErrorMessage.value = error.response?.data?.error || 'Failed to disconnect Google Calendar.';
+    console.error('Error disconnecting Google Calendar:', error.response?.data);
   }
-};
+}
 
-const fetchConnectedCalendars = async () => {
+async function fetchConnectedCalendars() {
+  if (!isGoogleConnected.value) {
+    connectedCalendars.value = [];
+    return;
+  }
   isLoadingCalendars.value = true;
   calendarFetchError.value = '';
   try {
-    const response = await axios.get('/api/calendars');
-    connectedCalendars.value = response.data.calendars;
+    const response = await axios.get('/api/calendars/google/list');
+    connectedCalendars.value = response.data.calendars || [];
   } catch (error) {
     console.error('Error fetching connected calendars:', error);
-    calendarFetchError.value = 'Could not load connected calendars.';
+    calendarFetchError.value = 'Could not load your calendars. Please try reconnecting your Google Account or refresh the page.';
+    connectedCalendars.value = [];
   } finally {
     isLoadingCalendars.value = false;
   }
-};
+}
 
-const toggleCalendarSelection = async (calendar) => {
-  const newSelectionState = !calendar.is_selected;
-  clearGoogleMessages();
+async function toggleCalendarSelection(calendar) {
+  const newSelectedState = !calendar.is_selected;
+  // Optimistically update UI
+  calendar.is_selected = newSelectedState;
+
   try {
-    await axios.post('/api/calendars/selection', {
+    await axios.post('/api/calendars/google/select', {
       calendar_id: calendar.id,
-      is_selected: newSelectionState,
+      selected: newSelectedState,
     });
-    // Update local state immediately for responsiveness
-    const index = connectedCalendars.value.findIndex(c => c.id === calendar.id);
-    if (index !== -1) {
-      connectedCalendars.value[index].is_selected = newSelectionState;
-    }
-    googleSuccessMessage.value = `Calendar '${calendar.summary}' ${newSelectionState ? 'included' : 'excluded'}.`;
+    // Success - UI already updated
+    googleSuccessMessage.value = `Calendar '${calendar.summary}' ${newSelectedState ? 'included' : 'excluded'}.`;
+    googleErrorMessage.value = ''; // Clear any previous error
   } catch (error) {
-    console.error('Error updating calendar selection:', error);
-    googleErrorMessage.value = `Failed to update selection for calendar '${calendar.summary}'.`;
-    // Revert local state on error?
+    // Revert UI on error
+    calendar.is_selected = !newSelectedState;
+    googleErrorMessage.value = `Failed to update selection for '${calendar.summary}'. Please try again.`;
+    googleSuccessMessage.value = ''; // Clear success message
+    console.error('Error toggling calendar selection:', error.response?.data);
   }
-};
+}
 
-// --- Lifecycle Hooks ---
-onMounted(() => {
-  // Initialize Bootstrap Modal
-  if (cancelModal.value) {
-    bsCancelModal = new Modal(cancelModal.value);
+function clearGoogleMessages() {
+    googleSuccessMessage.value = '';
+    googleErrorMessage.value = '';
+}
+
+// --- Lifecycle Hooks --- 
+onMounted(async () => {
+  // Ensure user data is loaded
+  if (!user.value) {
+    await store.dispatch('user/fetchUser');
   }
-
-  // Set initial user data in forms
+  // Populate forms with user data
   if (user.value) {
     accountForm.name = user.value.name;
     accountForm.email = user.value.email;
-    accountForm.timezone = user.value.timezone || ''; // Load timezone
+    accountForm.timezone = user.value.timezone || '';
   }
 
-  // Check for Google callback parameters
+  // Handle Google OAuth callback messages
   const urlParams = new URLSearchParams(window.location.search);
-  const googleStatus = urlParams.get('google_status');
-  const googleMessage = urlParams.get('google_message');
-
-  if (googleStatus === 'success') {
-    googleSuccessMessage.value = googleMessage || 'Google Calendar connected successfully!';
+  if (urlParams.has('google_success')) {
+    googleSuccessMessage.value = urlParams.get('google_success');
     setActiveTab('calendar'); // Switch to calendar tab on success
-  } else if (googleStatus === 'error') {
-    googleErrorMessage.value = googleMessage || 'Failed to connect Google Calendar.';
-    setActiveTab('calendar'); // Switch to calendar tab on error
+    // Clean up URL params
+    router.replace({ query: {} });
   }
-
-  // Clean the URL
-  if (googleStatus) {
+  if (urlParams.has('google_error')) {
+    googleErrorMessage.value = urlParams.get('google_error');
+    setActiveTab('calendar'); // Switch to calendar tab on error
+    // Clean up URL params
     router.replace({ query: {} });
   }
 
-  // Fetch data for the initially active tab
-  setActiveTab(activeTab.value);
+  // Set active tab based on URL hash or default
+  const hash = route.hash.substring(1);
+  if (['account', 'notifications', 'subscription', 'calendar'].includes(hash)) {
+    setActiveTab(hash);
+  } else {
+    setActiveTab('account'); // Default to account
+  }
+
+  // Initial data fetch for relevant tabs
+  fetchNotifications(); // Fetch notification settings regardless of initial tab
+  if (activeTab.value === 'subscription') {
+    fetchSubscriptionStatus();
+  }
+  if (activeTab.value === 'calendar') {
+    fetchConnectedCalendars();
+  }
+  if (activeTab.value === 'account') {
+    fetchTimezones(); // Fetch timezones if starting on account tab
+  }
+
+  // Initialize cancel modal instance
+  if (cancelModal.value) {
+    bsCancelModal = new Modal(cancelModal.value);
+  }
 });
 
-// Watch for changes in user data (e.g., after login) and update form
+// Watch for changes in user data (e.g., after login/refresh)
 watch(user, (newUser) => {
   if (newUser) {
     accountForm.name = newUser.name;
     accountForm.email = newUser.email;
-    accountForm.timezone = newUser.timezone || ''; // Update timezone on user change
+    accountForm.timezone = newUser.timezone || '';
+    // Refetch calendars if connection status changes
+    if (activeTab.value === 'calendar') {
+        fetchConnectedCalendars();
+    }
   }
 });
 
@@ -636,41 +620,35 @@ watch(user, (newUser) => {
 
 <style scoped>
 .page-container {
-  padding-top: 2rem; /* Match Extension page spacing */
-  padding-bottom: 2rem;
+  padding-top: 2rem;
+  padding-bottom: 4rem;
 }
 
 .page-heading {
-  margin-bottom: 1.5rem; /* Match Extension page spacing */
-  font-weight: 300;
+  margin-bottom: 2rem;
+  text-align: center;
 }
 
 .settings-card {
   border: none;
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .settings-tabs {
   border-bottom: 1px solid #dee2e6;
 }
 
-.settings-tabs .nav-link {
-  color: #6c757d; /* Default tab text color */
+.settings-tabs .nav-item .nav-link {
+  color: #495057;
   border: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px; /* Overlap border */
-  padding: 0.75rem 1.25rem;
+  border-bottom: 3px solid transparent;
+  padding: 0.75rem 1rem;
   font-weight: 500;
 }
 
-.settings-tabs .nav-link.active {
-  color: #495057; /* Active tab text color */
-  border-bottom-color: #6f42c1; /* Use a theme color for the active indicator */
-  background-color: transparent;
-}
-
-.settings-tabs .nav-link:hover {
-  border-bottom-color: #e9ecef;
+.settings-tabs .nav-item .nav-link.active {
+  color: var(--primary-blue);
+  border-bottom-color: var(--primary-blue);
 }
 
 .settings-tab-content {
@@ -679,7 +657,7 @@ watch(user, (newUser) => {
 
 .settings-tab-content h3 {
   margin-bottom: 1.5rem;
-  font-weight: 400;
+  color: var(--primary-dark-blue);
 }
 
 .form-label {
@@ -690,17 +668,17 @@ watch(user, (newUser) => {
   display: flex;
   align-items: center;
   padding: 1rem;
-  border-radius: 0.25rem;
+  border-radius: 0.375rem;
 }
 
 .subscription-status.active {
-  background-color: #e8f5e9; /* Light green background */
-  border-left: 5px solid #4caf50; /* Green border */
+  background-color: #e6f7ff; /* Light blue */
+  border: 1px solid #91d5ff; /* Lighter blue border */
 }
 
 .subscription-status.inactive {
-  background-color: #f8f9fa; /* Light grey background */
-  border-left: 5px solid #adb5bd; /* Grey border */
+  background-color: #f8f9fa; /* Light gray */
+  border: 1px solid #dee2e6;
 }
 
 .status-icon {
@@ -709,11 +687,11 @@ watch(user, (newUser) => {
 }
 
 .subscription-status.active .status-icon {
-  color: #4caf50; /* Green icon */
+  color: var(--primary-blue);
 }
 
 .subscription-status.inactive .status-icon {
-  color: #6c757d; /* Grey icon */
+  color: #6c757d; /* Gray */
 }
 
 .status-details h4 {
@@ -738,33 +716,11 @@ watch(user, (newUser) => {
 }
 
 .connected-calendars .list-group-item {
-  padding: 0.75rem 1.25rem;
+  padding: 0.75rem 1rem;
 }
 
 .connected-calendars .form-check-input {
   cursor: pointer;
-}
-
-/* Ensure alerts have enough contrast */
-.alert-success {
-    color: #0f5132;
-    background-color: #d1e7dd;
-    border-color: #badbcc;
-}
-.alert-danger {
-    color: #842029;
-    background-color: #f8d7da;
-    border-color: #f5c2c7;
-}
-.alert-warning {
-    color: #664d03;
-    background-color: #fff3cd;
-    border-color: #ffecb5;
-}
-.alert-info {
-    color: #055160;
-    background-color: #cff4fc;
-    border-color: #b6effb;
 }
 
 </style>
