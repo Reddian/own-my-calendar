@@ -22,5 +22,18 @@ export default defineConfig({
             'vue': 'vue/dist/vue.esm-bundler.js',
         },
     },
+    // Add server configuration with proxy
+    server: {
+        proxy: {
+            // Proxy /api requests to the Laravel backend server
+            '/api': {
+                target: 'http://localhost:8000', // Assuming Laravel backend runs on port 8000
+                changeOrigin: true,
+                // secure: false, // Uncomment if backend uses self-signed certificate
+            },
+        },
+        // Ensure Vite listens on all interfaces if needed for external access
+        // host: '0.0.0.0', 
+    },
 });
 

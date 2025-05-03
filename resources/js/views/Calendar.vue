@@ -211,9 +211,12 @@ function formatDate(date) {
 function formatTime(dateTimeString) {
   if (!dateTimeString) return "";
   try {
-    // Handle potential date-only strings before creating Date object
-    const safeDateTimeString = dateTimeString.includes("T") ? dateTimeString : `${dateTimeString.split(" ")[0]}T00:00:00`;
-    const date = new Date(safeDateTimeString);
+    // Always try to parse, replacing space with T if needed
+    const parsableDateTimeString = dateTimeString.includes('T') ? dateTimeString : dateTimeString.replace(' ', 'T');
+    const date = new Date(parsableDateTimeString);
+    if (isNaN(date.getTime())) {
+        throw new Error("Invalid Date object");
+    }
     // Display time in the user's selected timezone
     return date.toLocaleTimeString("en-US", {
       hour: "numeric",
@@ -327,81 +330,108 @@ async function fetchEventsForWeek(startDate, endDate) {
       let startHour = 0;
       let startMinute = 0;
       let durationMinutes = 24 * 60;
-      let isAllDayEvent = event.allDay; // Use the flag from the event data
+      // Default isAllDay based on backend flag, fallback to true if flag missing/null
+      let isAllDayEvent = event.allDay !== false; 
 
       try {
         if (event.start) {
-          const hasTimeSeparator = event.start.includes("T");
-          dateStr = hasTimeSeparator ? event.start.split("T")[0] : event.start.split(" ")[0];
+          // Always try to parse the start string into a Date object
+          // Replace space with 'T' for better compatibility if 'T' is missing
+          const parsableStartString = event.start.includes('T') ? event.start : event.start.replace(' ', 'T');
+          start = new Date(parsableStartString);
 
-          // Ensure dateStr is valid before proceeding
-          if (!dateStr || dateStr.length < 10) {
-            throw new Error(`Invalid date string derived from event.start: ${event.start}`);
+          // Check for invalid date
+          if (isNaN(start.getTime())) {
+            throw new Error(`Invalid Date object created from event.start: ${event.start}`);
           }
 
-          if (isAllDayEvent || !hasTimeSeparator) {
-            isAllDayEvent = true;
-            startHour = 0;
-            startMinute = 0;
-            timeRange = "All Day";
-            durationMinutes = 24 * 60;
-            // Use dateStr to create Date object, assuming local timezone if no offset
-            start = new Date(dateStr + "T00:00:00"); 
+          // Extract date string (use UTC date parts to avoid timezone shifts affecting the date itself)
+          dateStr = start.toISOString().split('T')[0]; 
+
+          // Determine if it's effectively all-day
+          // Condition: Backend flag is true OR (flag is not explicitly false AND time is midnight)
+          if (event.allDay === true || (event.allDay !== false && start.getHours() === 0 && start.getMinutes() === 0 && start.getSeconds() === 0)) {
+             isAllDayEvent = true;
+             startHour = 0;
+             startMinute = 0;
+             timeRange = "All Day";
+             durationMinutes = 24 * 60; // Default all-day duration
           } else {
-            isAllDayEvent = false;
-            start = new Date(event.start); // Create Date object from full ISO string
-            // Get hour/minute from the created Date object, respecting its timezone
-            startHour = start.getHours();
-            startMinute = start.getMinutes();
+             // It's a timed event
+             isAllDayEvent = false;
+             startHour = start.getHours();
+             startMinute = start.getMinutes();
+             // Calculate duration and timeRange later
           }
+        } else {
+           // No start time provided, treat as error or skip?
+           console.error("[Calendar] Event missing start time:", event);
+           return null; // Skip this event if it has no start time
         }
 
+        // Process end time only if it's a timed event
         if (!isAllDayEvent && event.end) {
-          end = new Date(event.end);
+          const parsableEndString = event.end.includes('T') ? event.end : event.end.replace(' ', 'T');
+          end = new Date(parsableEndString);
+           if (isNaN(end.getTime())) {
+             console.warn("[Calendar] Invalid end date object:", event.end);
+             end = null; // Ignore invalid end date
+           }
         }
 
-        if (!isAllDayEvent && start && end) {
-          timeRange = `${formatTime(event.start)} - ${formatTime(event.end)}`;
-          durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
-          if (durationMinutes <= 0) {
-            if (end.getDate() !== start.getDate()) {
-              durationMinutes += 24 * 60;
-            } else {
-              durationMinutes = 30; // Min duration for same start/end
+        // Calculate duration and timeRange for timed events
+        if (!isAllDayEvent && start) { // Check start is valid
+          if (end && end > start) { // Check end is valid and after start
+            timeRange = `${formatTime(event.start)} - ${formatTime(event.end)}`;
+            durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+            // Handle potential cross-day events or zero duration
+            if (durationMinutes <= 0) {
+                 durationMinutes = 30; // Minimum duration 30 mins
             }
+          } else {
+            // Timed event without a valid end time or end time is before start
+            timeRange = formatTime(event.start);
+            durationMinutes = 60; // Default duration 60 mins
           }
-        } else if (!isAllDayEvent && start) {
-          timeRange = formatTime(event.start);
-          durationMinutes = 60; // Default duration
         }
+        // For all-day events, timeRange and durationMinutes remain as initialized
 
       } catch (e) {
         console.error("[Calendar] Error processing event dates:", event, e);
+        // Fallback: treat as all-day but log the error
         isAllDayEvent = true;
         startHour = 0;
         startMinute = 0;
-        timeRange = "All Day";
+        timeRange = "All Day (Error)";
         durationMinutes = 24 * 60;
+        // Try to salvage dateStr if possible
         if (event.start) {
-            // Attempt to salvage dateStr even on error
             try {
-                dateStr = event.start.includes("T") ? event.start.split("T")[0] : event.start.split(" ")[0];
-                if (!dateStr || dateStr.length < 10) dateStr = null;
+                // Extract date part reliably
+                dateStr = event.start.substring(0, 10);
+                if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) dateStr = null;
             } catch { dateStr = null; }
         }
+      }
+
+      // Ensure essential properties exist before returning
+      if (dateStr === null) {
+          console.warn("[Calendar] Skipping event due to missing/invalid date string:", event);
+          return null; // Skip event if date couldn't be determined
       }
 
       return {
         ...event,
         dateStr: dateStr,
         timeRange,
-        startHour, // Correctly derived from Date object for timed events
-        startMinute, // Correctly derived from Date object for timed events
+        startHour,
+        startMinute,
         durationMinutes,
         isAllDay: isAllDayEvent,
         color: "var(--primary-purple)", // Placeholder color
       };
-    });
+    }).filter(event => event !== null); // Filter out skipped events
+
     console.log("[Calendar] Processed events array:", events.value);
     await nextTick();
     scrollToTime();
@@ -420,22 +450,28 @@ async function fetchEventsForWeek(startDate, endDate) {
 
 // --- Event Display Logic ---
 function getEventsForDay(dateStr) {
-  return events.value.filter((event) => event.dateStr === dateStr);
+  // Filter events for the specific day
+  const dayEvents = events.value.filter((event) => event.dateStr === dateStr);
+  // Separate all-day and timed events
+  const allDayEvents = dayEvents.filter(event => event.isAllDay);
+  const timedEvents = dayEvents.filter(event => !event.isAllDay);
+  // Return timed events first, then all-day events for rendering order (all-day stack at top)
+  return [...timedEvents, ...allDayEvents]; 
 }
 
 function getEventStyle(event) {
-  if (event.isAllDay || !event.start || event.dateStr === null) { // Added check for null dateStr
-    // Style for all-day events (relative positioning for stacking)
+  // Style for all-day events (use relative positioning for stacking)
+  if (event.isAllDay) { 
     return {
       position: "relative", 
-      top: "0px",
-      height: "20px",
+      top: "0px", // Stacks naturally
+      height: "20px", // Fixed height for all-day bar
       backgroundColor: event.color || "var(--secondary-color)",
       opacity: 0.8,
       fontSize: "10px",
       lineHeight: "20px",
-      zIndex: 0,
-      marginBottom: "2px",
+      zIndex: 0, // Lower z-index than timed events
+      marginBottom: "2px", // Space between stacked all-day events
       overflow: "hidden",
       whiteSpace: "nowrap",
       textOverflow: "ellipsis",
@@ -443,10 +479,11 @@ function getEventStyle(event) {
       borderRadius: "3px",
       border: "1px solid rgba(0, 0, 0, 0.1)",
       cursor: "pointer",
+      display: "block", // Ensure it takes full width
     };
   }
 
-  // Style for timed events
+  // Style for timed events (use absolute positioning)
   const startTotalMinutes = event.startHour * 60 + event.startMinute;
   const topPosition = (startTotalMinutes / 60) * HOUR_HEIGHT_PX;
 
@@ -476,7 +513,7 @@ function getEventStyle(event) {
     fontSize: "12px",
     color: "white",
     overflow: "hidden",
-    zIndex: 1,
+    zIndex: 1, // Higher z-index than all-day events and hour lines
     border: "1px solid rgba(0, 0, 0, 0.2)",
     cursor: "pointer",
   };
