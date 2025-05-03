@@ -38,13 +38,6 @@
             <i class="fas fa-chevron-right"></i>
           </button>
           <!-- Removed Refresh Button as per user request to remove caching -->
-          <!-- <button 
-            class="btn btn-outline-secondary refresh-btn ms-3" 
-            @click="manualRefresh" 
-            :disabled="isRefreshing"
-            title="Refresh Events">
-            <i class="fas fa-sync-alt" :class="{ 'fa-spin': isRefreshing }"></i>
-          </button> -->
         </div>
       </div>
 
@@ -62,6 +55,9 @@
               <div v-for="hour in timeSlots" :key="hour" class="time-slot">{{ hour }}</div>
             </div>
             <div v-for="day in weekDays" :key="day.dateStr" class="day-column">
+              <!-- Add horizontal lines for hours -->
+              <div v-for="hour in 24" :key="`line-${day.dateStr}-${hour}`" class="hour-line" :style="{ top: `${(hour - 1) * HOUR_HEIGHT_PX}px` }"></div>
+              <!-- Events -->
               <div v-for="event in getEventsForDay(day.dateStr)" :key="event.id" 
                    class="week-event" 
                    :style="getEventStyle(event)">
@@ -181,6 +177,7 @@ const gradeError = ref(null);
 const gradeResult = ref(null);
 const canGradeWeek = ref(true); // Will be checked on mount
 const gridScrollContainer = ref(null); // Ref for the scrollable container
+const userTimezone = computed(() => store.state.user.user?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 
 // Constants for grid
 const GRID_START_HOUR = 0; // Changed to 0 for 12 AM
@@ -215,10 +212,12 @@ function formatTime(dateTimeString) {
   if (!dateTimeString) return "";
   try {
     const date = new Date(dateTimeString);
+    // Display time in the user's selected timezone
     return date.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
+      timeZone: userTimezone.value, // Use user's timezone
     });
   } catch (e) {
     console.error("[Calendar] Error formatting time:", dateTimeString, e);
@@ -316,7 +315,7 @@ async function fetchEventsForWeek(startDate, endDate) {
     const response = await axios.post("/api/calendars/events", {
       start_date: formatDate(startDate),
       end_date: formatDate(endDate),
-      // force_refresh: false, // Removed force_refresh flag
+      // No need to pass timezone, backend uses authenticated user's timezone
     });
     console.log("[Calendar] Raw events received:", response.data.events);
 
@@ -332,10 +331,13 @@ async function fetchEventsForWeek(startDate, endDate) {
       let durationMinutes = 24 * 60;
 
       try {
+        // Dates from backend are already in user's timezone (RFC3339 with offset)
         if (event.start) {
           start = new Date(event.start);
-          dateStr = start.toISOString().split("T")[0];
-          startHour = start.getHours();
+          // Use the date part from the ISO string directly for day assignment
+          dateStr = event.start.split("T")[0]; 
+          // Get hours/minutes based on local interpretation of the ISO string
+          startHour = start.getHours(); 
           startMinute = start.getMinutes();
         }
         if (event.end) {
@@ -347,11 +349,13 @@ async function fetchEventsForWeek(startDate, endDate) {
         if (start && end && !event.allDay) {
           timeRange = `${formatTime(event.start)} - ${formatTime(event.end)}`;
           durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+          // Handle potential day crossing or DST issues (simple duration)
           if (durationMinutes < 0) durationMinutes += 24 * 60;
         } else if (start && !event.allDay) {
           timeRange = formatTime(event.start);
-          durationMinutes = 60;
+          durationMinutes = 60; // Default duration if end is missing
           endHour = startHour + 1;
+          endMinute = startMinute; // Align end minute with start minute
         }
       } catch (e) {
         console.error("[Calendar] Error processing event dates:", event, e);
@@ -366,7 +370,7 @@ async function fetchEventsForWeek(startDate, endDate) {
         endHour,
         endMinute,
         durationMinutes,
-        color: "var(--primary-purple)",
+        color: "var(--primary-purple)", // Placeholder color
       };
     });
     console.log("[Calendar] Processed events array:", events.value);
@@ -390,14 +394,17 @@ async function fetchEventsForWeek(startDate, endDate) {
 
 // --- Event Display Logic ---
 function getEventsForDay(dateStr) {
-  return events.value.filter((event) => event.dateStr === dateStr);
+  // console.log(`[Calendar] Filtering events for day: ${dateStr}`);
+  const dayEvents = events.value.filter((event) => event.dateStr === dateStr);
+  // console.log(`[Calendar] Found ${dayEvents.length} events for ${dateStr}`);
+  return dayEvents;
 }
 
 function getEventStyle(event) {
   if (event.allDay || !event.start) {
-    // Render all-day events at the top (no change needed)
+    // Render all-day events at the top
     return {
-      position: "relative",
+      position: "relative", // Changed from absolute for stacking
       top: "0px",
       height: "20px",
       backgroundColor: event.color || "var(--secondary-color)",
@@ -418,7 +425,7 @@ function getEventStyle(event) {
 
   // Calculate position for timed events within the 0-24 hour grid
   const startTotalMinutes = event.startHour * 60 + event.startMinute;
-  const endTotalMinutes = event.endHour * 60 + event.endMinute;
+  // const endTotalMinutes = event.endHour * 60 + event.endMinute;
 
   // Calculate top position based on minutes from 12 AM (GRID_START_HOUR = 0)
   const topPosition = (startTotalMinutes / 60) * HOUR_HEIGHT_PX;
@@ -426,7 +433,10 @@ function getEventStyle(event) {
   // Calculate height based on duration
   let duration = event.durationMinutes;
   if (duration <= 0) duration = 30; // Min height for 0 duration events
-  const height = (duration / 60) * HOUR_HEIGHT_PX;
+  // Ensure minimum height of ~15 mins for visibility
+  const minHeight = (15 / 60) * HOUR_HEIGHT_PX;
+  let height = (duration / 60) * HOUR_HEIGHT_PX;
+  if (height < minHeight) height = minHeight;
 
   const style = {
     position: "absolute",
@@ -444,7 +454,7 @@ function getEventStyle(event) {
     border: "1px solid rgba(0, 0, 0, 0.2)",
     cursor: "pointer",
   };
-  // console.log(`[Calendar] Style for ${event.title}:`, style);
+  // console.log(`[Calendar] Style for ${event.title} (${event.timeRange}):`, style);
   return style;
 }
 
@@ -470,12 +480,14 @@ async function checkGradingAbility() {
     canGradeWeek.value = response.data.can_grade;
     if (!canGradeWeek.value) {
       gradeError.value = response.data.reason || "Grading limit reached for this period.";
+    } else {
+      gradeError.value = null; // Clear previous error if now able
     }
   } catch (error) {
     console.error("[Calendar] Error checking grading ability:", error);
     // Keep button enabled but show error on click if check fails
     canGradeWeek.value = true; // Assume can grade, let backend handle error on attempt
-    gradeError.value = "Could not verify grading ability."; // Set the error message
+    gradeError.value = "Could not verify grading ability. Please try again."; // Set the error message
   }
 }
 
@@ -531,7 +543,11 @@ function scrollToTime(hour = SCROLL_TO_HOUR) {
 }
 
 // --- Lifecycle Hooks ---
-onMounted(() => {
+onMounted(async () => {
+  // Ensure user data (including timezone) is loaded before fetching events
+  if (!store.state.user.user) {
+    await store.dispatch("user/fetchUser");
+  }
   fetchEventsForWeek(currentWeekStart.value, currentWeekEnd.value);
   checkGradingAbility();
   // Initialize modal instance
@@ -544,6 +560,14 @@ watch(currentDate, (newDate) => {
   const newWeekStart = getStartOfWeek(newDate);
   const newWeekEnd = getEndOfWeek(newDate);
   fetchEventsForWeek(newWeekStart, newWeekEnd);
+});
+
+// Watch for timezone changes in the user profile
+watch(() => store.state.user.user?.timezone, (newTimezone, oldTimezone) => {
+  if (newTimezone && newTimezone !== oldTimezone) {
+    console.log(`[Calendar] Timezone changed to ${newTimezone}. Refetching events.`);
+    fetchEventsForWeek(currentWeekStart.value, currentWeekEnd.value);
+  }
 });
 
 </script>
@@ -680,6 +704,100 @@ watch(currentDate, (newDate) => {
 }
 
 /* Add horizontal lines for hours */
-.day-column::before {
-  content: 
+.hour-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: #e0e0e0; /* Light gray line */
+  z-index: 0; /* Behind events */
+}
+
+.week-event {
+  /* Style is now primarily set dynamically by getEventStyle */
+  transition: background-color 0.2s ease;
+}
+
+.week-event:hover {
+  opacity: 0.8;
+}
+
+.calendar-grading-action {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.grade-result {
+  /* Styles for the grade result display */
+}
+
+.grade-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.grade-letter {
+  font-size: 4rem;
+  font-weight: bold;
+  color: var(--primary-purple);
+  line-height: 1;
+}
+
+.grade-summary {
+  text-align: center;
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
+}
+
+.grade-section {
+  margin-bottom: 1.5rem;
+}
+
+.grade-section h4 {
+  color: var(--primary-blue);
+  margin-bottom: 0.75rem;
+}
+
+.recommendations-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.recommendations-list li {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 0.25rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.recommendation-title {
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+
+.recommendation-description {
+  font-size: 0.95rem;
+}
+
+.calendar-legend {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+}
+
+.legend-color {
+  width: 15px;
+  height: 15px;
+  border-radius: 3px;
+  margin-right: 0.5rem;
+}
+
+</style>
 
