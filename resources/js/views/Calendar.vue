@@ -326,36 +326,57 @@ async function fetchEventsForWeek(startDate, endDate) {
       let timeRange = "All Day";
       let startHour = 0;
       let startMinute = 0;
-      let endHour = 24;
-      let endMinute = 0;
+      // Removed endHour, endMinute as they are not directly used for positioning
       let durationMinutes = 24 * 60;
 
       try {
         // Dates from backend are already in user's timezone (RFC3339 with offset)
         if (event.start) {
-          start = new Date(event.start);
           // Use the date part from the ISO string directly for day assignment
           dateStr = event.start.split("T")[0]; 
-          // Get hours/minutes based on local interpretation of the ISO string
-          startHour = start.getHours(); 
-          startMinute = start.getMinutes();
+
+          // Parse time directly from ISO string (e.g., "2024-05-04T09:30:00-04:00")
+          const timePart = event.start.split("T")[1]; // e.g., "09:30:00-04:00"
+          if (timePart && !event.allDay) {
+              const timeComponents = timePart.split(":"); // e.g., ["09", "30", "00-04:00"]
+              if (timeComponents.length >= 2) {
+                  startHour = parseInt(timeComponents[0], 10);
+                  startMinute = parseInt(timeComponents[1], 10);
+              } else {
+                  console.warn("[Calendar] Could not parse time components from:", timePart);
+              }
+          } else if (event.allDay) {
+              // Keep default startHour/startMinute (0) for all-day events
+          } else {
+              console.warn("[Calendar] Missing time part in event.start:", event.start);
+          }
+
+          start = new Date(event.start); // Still needed for duration calculation and formatTime
         }
         if (event.end) {
-          end = new Date(event.end);
-          endHour = end.getHours();
-          endMinute = end.getMinutes();
+          end = new Date(event.end); // Still needed for duration calculation and formatTime
         }
 
         if (start && end && !event.allDay) {
           timeRange = `${formatTime(event.start)} - ${formatTime(event.end)}`;
+          // Duration calculation using getTime() is correct as it uses UTC milliseconds
           durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
-          // Handle potential day crossing or DST issues (simple duration)
-          if (durationMinutes < 0) durationMinutes += 24 * 60;
+          if (durationMinutes <= 0) {
+              // Handle potential day crossing or same start/end time from API
+              // If end time is on the next day, calculate correctly
+              if (end.getDate() !== start.getDate()) {
+                  durationMinutes += 24 * 60; 
+              } else {
+                  durationMinutes = 30; // Assign minimum duration for same start/end time
+              }
+          }
         } else if (start && !event.allDay) {
           timeRange = formatTime(event.start);
           durationMinutes = 60; // Default duration if end is missing
-          endHour = startHour + 1;
-          endMinute = startMinute; // Align end minute with start minute
+        } else {
+          // All day event, keep defaults
+          timeRange = "All Day";
+          durationMinutes = 24 * 60;
         }
       } catch (e) {
         console.error("[Calendar] Error processing event dates:", event, e);
@@ -365,10 +386,9 @@ async function fetchEventsForWeek(startDate, endDate) {
         ...event,
         dateStr: dateStr,
         timeRange,
-        startHour,
-        startMinute,
-        endHour,
-        endMinute,
+        startHour, // Parsed directly from ISO string time part
+        startMinute, // Parsed directly from ISO string time part
+        // Removed endHour, endMinute
         durationMinutes,
         color: "var(--primary-purple)", // Placeholder color
       };
@@ -402,9 +422,9 @@ function getEventsForDay(dateStr) {
 
 function getEventStyle(event) {
   if (event.allDay || !event.start) {
-    // Render all-day events at the top
+    // Render all-day events at the top (using relative positioning for stacking)
     return {
-      position: "relative", // Changed from absolute for stacking
+      position: "relative", 
       top: "0px",
       height: "20px",
       backgroundColor: event.color || "var(--secondary-color)",
@@ -423,24 +443,28 @@ function getEventStyle(event) {
     };
   }
 
-  // Calculate position for timed events within the 0-24 hour grid
+  // Calculate position for timed events using directly parsed startHour/startMinute
   const startTotalMinutes = event.startHour * 60 + event.startMinute;
-  // const endTotalMinutes = event.endHour * 60 + event.endMinute;
 
   // Calculate top position based on minutes from 12 AM (GRID_START_HOUR = 0)
   const topPosition = (startTotalMinutes / 60) * HOUR_HEIGHT_PX;
 
   // Calculate height based on duration
   let duration = event.durationMinutes;
-  if (duration <= 0) duration = 30; // Min height for 0 duration events
+  if (duration <= 0) duration = 30; // Min duration for invalid/zero duration events
+  
   // Ensure minimum height of ~15 mins for visibility
   const minHeight = (15 / 60) * HOUR_HEIGHT_PX;
   let height = (duration / 60) * HOUR_HEIGHT_PX;
   if (height < minHeight) height = minHeight;
 
+  // Ensure event doesn't overflow the 24-hour grid visually
+  const maxTop = (GRID_END_HOUR * HOUR_HEIGHT_PX) - height;
+  const finalTop = Math.min(topPosition, maxTop);
+
   const style = {
     position: "absolute",
-    top: `${topPosition}px`,
+    top: `${finalTop}px`,
     height: `${height - 2}px`, // Subtract a bit for visual spacing
     left: "2px",
     right: "2px",
@@ -505,12 +529,23 @@ async function gradeCurrentWeek() {
   }
 
   try {
-    const response = await axios.post("/api/calendar/grade", {
+    // Corrected endpoint for grading
+    const response = await axios.post("/api/ai/grade-calendar", { 
       start_date: formatDate(currentWeekStart.value),
       end_date: formatDate(currentWeekEnd.value),
     });
     gradeResult.value = response.data.grade;
     openGradeModal();
+
+    // Increment grades used on successful grading
+    try {
+      await axios.post("/api/subscription/increment-grades");
+      // Optionally update local grade count if needed
+    } catch (incError) {
+      console.error("[Calendar] Failed to increment grades used count:", incError);
+      // Decide if this is critical enough to show an error to the user
+    }
+
   } catch (error) {
     console.error("[Calendar] Error grading calendar:", error);
     gradeError.value =
