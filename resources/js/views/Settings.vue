@@ -91,6 +91,14 @@
                     {{ isUpdatingPassword ? 'Updating...' : 'Update Password' }}
                   </button>
                 </form>
+
+                <hr class="my-4">
+
+                <!-- Onboarding Profile Section -->
+                <h3>Your Profile</h3>
+                <p class="text-muted">This information helps the AI understand your priorities.</p>
+                <OnboardingForm @onboarding-complete="handleProfileUpdateSuccess" />
+
               </div>
 
               <!-- Notification Settings -->
@@ -274,19 +282,19 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch, computed } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import axios from 'axios';
-import { Modal } from 'bootstrap';
+import { Modal } from 'bootstrap'; // Import Modal for programmatic control
+import OnboardingForm from '../components/OnboardingForm.vue'; // Import the onboarding form
 
 const store = useStore();
-const route = useRoute();
 const router = useRouter();
+const route = useRoute();
 
-// --- State --- 
-const user = computed(() => store.state.user.user);
-const activeTab = ref('account');
+// --- Reactive State --- 
+const activeTab = ref('account'); // Default active tab
 const successMessage = ref('');
 const errorMessage = ref('');
 const googleSuccessMessage = ref('');
@@ -332,6 +340,9 @@ const isGoogleConnected = computed(() => store.state.user.user?.google_calendar_
 const connectedCalendars = ref([]);
 const isLoadingCalendars = ref(false);
 const calendarFetchError = ref('');
+
+// --- Computed Properties ---
+const user = computed(() => store.state.user.user);
 
 // --- Methods --- 
 
@@ -394,7 +405,8 @@ async function updatePassword() {
   successMessage.value = '';
   errorMessage.value = '';
   try {
-    await axios.put('/user/password', passwordForm);
+    // Use the correct endpoint defined in api.php
+    await axios.put('/api/password', passwordForm); 
     successMessage.value = 'Password updated successfully!';
     // Clear password fields
     passwordForm.current_password = '';
@@ -406,6 +418,13 @@ async function updatePassword() {
   } finally {
     isUpdatingPassword.value = false;
   }
+}
+
+// Onboarding Profile Update Success Handler
+function handleProfileUpdateSuccess() {
+    successMessage.value = 'Profile updated successfully!';
+    // Optionally clear error message if it was set by the form
+    errorMessage.value = ''; 
 }
 
 // Notification Management
@@ -428,7 +447,8 @@ async function updateNotifications() {
   successMessage.value = '';
   errorMessage.value = '';
   try {
-    await axios.post('/api/notifications/settings', notificationForm);
+    // Use PUT as defined in api.php
+    await axios.put('/api/notifications/settings', notificationForm); 
     successMessage.value = 'Notification settings saved!';
   } catch (error) {
     errorMessage.value = error.response?.data?.message || 'Failed to save notification settings.';
@@ -493,13 +513,14 @@ async function disconnectGoogleCalendar() {
   googleSuccessMessage.value = '';
   googleErrorMessage.value = '';
   try {
-    await axios.post('/api/calendars/google/disconnect');
+    // Use the correct endpoint defined in api.php
+    await axios.post('/api/calendars/disconnect-all'); 
     await store.dispatch('user/fetchUser'); // Refresh user state
-    googleSuccessMessage.value = 'Google Calendar disconnected successfully.';
+    googleSuccessMessage.value = 'All Google Calendars disconnected successfully.';
     connectedCalendars.value = []; // Clear local calendar list
   } catch (error) {
-    googleErrorMessage.value = error.response?.data?.error || 'Failed to disconnect Google Calendar.';
-    console.error('Error disconnecting Google Calendar:', error.response?.data);
+    googleErrorMessage.value = error.response?.data?.error || 'Failed to disconnect Google Calendars.';
+    console.error('Error disconnecting Google Calendars:', error.response?.data);
   }
 }
 
@@ -511,7 +532,8 @@ async function fetchConnectedCalendars() {
   isLoadingCalendars.value = true;
   calendarFetchError.value = '';
   try {
-    const response = await axios.get('/api/calendars/google/list');
+    // Use the correct endpoint defined in api.php
+    const response = await axios.get('/api/calendars'); 
     connectedCalendars.value = response.data.calendars || [];
   } catch (error) {
     console.error('Error fetching connected calendars:', error);
@@ -528,8 +550,9 @@ async function toggleCalendarSelection(calendar) {
   calendar.is_selected = newSelectedState;
 
   try {
-    await axios.post('/api/calendars/google/select', {
-      calendar_id: calendar.id,
+    // Use the correct endpoint defined in api.php
+    await axios.post('/api/calendars/selection', { 
+      calendar_id: calendar.calendar_id, // Use calendar_id from the data
       selected: newSelectedState,
     });
     // Success - UI already updated
@@ -662,6 +685,20 @@ watch(user, (newUser) => {
 
 .form-label {
   font-weight: 500;
+}
+
+/* Reduce spacing for onboarding form within settings */
+.settings-tab-content .onboarding-form-container {
+    max-width: none; /* Remove max-width */
+    margin: 0; /* Remove margin */
+    padding: 0; /* Remove padding */
+    box-shadow: none; /* Remove shadow */
+    background-color: transparent; /* Remove background */
+}
+
+.settings-tab-content .onboarding-form-container h2,
+.settings-tab-content .onboarding-form-container p {
+    display: none; /* Hide the welcome text in settings */
 }
 
 .subscription-status {

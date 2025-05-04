@@ -8,10 +8,10 @@ use App\Http\Controllers\Auth\RegisterController; // Import RegisterController
 use App\Http\Controllers\Auth\ForgotPasswordController; // Import ForgotPasswordController
 use App\Http\Controllers\Auth\ResetPasswordController; // Import ResetPasswordController
 use App\Http\Controllers\Auth\VerificationController; // Import VerificationController
-use App\Http\Controllers\UserProfileController; // Keep for potential other uses
+use App\Http\Controllers\UserProfileController; // Import UserProfileController
 use App\Http\Controllers\ProfileController; // Import the new ProfileController
 use App\Http\Controllers\CalendarGradeController;
-use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\OnboardingController; // Keep for now, might remove later if fully replaced
 use App\Http\Controllers\GoogleCalendarController;
 use App\Http\Controllers\MultiCalendarController;
 use App\Http\Controllers\AIGradingController;
@@ -55,10 +55,8 @@ Route::middleware("auth:sanctum")->group(function () {
 
     // User route (Get current user)
     Route::get("/user", function (Request $request) {
-        // Eager load timezone with user data
-        $user = $request->user();
-        // Ensure timezone is loaded if it exists
-        // $user->loadMissing('timezone'); // Not needed as it's a direct attribute
+        // Eager load profile and subscription status
+        $user = $request->user()->load(["profile", "subscription"]);
         return $user;
     });
 
@@ -66,9 +64,9 @@ Route::middleware("auth:sanctum")->group(function () {
     Route::get("/notifications/settings", [NotificationSettingsController::class, "getSettings"]);
     Route::put("/notifications/settings", [NotificationSettingsController::class, "updateSettings"]);
 
-    // Onboarding routes
-    Route::get("/onboarding", [OnboardingController::class, "index"]);
-    Route::post("/onboarding", [OnboardingController::class, "store"]);
+    // Onboarding Profile routes (Using UserProfileController)
+    Route::get("/user/profile-onboarding", [UserProfileController::class, "getOnboardingProfile"]);
+    Route::post("/user/profile-onboarding", [UserProfileController::class, "saveOnboardingProfile"]);
 
     // Calendar grade routes
     Route::get("/grades", [CalendarGradeController::class, "index"]);
@@ -116,5 +114,6 @@ Route::middleware("auth:sanctum")->group(function () {
     Route::post("/extension/settings", [ExtensionController::class, "updateSetting"]);
 
 });
+
 
 

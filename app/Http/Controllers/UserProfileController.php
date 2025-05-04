@@ -2,101 +2,81 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\UserProfile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\UserProfile;
+use Illuminate\Support\Facades\Log;
 
 class UserProfileController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Get the onboarding profile data for the authenticated user.
+     *
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function index()
+    public function getOnboardingProfile()
     {
-        $profile = UserProfile::where('user_id', Auth::id())->first();
-        
-        return response()->json([
-            'profile' => $profile,
-            'has_profile' => $profile !== null
-        ]);
-    }
+        $user = Auth::user();
+        $profile = $user->profile()->first(); // Use the relationship defined in User model
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'mt_everest' => 'required|string|max:1000',
-            'money_making_activities' => 'required|string|max:1000',
-            'energy_renewal_activities' => 'required|string|max:1000',
-            'calendar_preferences' => 'nullable|array',
-        ]);
-
-        $profile = UserProfile::updateOrCreate(
-            ['user_id' => Auth::id()],
-            [
-                'mt_everest' => $validated['mt_everest'],
-                'money_making_activities' => $validated['money_making_activities'],
-                'energy_renewal_activities' => $validated['energy_renewal_activities'],
-                'calendar_preferences' => $request->calendar_preferences ?? [],
-            ]
-        );
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Profile updated successfully',
-            'profile' => $profile
-        ]);
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        // Only allow viewing own profile
-        if ($id != Auth::id() && $id != 'me') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized'
-            ], 403);
+        if (!$profile) {
+            // Optionally create a blank profile if none exists, 
+            // or just return null/empty data
+            Log::info("No onboarding profile found for user", ["user_id" => $user->id]);
+            return response()->json(["profile" => null]);
         }
-        
-        $profile = UserProfile::where('user_id', Auth::id())->firstOrFail();
-        
-        return response()->json([
-            'profile' => $profile
-        ]);
+
+        Log::info("Fetched onboarding profile for user", ["user_id" => $user->id]);
+        return response()->json(["profile" => $profile]);
     }
 
     /**
-     * Update the specified resource in storage.
+     * Save or update the onboarding profile data for the authenticated user.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, string $id)
+    public function saveOnboardingProfile(Request $request)
     {
-        // Only allow updating own profile
-        if ($id != Auth::id() && $id != 'me') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized'
-            ], 403);
-        }
-        
+        $user = Auth::user();
+        Log::info("Saving onboarding profile for user", ["user_id" => $user->id]);
+
         $validated = $request->validate([
-            'mt_everest' => 'sometimes|required|string|max:1000',
-            'money_making_activities' => 'sometimes|required|string|max:1000',
-            'energy_renewal_activities' => 'sometimes|required|string|max:1000',
-            'calendar_preferences' => 'nullable|array',
+            "mt_everest" => ["required", "string", "max:65535"], // Use max text length
+            "money_making_activities" => ["required", "string", "max:65535"],
+            "energy_renewal_activities" => ["required", "string", "max:65535"],
         ]);
-        
-        $profile = UserProfile::where('user_id', Auth::id())->firstOrFail();
-        $profile->update($validated);
-        
-        return response()->json([
-            'success' => true,
-            'message' => 'Profile updated successfully',
-            'profile' => $profile
-        ]);
+
+        try {
+            // Use updateOrCreate to handle both creation and update
+            $profile = UserProfile::updateOrCreate(
+                ["user_id" => $user->id],
+                $validated
+            );
+
+            // Mark onboarding as complete for the user
+            if (!$user->has_completed_onboarding) {
+                $user->has_completed_onboarding = true;
+                $user->save();
+                Log::info("Marked onboarding as complete for user", ["user_id" => $user->id]);
+            }
+
+            Log::info("Successfully saved onboarding profile for user", ["user_id" => $user->id]);
+            // Return the updated profile and a success message
+            return response()->json([
+                "message" => "Profile saved successfully.",
+                "profile" => $profile,
+                "user" => $user->fresh() // Return updated user data with the flag
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error("Failed to save onboarding profile", [
+                "user_id" => $user->id,
+                "error" => $e->getMessage(),
+                "trace" => $e->getTraceAsString() // More detailed log
+            ]);
+            return response()->json(["message" => "Failed to save profile. Please try again."], 500);
+        }
     }
 }
+

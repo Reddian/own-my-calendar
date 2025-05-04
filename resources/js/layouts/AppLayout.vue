@@ -1,26 +1,32 @@
 <template>
   <div id="app">
-    <!-- Mobile menu toggle button -->
-    <button class="mobile-menu-toggle" @click="toggleMenu">
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="3" y1="12" x2="21" y2="12"></line>
-        <line x1="3" y1="6" x2="21" y2="6"></line>
-        <line x1="3" y1="18" x2="21" y2="18"></line>
-      </svg>
-    </button>
+    <!-- Onboarding Form takes precedence if not completed -->
+    <OnboardingForm 
+      v-if="isAuthenticated && user && !user.has_completed_onboarding"
+      @onboarding-complete="handleOnboardingComplete"
+    />
 
-    <!-- Menu overlay for closing when clicking outside -->
-    <div class="menu-overlay" :class="{ active: isMenuActive }" @click="closeMenu"></div>
+    <!-- Main App Layout (Sidebar, Content, Footer) shown only if onboarding is complete -->
+    <div v-else-if="isAuthenticated && user && user.has_completed_onboarding" class="dashboard-container">
+      <!-- Mobile menu toggle button -->
+      <button class="mobile-menu-toggle" @click="toggleMenu">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
 
-    <!-- Mobile header with logo -->
-    <div class="mobile-header">
-      <div class="logo-container">
-        <img src="/upload/OwnMyCalendarLogoLight.png" alt="Own My Calendar">
+      <!-- Menu overlay for closing when clicking outside -->
+      <div class="menu-overlay" :class="{ active: isMenuActive }" @click="closeMenu"></div>
+
+      <!-- Mobile header with logo -->
+      <div class="mobile-header">
+        <div class="logo-container">
+          <img src="/upload/OwnMyCalendarLogoLight.png" alt="Own My Calendar">
+        </div>
       </div>
-    </div>
 
-    <!-- Main content -->
-    <div class="dashboard-container">
       <!-- Sidebar -->
       <div class="sidebar" :class="{ active: isMenuActive }">
         <div class="logo-container">
@@ -28,31 +34,36 @@
         </div>
 
         <!-- Navigation Links -->
-        <div class="nav-item" :class="{ active: $route.path === '/home' }">
+        <div class="nav-item" :class="{ active: $route.path === 
+'/home' }">
           <router-link to="/home">
             <i class="fas fa-home"></i>
             <span>Dashboard</span>
           </router-link>
         </div>
-        <div class="nav-item" :class="{ active: $route.path === '/calendar' }">
+        <div class="nav-item" :class="{ active: $route.path === 
+'/calendar' }">
           <router-link to="/calendar">
             <i class="fas fa-calendar-alt"></i>
             <span>Calendar</span>
           </router-link>
         </div>
-        <div class="nav-item" :class="{ active: $route.path === '/grades' }">
+        <div class="nav-item" :class="{ active: $route.path === 
+'/grades' }">
            <router-link to="/grades">
              <i class="fas fa-chart-line"></i>
              <span>Grades</span>
            </router-link>
         </div>
-        <div class="nav-item" :class="{ active: $route.path === '/extension' }">
+        <div class="nav-item" :class="{ active: $route.path === 
+'/extension' }">
            <router-link to="/extension">
              <i class="fas fa-puzzle-piece"></i>
              <span>Extension</span>
            </router-link>
         </div>
-        <div class="nav-item" :class="{ active: $route.path === '/settings' }">
+        <div class="nav-item" :class="{ active: $route.path === 
+'/settings' }">
           <router-link to="/settings">
             <i class="fas fa-cog"></i>
             <span>Settings</span>
@@ -94,14 +105,21 @@
         </div>
       </footer>
     </div>
+
+    <!-- Optional: Loading state while checking auth/onboarding status -->
+    <div v-else>
+      <!-- You could put a loading spinner here -->
+    </div>
+
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useStore } from "vuex";
 import { useRouter } from "vue-router";
 import axios from "axios"; // Ensure axios is imported
+import OnboardingForm from "../components/OnboardingForm.vue"; // Import the onboarding form
 
 const store = useStore();
 const router = useRouter();
@@ -111,11 +129,8 @@ const isMenuActive = ref(false);
 const isAuthenticated = computed(() => store.getters["user/isAuthenticated"]);
 const user = computed(() => store.getters["user/getUser"]);
 
-// Check subscription status based on local data (assuming fetchUser populates this)
+// Check subscription status based on local data
 const isSubscribed = computed(() => {
-  // Check for an active status in the local subscription data
-  // This logic might need adjustment based on exactly how subscription status is stored
-  // For now, assume a simple boolean or status string
   return user.value?.subscription?.stripe_status === "active" || user.value?.subscription?.stripe_status === "trialing";
 });
 
@@ -123,7 +138,6 @@ const gradesUsed = computed(() => user.value?.subscription?.grades_used ?? 0);
 const gradesLimit = computed(() => user.value?.subscription?.grades_limit ?? 3);
 
 const showPremiumCTA = computed(() => {
-  // Show CTA if user is authenticated, not subscribed, and not on the settings page (where subscription tab exists)
   return isAuthenticated.value && !isSubscribed.value && router.currentRoute.value.path !== "/settings"; 
 });
 
@@ -146,7 +160,6 @@ async function logout() {
   try {
     await store.dispatch("user/logout");
     console.log("Logout successful, redirecting...");
-    // Use window.location for a full page reload to clear SPA state and ensure redirect
     window.location.href = "/login";
   } catch (error) {
     console.error("Logout failed in component:", error);
@@ -154,21 +167,25 @@ async function logout() {
   }
 }
 
+// --- Onboarding Complete Handler ---
+function handleOnboardingComplete() {
+  // The form already dispatches fetchUser, which updates the user state.
+  // The v-if in the template will automatically switch the view.
+  console.log("Onboarding complete event received in AppLayout.");
+  // Optionally, redirect to a specific page after onboarding
+  // router.push("/home"); 
+}
+
 // --- Lifecycle Hooks ---
-// Close menu when route changes
 router.afterEach(() => {
   closeMenu();
 });
 
-// Fetch user data on mount if not already authenticated (e.g., page refresh)
-// This ensures subscription status is available for the CTA
 onMounted(async () => {
-  if (!isAuthenticated.value) {
-    console.log("AppLayout mounted: User not authenticated, attempting fetchUser...");
-    await store.dispatch("user/fetchUser");
-  } else {
-    console.log("AppLayout mounted: User already authenticated.");
-  }
+  // Always try to fetch user data on mount to get the latest onboarding status
+  console.log("AppLayout mounted: Attempting fetchUser...");
+  await store.dispatch("user/fetchUser");
+  console.log("AppLayout fetchUser complete. User:", user.value);
 });
 
 onUnmounted(() => {
@@ -205,7 +222,7 @@ onUnmounted(() => {
     cursor: pointer;
 }
 
-/* Styles for the Subscription CTA (copied from dashboard.blade.php) */
+/* Styles for the Subscription CTA */
 .subscription-cta {
     background-color: #e9ecef; /* Light grey background */
     padding: 1rem 1.5rem;
@@ -235,7 +252,6 @@ onUnmounted(() => {
 }
 
 .subscription-cta .btn-primary {
-    /* Styles for the button if needed - Bootstrap should cover most */
     white-space: nowrap; /* Prevent button text wrapping */
 }
 

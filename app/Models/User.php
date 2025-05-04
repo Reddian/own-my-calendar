@@ -22,8 +22,9 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
-        'timezone', // Added timezone
+        'timezone',
         'password',
+        'has_completed_onboarding', // Added flag
     ];
 
     /**
@@ -44,6 +45,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'has_completed_onboarding' => 'boolean', // Added cast
     ];
 
     /**
@@ -52,6 +54,15 @@ class User extends Authenticatable
     public function subscription(): HasOne
     {
         return $this->hasOne(Subscription::class)->latest();
+    }
+
+    /**
+     * Get the user's profile.
+     */
+    public function profile(): HasOne
+    {
+        // Ensure this relationship exists and points to UserProfile
+        return $this->hasOne(UserProfile::class);
     }
 
     /**
