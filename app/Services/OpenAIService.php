@@ -132,7 +132,7 @@ class OpenAIService
     // ... (formatEventsForPrompt, getUserPreferencesFromProfile, createGradingPrompt remain the same) ...
     protected function formatEventsForPrompt($events)
     {
-        $formattedEvents = ";
+        $formattedEvents = ""; // Corrected: Use equals sign for initialization
         
         foreach ($events as $index => $event) {
             $formattedEvents .= ($index + 1) . ". ";
@@ -158,7 +158,7 @@ class OpenAIService
     
     protected function getUserPreferencesFromProfile(UserProfile $userProfile)
     {
-        $preferences = ";
+        $preferences = ""; // Corrected: Use equals sign for initialization
         
         // Add profile data safely, checking for nulls
         $preferences .= "Mt Everest Goal: " . ($userProfile->mt_everest ?? "Not specified") . "\n";
