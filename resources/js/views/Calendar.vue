@@ -93,7 +93,9 @@
             <div class="modal-body">
               <div v-if="parsedGradeResult" class="grade-result">
                 <div class="grade-header">
-                  <div class="grade-letter">{{ parsedGradeResult.overall_grade || "N/A" }}</div>
+                  <!-- Apply dynamic color class and show letter grade -->
+                  <div class="grade-number" :class="gradeColorClass">{{ parsedGradeResult.overall_grade || "N/A" }}</div>
+                  <div class="grade-letter">{{ letterGrade }}</div>
                 </div>
                 <div class="grade-summary">
                   <p>{{ parsedGradeResult.summary || "Grading complete." }}</p> 
@@ -610,6 +612,26 @@ const parsedGradeResult = computed(() => {
   }
 });
 
+// Computed property for letter grade
+const letterGrade = computed(() => {
+  if (!parsedGradeResult.value || typeof parsedGradeResult.value.overall_grade !== "number") return "N/A";
+  const score = parsedGradeResult.value.overall_grade;
+  if (score >= 90) return "A";
+  if (score >= 80) return "B";
+  if (score >= 70) return "C";
+  if (score >= 60) return "D";
+  return "F";
+});
+
+// Computed property for grade color class
+const gradeColorClass = computed(() => {
+  if (!parsedGradeResult.value || typeof parsedGradeResult.value.overall_grade !== "number") return "grade-color-default";
+  const score = parsedGradeResult.value.overall_grade;
+  if (score >= 80) return "grade-color-good";
+  if (score >= 60) return "grade-color-average";
+  return "grade-color-poor";
+});
+
 async function gradeCurrentWeek() {
   isGrading.value = true;
   gradeError.value = null;
@@ -916,13 +938,36 @@ watch(userTimezone, (newTimezone, oldTimezone) => {
 
 .grade-header {
   margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.grade-number {
+  font-size: 4rem;
+  font-weight: bold;
+  line-height: 1;
+  margin-bottom: 0.25rem;
 }
 
 .grade-letter {
-  font-size: 4rem;
+  font-size: 1.5rem;
   font-weight: bold;
+  color: var(--medium-text);
+}
+
+/* Grade Color Classes */
+.grade-color-good {
+  color: var(--success-color, #28a745);
+}
+.grade-color-average {
+  color: var(--warning-color, #ffc107);
+}
+.grade-color-poor {
+  color: var(--danger-color, #dc3545);
+}
+.grade-color-default {
   color: var(--primary-purple);
-  line-height: 1;
 }
 
 .grade-summary {
@@ -959,17 +1004,25 @@ watch(userTimezone, (newTimezone, oldTimezone) => {
   background-color: white;
   border-radius: 4px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  /* Apply aesthetic font */
+  font-family: "Playfair Display", serif; 
+  color: var(--dark-text); 
+  font-size: 1rem; /* Adjust size as needed */
 }
 
 .recommendation-title {
   font-weight: bold;
   margin-bottom: 0.3rem;
   color: var(--dark-text);
+  /* Ensure this also uses the aesthetic font if needed */
+  font-family: "Playfair Display", serif; 
 }
 
 .recommendation-description {
   font-size: 0.95rem;
   color: var(--medium-text);
+  /* Ensure this also uses the aesthetic font if needed */
+  font-family: "Playfair Display", serif; 
 }
 
 /* Calendar Legend */
@@ -1008,6 +1061,9 @@ watch(userTimezone, (newTimezone, oldTimezone) => {
   --border-color: #e0e0e0;
   --light-gray: #f9f9f9;
   --hour-height: 60px; /* Define CSS variable */
+  --success-color: #28a745; /* Example */
+  --warning-color: #ffc107; /* Example */
+  --danger-color: #dc3545; /* Example */
 }
 
 </style>
