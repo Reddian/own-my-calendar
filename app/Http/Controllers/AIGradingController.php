@@ -89,28 +89,30 @@ class AIGradingController extends Controller
             );
             Log::info("Received grading result from OpenAI service", ["user_id" => $user->id]);
 
-            // Save the grade to the database
+            // Save the grade to the database, ensuring arrays are JSON encoded and removing calendar_data
             $calendarGrade = CalendarGrade::create([
                 "user_id" => $user->id,
                 "week_start_date" => $startDate,
                 "week_end_date" => $endDate,
                 "overall_grade" => $gradingResult["overall_grade"] ?? null,
-                "rule_grades" => $gradingResult["rule_grades"] ?? [],
-                "strengths" => $gradingResult["strengths"] ?? [],
-                "improvement_areas" => $gradingResult["improvement_areas"] ?? [],
-                "recommendations" => $gradingResult["recommendations"] ?? [],
-                "calendar_data" => $events, // Store the events used for grading
+                "rule_grades" => json_encode($gradingResult["rule_grades"] ?? []),
+                "strengths" => json_encode($gradingResult["strengths"] ?? []),
+                "improvement_areas" => json_encode($gradingResult["improvement_areas"] ?? []),
+                "recommendations" => json_encode($gradingResult["recommendations"] ?? []),
+                // "calendar_data" => json_encode($events), // Removed as requested
             ]);
-            Log::info("Saved calendar grade to database", ["user_id" => $user->id, "grade_id" => $calendarGrade->id]);
+            Log::info("Saved calendar grade to database (without raw event data)", ["user_id" => $user->id, "grade_id" => $calendarGrade->id]);
 
+            // Return the grade object (Eloquent will handle casting JSON fields back to arrays/objects)
             return response()->json([
                 "success" => true,
                 "message" => "Calendar graded successfully",
-                "grade" => $calendarGrade
+                "grade" => $calendarGrade 
             ]);
         } catch (\Exception $e) {
             Log::error("AI grading error for user {$user->id}: " . $e->getMessage(), [
-                "exception" => $e
+                "exception_message" => $e->getMessage(),
+                "exception_trace" => $e->getTraceAsString() // Include trace for detailed debugging
             ]);
             return response()->json([
                 "error" => "Failed to grade calendar due to a server error."
