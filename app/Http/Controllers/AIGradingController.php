@@ -20,37 +20,48 @@ class AIGradingController extends Controller
     {
         $this->multiCalendarService = $multiCalendarService;
         $this->openAIService = $openAIService;
-        $this->middleware('auth:sanctum');
+        $this->middleware("auth:sanctum");
     }
 
     /**
-     * Grade the user's calendar for a specific week using AI
+     * Grade the user"s calendar for a specific week using AI
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
     public function gradeCalendar(Request $request)
     {
+        $user = Auth::user();
+        Log::info("Starting AI calendar grading for user", ["user_id" => $user->id]);
         try {
             // Get current week dates if not provided
             $now = Carbon::now();
-            $startDate = $request->input('start_date', $now->startOfWeek()->format('Y-m-d'));
-            $endDate = $request->input('end_date', $now->endOfWeek()->format('Y-m-d'));
+            $startDate = $request->input("start_date", $now->startOfWeek()->format("Y-m-d"));
+            $endDate = $request->input("end_date", $now->endOfWeek()->format("Y-m-d"));
 
             // Check if user has any connected calendars
-            $hasCalendars = GoogleCalendar::where('user_id', Auth::id())->exists();
+            $hasCalendars = GoogleCalendar::where("user_id", $user->id)->exists();
             if (!$hasCalendars) {
+                Log::warning("AI Grading attempt failed: No calendars connected", ["user_id" => $user->id]);
                 return response()->json([
-                    'error' => 'No calendars connected. Please connect at least one calendar first.'
+                    "error" => "No calendars connected. Please connect at least one calendar first."
                 ], 400);
             }
 
-            // Get user profile
-            $userProfile = UserProfile::where('user_id', Auth::id())->first();
-            if (!$userProfile) {
-                return response()->json([
-                    'error' => 'User profile not found. Please complete onboarding first.'
-                ], 400);
+            // Get user profile, create a default one if it doesn"t exist
+            $userProfile = UserProfile::firstOrCreate(
+                ["user_id" => $user->id],
+                [ // Default values if creating a new profile
+                    "mt_everest" => "Not specified",
+                    "money_making_activities" => "Not specified",
+                    "energy_renewal_activities" => "Not specified",
+                    "calendar_preferences" => [],
+                ]
+            );
+            
+            // Log if a default profile was created
+            if ($userProfile->wasRecentlyCreated) {
+                Log::info("Created default UserProfile during AI grading", ["user_id" => $user->id]);
             }
 
             // Fetch calendar events for the specified week from all selected calendars
@@ -59,13 +70,15 @@ class AIGradingController extends Controller
                 $endDate
             );
 
-            if (!$eventsResult['success']) {
+            if (!$eventsResult["success"]) {
+                Log::error("AI Grading failed: Could not fetch events", ["user_id" => $user->id, "error" => $eventsResult["error"] ?? "Unknown error"]);
                 return response()->json([
-                    'error' => $eventsResult['error'] ?? 'Failed to fetch calendar events'
+                    "error" => $eventsResult["error"] ?? "Failed to fetch calendar events"
                 ], 400);
             }
 
-            $events = $eventsResult['events'];
+            $events = $eventsResult["events"];
+            Log::info("Fetched events for AI grading", ["user_id" => $user->id, "event_count" => count($events)]);
 
             // Grade the calendar using OpenAI
             $gradingResult = $this->openAIService->gradeCalendar(
@@ -74,30 +87,35 @@ class AIGradingController extends Controller
                 $startDate,
                 $endDate
             );
+            Log::info("Received grading result from OpenAI service", ["user_id" => $user->id]);
 
             // Save the grade to the database
             $calendarGrade = CalendarGrade::create([
-                'user_id' => Auth::id(),
-                'week_start_date' => $startDate,
-                'week_end_date' => $endDate,
-                'overall_grade' => $gradingResult['overall_grade'],
-                'rule_grades' => $gradingResult['rule_grades'],
-                'strengths' => $gradingResult['strengths'],
-                'improvement_areas' => $gradingResult['improvement_areas'],
-                'recommendations' => $gradingResult['recommendations'],
-                'calendar_data' => $events,
+                "user_id" => $user->id,
+                "week_start_date" => $startDate,
+                "week_end_date" => $endDate,
+                "overall_grade" => $gradingResult["overall_grade"] ?? null,
+                "rule_grades" => $gradingResult["rule_grades"] ?? [],
+                "strengths" => $gradingResult["strengths"] ?? [],
+                "improvement_areas" => $gradingResult["improvement_areas"] ?? [],
+                "recommendations" => $gradingResult["recommendations"] ?? [],
+                "calendar_data" => $events, // Store the events used for grading
             ]);
+            Log::info("Saved calendar grade to database", ["user_id" => $user->id, "grade_id" => $calendarGrade->id]);
 
             return response()->json([
-                'success' => true,
-                'message' => 'Calendar graded successfully',
-                'grade' => $calendarGrade
+                "success" => true,
+                "message" => "Calendar graded successfully",
+                "grade" => $calendarGrade
             ]);
         } catch (\Exception $e) {
-            Log::error('AI grading error: ' . $e->getMessage());
+            Log::error("AI grading error for user {$user->id}: " . $e->getMessage(), [
+                "exception" => $e
+            ]);
             return response()->json([
-                'error' => 'Failed to grade calendar: ' . $e->getMessage()
+                "error" => "Failed to grade calendar due to a server error."
             ], 500);
         }
     }
 }
+
