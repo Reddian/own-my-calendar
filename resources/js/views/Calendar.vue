@@ -91,33 +91,33 @@
               <button type="button" class="btn-close" @click="closeGradeModal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-              <div v-if="gradeResult" class="grade-result">
+              <div v-if="parsedGradeResult" class="grade-result">
                 <div class="grade-header">
-                  <div class="grade-letter">{{ gradeResult.overall_grade || "N/A" }}</div>
+                  <div class="grade-letter">{{ parsedGradeResult.overall_grade || "N/A" }}</div>
                 </div>
                 <div class="grade-summary">
-                  <p>{{ gradeResult.summary || "Grading complete." }}</p> 
+                  <p>{{ parsedGradeResult.summary || "Grading complete." }}</p> 
                 </div>
-                <div v-if="gradeResult.strengths && gradeResult.strengths.length > 0" class="grade-section">
+                <div v-if="parsedGradeResult.strengths && parsedGradeResult.strengths.length > 0" class="grade-section">
                   <h4>Strengths</h4>
                   <ul class="recommendations-list">
-                    <li v-for="(strength, index) in gradeResult.strengths" :key="`strength-${index}`">
+                    <li v-for="(strength, index) in parsedGradeResult.strengths" :key="`strength-${index}`">
                       {{ strength }}
                     </li>
                   </ul>
                 </div>
-                <div v-if="gradeResult.improvement_areas && gradeResult.improvement_areas.length > 0" class="grade-section">
+                <div v-if="parsedGradeResult.improvement_areas && parsedGradeResult.improvement_areas.length > 0" class="grade-section">
                   <h4>Areas for Improvement</h4>
                   <ul class="recommendations-list">
-                    <li v-for="(area, index) in gradeResult.improvement_areas" :key="`improve-${index}`">
+                    <li v-for="(area, index) in parsedGradeResult.improvement_areas" :key="`improve-${index}`">
                        {{ area }}
                     </li>
                   </ul>
                 </div>
-                <div v-if="gradeResult.recommendations && gradeResult.recommendations.length > 0" class="grade-section">
+                <div v-if="parsedGradeResult.recommendations && parsedGradeResult.recommendations.length > 0" class="grade-section">
                   <h4>Recommendations</h4>
                   <ul class="recommendations-list">
-                    <li v-for="(rec, index) in gradeResult.recommendations" :key="`rec-${index}`">
+                    <li v-for="(rec, index) in parsedGradeResult.recommendations" :key="`rec-${index}`">
                       <div class="recommendation-title">{{ rec.title || "Recommendation" }}</div>
                       <div class="recommendation-description">{{ rec.description }}</div>
                     </li>
@@ -174,7 +174,7 @@ const gradeModal = ref(null);
 let bsModal = null;
 const isGrading = ref(false);
 const gradeError = ref(null);
-const gradeResult = ref(null);
+const gradeResult = ref(null); // Raw result from API
 const canGradeWeek = ref(true); // Will be checked on mount
 const gridScrollContainer = ref(null); // Ref for the scrollable container
 const userTimezone = computed(() => store.state.user.user?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
@@ -212,17 +212,17 @@ function formatTime(dateTimeString) {
   if (!dateTimeString) return "";
   try {
     // Always try to parse, replacing space with T if needed
-    const parsableDateTimeString = dateTimeString.includes('T') ? dateTimeString : dateTimeString.replace(' ', 'T');
+    const parsableDateTimeString = dateTimeString.includes("T") ? dateTimeString : dateTimeString.replace(" ", "T");
     const date = new Date(parsableDateTimeString);
     if (isNaN(date.getTime())) {
-        throw new Error("Invalid Date object");
+      throw new Error("Invalid Date object");
     }
-    // Display time in the user's selected timezone
+    // Display time in the user"s selected timezone
     return date.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
-      timeZone: userTimezone.value, // Use user's timezone
+      timeZone: userTimezone.value, // Use user"s timezone
     });
   } catch (e) {
     console.error("[Calendar] Error formatting time:", dateTimeString, e);
@@ -322,120 +322,139 @@ async function fetchEventsForWeek(startDate, endDate) {
     });
     console.log("[Calendar] Raw events received:", response.data.events);
 
-    events.value = response.data.events.map((event) => {
-      let start = null;
-      let end = null;
-      let dateStr = null;
-      let timeRange = "All Day";
-      let startHour = 0;
-      let startMinute = 0;
-      let durationMinutes = 24 * 60;
-      // Default isAllDay based on backend flag, fallback to true if flag missing/null
-      let isAllDayEvent = event.allDay !== false; 
+    events.value = response.data.events
+      .map((event) => {
+        let start = null;
+        let end = null;
+        let dateStr = null;
+        let timeRange = "All Day";
+        let startHour = 0;
+        let startMinute = 0;
+        let durationMinutes = 24 * 60;
+        // Default isAllDay based on backend flag, fallback to true if flag missing/null
+        let isAllDayEvent = event.allDay !== false;
 
-      try {
-        if (event.start) {
-          // Always try to parse the start string into a Date object
-          // Replace space with 'T' for better compatibility if 'T' is missing
-          const parsableStartString = event.start.includes('T') ? event.start : event.start.replace(' ', 'T');
-          start = new Date(parsableStartString);
+        try {
+          if (event.start) {
+            // Always try to parse the start string into a Date object
+            // Replace space with "T" for better compatibility if "T" is missing
+            const parsableStartString = event.start.includes("T")
+              ? event.start
+              : event.start.replace(" ", "T");
+            start = new Date(parsableStartString);
 
-          // Check for invalid date
-          if (isNaN(start.getTime())) {
-            throw new Error(`Invalid Date object created from event.start: ${event.start}`);
-          }
+            // Check for invalid date
+            if (isNaN(start.getTime())) {
+              throw new Error(
+                `Invalid Date object created from event.start: ${event.start}`
+              );
+            }
 
-          // Extract date string (use UTC date parts to avoid timezone shifts affecting the date itself)
-          dateStr = start.toISOString().split('T')[0]; 
+            // Extract date string (use UTC date parts to avoid timezone shifts affecting the date itself)
+            dateStr = start.toISOString().split("T")[0];
 
-          // Determine if it's effectively all-day
-          // Condition: Backend flag is true OR (flag is not explicitly false AND time is midnight)
-          if (event.allDay === true || (event.allDay !== false && start.getHours() === 0 && start.getMinutes() === 0 && start.getSeconds() === 0)) {
-             isAllDayEvent = true;
-             startHour = 0;
-             startMinute = 0;
-             timeRange = "All Day";
-             durationMinutes = 24 * 60; // Default all-day duration
-          } else {
-             // It's a timed event
-             isAllDayEvent = false;
-             startHour = start.getHours();
-             startMinute = start.getMinutes();
-             // Calculate duration and timeRange later
-          }
-        } else {
-           // No start time provided, treat as error or skip?
-           console.error("[Calendar] Event missing start time:", event);
-           return null; // Skip this event if it has no start time
-        }
-
-        // Process end time only if it's a timed event
-        if (!isAllDayEvent && event.end) {
-          const parsableEndString = event.end.includes('T') ? event.end : event.end.replace(' ', 'T');
-          end = new Date(parsableEndString);
-           if (isNaN(end.getTime())) {
-             console.warn("[Calendar] Invalid end date object:", event.end);
-             end = null; // Ignore invalid end date
-           }
-        }
-
-        // Calculate duration and timeRange for timed events
-        if (!isAllDayEvent && start) { // Check start is valid
-          if (end && end > start) { // Check end is valid and after start
-            timeRange = `${formatTime(event.start)} - ${formatTime(event.end)}`;
-            durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
-            // Handle potential cross-day events or zero duration
-            if (durationMinutes <= 0) {
-                 durationMinutes = 30; // Minimum duration 30 mins
+            // Determine if it"s effectively all-day
+            // Condition: Backend flag is true OR (flag is not explicitly false AND time is midnight)
+            if (
+              event.allDay === true ||
+              (event.allDay !== false &&
+                start.getHours() === 0 &&
+                start.getMinutes() === 0 &&
+                start.getSeconds() === 0)
+            ) {
+              isAllDayEvent = true;
+              startHour = 0;
+              startMinute = 0;
+              timeRange = "All Day";
+              durationMinutes = 24 * 60; // Default all-day duration
+            } else {
+              // It"s a timed event
+              isAllDayEvent = false;
+              startHour = start.getHours();
+              startMinute = start.getMinutes();
+              // Calculate duration and timeRange later
             }
           } else {
-            // Timed event without a valid end time or end time is before start
-            timeRange = formatTime(event.start);
-            durationMinutes = 60; // Default duration 60 mins
+            // No start time provided, treat as error or skip?
+            console.error("[Calendar] Event missing start time:", event);
+            return null; // Skip this event if it has no start time
+          }
+
+          // Process end time only if it"s a timed event
+          if (!isAllDayEvent && event.end) {
+            const parsableEndString = event.end.includes("T")
+              ? event.end
+              : event.end.replace(" ", "T");
+            end = new Date(parsableEndString);
+            if (isNaN(end.getTime())) {
+              console.warn("[Calendar] Invalid end date object:", event.end);
+              end = null; // Ignore invalid end date
+            }
+          }
+
+          // Calculate duration and timeRange for timed events
+          if (!isAllDayEvent && start) {
+            // Check start is valid
+            if (end && end > start) {
+              // Check end is valid and after start
+              timeRange = `${formatTime(event.start)} - ${formatTime(event.end)}`;
+              durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+              // Handle potential cross-day events or zero duration
+              if (durationMinutes <= 0) {
+                durationMinutes = 30; // Minimum duration 30 mins
+              }
+            } else {
+              // Timed event without a valid end time or end time is before start
+              timeRange = formatTime(event.start);
+              durationMinutes = 60; // Default duration 60 mins
+            }
+          }
+          // For all-day events, timeRange and durationMinutes remain as initialized
+        } catch (e) {
+          console.error("[Calendar] Error processing event dates:", event, e);
+          // Fallback: treat as all-day but log the error
+          isAllDayEvent = true;
+          startHour = 0;
+          startMinute = 0;
+          timeRange = "All Day (Error)";
+          durationMinutes = 24 * 60;
+          // Try to salvage dateStr if possible
+          if (event.start) {
+            try {
+              // Extract date part reliably
+              dateStr = event.start.substring(0, 10);
+              if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) dateStr = null;
+            } catch {
+              dateStr = null;
+            }
           }
         }
-        // For all-day events, timeRange and durationMinutes remain as initialized
 
-      } catch (e) {
-        console.error("[Calendar] Error processing event dates:", event, e);
-        // Fallback: treat as all-day but log the error
-        isAllDayEvent = true;
-        startHour = 0;
-        startMinute = 0;
-        timeRange = "All Day (Error)";
-        durationMinutes = 24 * 60;
-        // Try to salvage dateStr if possible
-        if (event.start) {
-            try {
-                // Extract date part reliably
-                dateStr = event.start.substring(0, 10);
-                if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) dateStr = null;
-            } catch { dateStr = null; }
+        // Ensure essential properties exist before returning
+        if (dateStr === null) {
+          console.warn(
+            "[Calendar] Skipping event due to missing/invalid date string:",
+            event
+          );
+          return null; // Skip event if date couldn"t be determined
         }
-      }
 
-      // Ensure essential properties exist before returning
-      if (dateStr === null) {
-          console.warn("[Calendar] Skipping event due to missing/invalid date string:", event);
-          return null; // Skip event if date couldn't be determined
-      }
-
-      return {
-        ...event,
-        dateStr: dateStr,
-        timeRange,
-        startHour,
-        startMinute,
-        durationMinutes,
-        isAllDay: isAllDayEvent,
-        color: "var(--primary-purple)", // Placeholder color
-      };
-    }).filter(event => event !== null); // Filter out skipped events
+        return {
+          ...event,
+          dateStr: dateStr,
+          timeRange,
+          startHour,
+          startMinute,
+          durationMinutes,
+          isAllDay: isAllDayEvent,
+          color: "var(--primary-purple)", // Placeholder color
+        };
+      })
+      .filter((event) => event !== null); // Filter out skipped events
 
     console.log("[Calendar] Processed events array:", events.value);
     await nextTick();
     scrollToTime();
-
   } catch (error) {
     console.error("[Calendar] Error fetching calendar events:", error);
     fetchError.value =
@@ -453,17 +472,17 @@ function getEventsForDay(dateStr) {
   // Filter events for the specific day
   const dayEvents = events.value.filter((event) => event.dateStr === dateStr);
   // Separate all-day and timed events
-  const allDayEvents = dayEvents.filter(event => event.isAllDay);
-  const timedEvents = dayEvents.filter(event => !event.isAllDay);
+  const allDayEvents = dayEvents.filter((event) => event.isAllDay);
+  const timedEvents = dayEvents.filter((event) => !event.isAllDay);
   // Return timed events first, then all-day events for rendering order (all-day stack at top)
-  return [...timedEvents, ...allDayEvents]; 
+  return [...timedEvents, ...allDayEvents];
 }
 
 function getEventStyle(event) {
   // Style for all-day events (use relative positioning for stacking)
-  if (event.isAllDay) { 
+  if (event.isAllDay) {
     return {
-      position: "relative", 
+      position: "relative",
       top: "0px", // Stacks naturally
       height: "20px", // Fixed height for all-day bar
       backgroundColor: event.color || "var(--secondary-color)",
@@ -489,22 +508,22 @@ function getEventStyle(event) {
 
   let duration = event.durationMinutes;
   if (duration <= 0) duration = 30; // Minimum duration
-  
+
   const minHeight = (15 / 60) * HOUR_HEIGHT_PX; // Min height ~15 mins
   let height = (duration / 60) * HOUR_HEIGHT_PX;
   if (height < minHeight) height = minHeight;
 
-  // Ensure event doesn't overflow the 24-hour grid visually
-  const maxTop = (GRID_END_HOUR * HOUR_HEIGHT_PX) - height;
+  // Ensure event doesn"t overflow the 24-hour grid visually
+  const maxTop = GRID_END_HOUR * HOUR_HEIGHT_PX - height;
   const finalTop = Math.min(topPosition, maxTop);
-  // Ensure height doesn't cause overflow if start time is near the end of the day
-  const finalHeight = Math.min(height, (GRID_END_HOUR * HOUR_HEIGHT_PX) - finalTop);
+  // Ensure height doesn"t cause overflow if start time is near the end of the day
+  const finalHeight = Math.min(height, GRID_END_HOUR * HOUR_HEIGHT_PX - finalTop);
 
   const style = {
     position: "absolute",
     top: `${finalTop}px`,
     // Use finalHeight and subtract border/padding if needed, -2 seems reasonable
-    height: `${Math.max(0, finalHeight - 2)}px`, 
+    height: `${Math.max(0, finalHeight - 2)}px`,
     left: "2px",
     right: "2px",
     backgroundColor: event.color || "var(--primary-purple)",
@@ -542,7 +561,8 @@ async function checkGradingAbility() {
     const response = await axios.get("/api/subscription/can-grade");
     canGradeWeek.value = response.data.can_grade;
     if (!canGradeWeek.value) {
-      gradeError.value = response.data.reason || "Grading limit reached for this period.";
+      gradeError.value =
+        response.data.reason || "Grading limit reached for this period.";
     } else {
       gradeError.value = null; // Clear previous error if now able
     }
@@ -553,6 +573,43 @@ async function checkGradingAbility() {
   }
 }
 
+// Computed property to safely parse grade results
+const parsedGradeResult = computed(() => {
+  if (!gradeResult.value) return null;
+  try {
+    // Clone the object to avoid modifying the original ref
+    const parsed = { ...gradeResult.value }; 
+    
+    // Explicitly parse fields if they are strings
+    if (typeof parsed.strengths === "string") {
+      parsed.strengths = JSON.parse(parsed.strengths);
+    }
+    if (typeof parsed.improvement_areas === "string") {
+      parsed.improvement_areas = JSON.parse(parsed.improvement_areas);
+    }
+    if (typeof parsed.recommendations === "string") {
+      parsed.recommendations = JSON.parse(parsed.recommendations);
+    }
+    
+    // Ensure they are arrays after parsing
+    if (!Array.isArray(parsed.strengths)) parsed.strengths = [];
+    if (!Array.isArray(parsed.improvement_areas)) parsed.improvement_areas = [];
+    if (!Array.isArray(parsed.recommendations)) parsed.recommendations = [];
+
+    return parsed;
+  } catch (e) {
+    console.error("[Calendar] Error parsing grade result JSON:", e, gradeResult.value);
+    // Return a structure that won"t break the template
+    return {
+      ...gradeResult.value, // Keep other fields like overall_grade
+      strengths: [],
+      improvement_areas: [],
+      recommendations: [],
+      summary: "Error displaying grading details."
+    };
+  }
+});
+
 async function gradeCurrentWeek() {
   isGrading.value = true;
   gradeError.value = null;
@@ -560,16 +617,18 @@ async function gradeCurrentWeek() {
 
   await checkGradingAbility();
   if (!canGradeWeek.value) {
-      isGrading.value = false;
-      return; 
+    isGrading.value = false;
+    return;
   }
 
   try {
-    const response = await axios.post("/api/ai/grade-calendar", { 
+    const response = await axios.post("/api/ai/grade-calendar", {
       start_date: formatDate(currentWeekStart.value),
       end_date: formatDate(currentWeekEnd.value),
     });
-    gradeResult.value = response.data.grade;
+    // Assign the raw response data. Parsing is handled by computed property.
+    gradeResult.value = response.data.grade; 
+    console.log("[Calendar] Received grade data:", gradeResult.value);
     openGradeModal();
 
     try {
@@ -577,11 +636,11 @@ async function gradeCurrentWeek() {
     } catch (incError) {
       console.error("[Calendar] Failed to increment grades used count:", incError);
     }
-
   } catch (error) {
     console.error("[Calendar] Error grading calendar:", error);
     gradeError.value =
-      error.response?.data?.error || "An error occurred while grading the calendar.";
+      error.response?.data?.error ||
+      "An error occurred while grading the calendar.";
   } finally {
     isGrading.value = false;
   }
@@ -600,7 +659,7 @@ function closeGradeModal() {
   }
 }
 
-// --- Auto Scroll --- 
+// --- Auto Scroll ---
 function scrollToTime(hour = SCROLL_TO_HOUR) {
   if (gridScrollContainer.value) {
     const scrollTop = hour * HOUR_HEIGHT_PX;
@@ -625,11 +684,13 @@ watch(currentDate, (newDate) => {
   const newWeekStart = getStartOfWeek(newDate);
   const newWeekEnd = getEndOfWeek(newDate);
   fetchEventsForWeek(newWeekStart, newWeekEnd);
+  checkGradingAbility(); // Re-check grading ability when week changes
 });
 
-watch(() => store.state.user.user?.timezone, (newTimezone, oldTimezone) => {
+// Watch for changes in user timezone and refetch events
+watch(userTimezone, (newTimezone, oldTimezone) => {
   if (newTimezone && newTimezone !== oldTimezone) {
-    console.log(`[Calendar] Timezone changed to ${newTimezone}. Refetching events.`);
+    console.log(`[Calendar] User timezone changed to ${newTimezone}. Refetching events.`);
     fetchEventsForWeek(currentWeekStart.value, currentWeekEnd.value);
   }
 });
@@ -637,35 +698,54 @@ watch(() => store.state.user.user?.timezone, (newTimezone, oldTimezone) => {
 </script>
 
 <style scoped>
+/* General Page Styles */
 .page-title {
-  margin-bottom: 1.5rem;
+  font-family: "Playfair Display", serif;
+  color: var(--primary-purple);
+  text-align: center;
+  margin-bottom: 2rem;
 }
 
 .premium-cta {
+  background-color: var(--light-purple);
+  border-color: var(--primary-purple);
+  color: var(--dark-text);
   margin-bottom: 1.5rem;
   display: flex;
   align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  border-radius: 8px;
 }
 
 .premium-cta i {
+  color: var(--accent-yellow);
   margin-right: 0.5rem;
-  color: var(--primary-purple);
 }
 
 .loading-indicator {
   text-align: center;
-  padding: 4rem 0;
+  padding: 3rem 0;
+  color: var(--medium-text);
 }
 
+/* Calendar Container */
 .calendar-container {
-  /* Add styles for the overall container if needed */
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
 }
 
+/* Calendar Header */
 .calendar-header {
   display: flex;
-  justify-content: center; /* Center navigation */
+  justify-content: center; /* Center the navigation */
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .calendar-navigation {
@@ -674,82 +754,105 @@ watch(() => store.state.user.user?.timezone, (newTimezone, oldTimezone) => {
 }
 
 .week-title {
-  margin: 0 1rem;
-  min-width: 200px; /* Ensure space for date range */
-  text-align: center;
+  font-family: "Lato", sans-serif;
   font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--dark-text);
+  margin: 0 1.5rem;
+  min-width: 200px; /* Ensure space for title */
+  text-align: center;
 }
 
 .prev-week-btn,
 .next-week-btn {
-  /* Styles for navigation buttons */
+  background-color: transparent;
+  border: 1px solid var(--primary-purple);
+  color: var(--primary-purple);
+  padding: 0.5rem 0.8rem;
+  border-radius: 50%;
+  transition: background-color 0.2s, color 0.2s;
 }
 
-.refresh-btn i.fa-spin {
-  animation: fa-spin 2s infinite linear;
+.prev-week-btn:hover,
+.next-week-btn:hover {
+  background-color: var(--primary-purple);
+  color: white;
 }
 
-.calendar-view {
-  border: 1px solid #dee2e6;
-  border-radius: 0.25rem;
-  background-color: #fff;
+.prev-week-btn:disabled,
+.next-week-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: transparent;
+  color: var(--medium-text);
+  border-color: var(--medium-text);
+}
+
+/* Week View Grid */
+.calendar-view.week-view {
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  overflow: hidden; /* Hide internal overflow */
 }
 
 .week-header {
   display: flex;
-  border-bottom: 1px solid #dee2e6;
-  background-color: #f8f9fa;
+  background-color: var(--light-gray);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .time-column {
-  width: 60px; /* Width for time labels */
-  flex-shrink: 0;
-  border-right: 1px solid #dee2e6;
+  flex: 0 0 60px; /* Fixed width for time labels */
+  border-right: 1px solid var(--border-color);
 }
 
 .week-day {
   flex: 1;
   text-align: center;
-  padding: 0.5rem 0;
+  padding: 0.75rem 0.5rem;
   font-weight: bold;
-  border-left: 1px solid #dee2e6; /* Add border between days */
+  color: var(--dark-text);
+  border-right: 1px solid var(--border-color);
 }
 
-.week-day:first-of-type {
-  border-left: none; /* Remove border for the first day */
+.week-day:last-child {
+  border-right: none;
 }
 
 .week-day.today {
-  background-color: #e9f5ff;
-  color: var(--primary-blue);
+  background-color: var(--light-purple);
+  color: var(--primary-purple);
 }
 
-/* Added scroll container */
 .week-grid-scroll-container {
-  max-height: 70vh; /* Adjust max height as needed */
+  max-height: 600px; /* Limit height and enable scrolling */
   overflow-y: auto;
   position: relative; /* Needed for absolute positioning of events */
 }
 
 .week-grid {
   display: flex;
-  position: relative; /* Needed for absolute positioning of events */
+  position: relative; /* Context for hour lines */
+  min-height: calc(24 * var(--hour-height, 60px)); /* Ensure grid is tall enough */
 }
 
 .time-slots {
-  width: 60px;
-  flex-shrink: 0;
-  border-right: 1px solid #dee2e6;
+  flex: 0 0 60px;
+  border-right: 1px solid var(--border-color);
+  background-color: var(--light-gray);
+  padding-top: calc(var(--hour-height, 60px) / 2 - 10px); /* Adjust vertical alignment */
 }
 
 .time-slot {
-  height: 60px; /* Corresponds to HOUR_HEIGHT_PX */
-  border-bottom: 1px dotted #e0e0e0;
-  text-align: right;
-  padding-right: 5px;
+  height: var(--hour-height, 60px);
+  text-align: center;
   font-size: 12px;
-  color: #6c757d;
+  color: var(--medium-text);
+  border-bottom: 1px dashed var(--border-color); /* Dashed line between hours */
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .time-slot:last-child {
@@ -758,45 +861,60 @@ watch(() => store.state.user.user?.timezone, (newTimezone, oldTimezone) => {
 
 .day-column {
   flex: 1;
-  position: relative; /* Crucial for absolute positioning of events */
-  min-height: calc(24 * 60px); /* Ensure column has full height for 24 hours */
-  border-left: 1px solid #dee2e6; /* Add border between days */
+  border-right: 1px solid var(--border-color);
+  position: relative; /* Context for events and hour lines */
+  min-height: calc(24 * var(--hour-height, 60px)); /* Ensure column is tall enough */
 }
 
-.day-column:first-of-type {
-  border-left: none; /* Remove border for the first day */
+.day-column:last-child {
+  border-right: none;
 }
 
-/* Add horizontal lines for hours */
 .hour-line {
   position: absolute;
   left: 0;
   right: 0;
   height: 1px;
-  background-color: #e0e0e0; /* Light gray line */
+  background-color: var(--border-color);
   z-index: 0; /* Behind events */
 }
 
 .week-event {
-  /* Style is now primarily set dynamically by getEventStyle */
-  transition: background-color 0.2s ease;
+  /* Styles are applied dynamically via getEventStyle */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.2s;
 }
 
 .week-event:hover {
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
+/* Grading Action */
 .calendar-grading-action {
   text-align: center;
   margin-top: 2rem;
 }
 
+#grade-calendar-btn {
+  padding: 0.8rem 2rem;
+  font-size: 1.1rem;
+}
+
+#grade-calendar-btn i {
+  margin-right: 0.5rem;
+}
+
+/* Grade Result Modal */
+.modal-title {
+  font-family: "Playfair Display", serif;
+  color: var(--primary-purple);
+}
+
 .grade-result {
-  /* Styles for the grade result display */
+  text-align: center;
 }
 
 .grade-header {
-  text-align: center;
   margin-bottom: 1.5rem;
 }
 
@@ -808,18 +926,26 @@ watch(() => store.state.user.user?.timezone, (newTimezone, oldTimezone) => {
 }
 
 .grade-summary {
-  text-align: center;
   font-size: 1.1rem;
-  margin-bottom: 1.5rem;
+  color: var(--dark-text);
+  margin-bottom: 2rem;
 }
 
 .grade-section {
+  text-align: left;
   margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: var(--light-gray);
+  border-radius: 4px;
 }
 
 .grade-section h4 {
-  color: var(--primary-blue);
-  margin-bottom: 0.75rem;
+  font-family: "Lato", sans-serif;
+  font-weight: bold;
+  color: var(--primary-purple);
+  margin-bottom: 0.8rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
 }
 
 .recommendations-list {
@@ -828,39 +954,60 @@ watch(() => store.state.user.user?.timezone, (newTimezone, oldTimezone) => {
 }
 
 .recommendations-list li {
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 0.25rem;
-  padding: 0.75rem 1rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.8rem;
+  background-color: white;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .recommendation-title {
   font-weight: bold;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.3rem;
+  color: var(--dark-text);
 }
 
 .recommendation-description {
   font-size: 0.95rem;
+  color: var(--medium-text);
 }
 
+/* Calendar Legend */
 .calendar-legend {
-  margin-top: 2rem;
   display: flex;
   justify-content: center;
-  gap: 1.5rem;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
 }
 
 .legend-item {
   display: flex;
   align-items: center;
+  margin: 0 1rem;
+  font-size: 0.9rem;
+  color: var(--medium-text);
 }
 
 .legend-color {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
   border-radius: 3px;
   margin-right: 0.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Ensure root variables are defined or imported */
+:root {
+  --primary-purple: #6a1b9a; /* Example */
+  --light-purple: #f3e5f5; /* Example */
+  --primary-teal: #00796b; /* Example */
+  --accent-yellow: #fdd835; /* Example */
+  --dark-text: #333;
+  --medium-text: #666;
+  --border-color: #e0e0e0;
+  --light-gray: #f9f9f9;
+  --hour-height: 60px; /* Define CSS variable */
 }
 
 </style>
