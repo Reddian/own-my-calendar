@@ -24,7 +24,7 @@ class CalendarGrade extends Model
         'strengths',
         'improvement_areas',
         'recommendations',
-        'calendar_data',
+        // 'calendar_data', // Removed as requested
     ];
 
     /**
@@ -37,7 +37,10 @@ class CalendarGrade extends Model
         'week_end_date' => 'date',
         'overall_grade' => 'float',
         'rule_grades' => 'array',
-        'calendar_data' => 'array',
+        'strengths' => 'array', // Add casting for strengths
+        'improvement_areas' => 'array', // Add casting for improvement_areas
+        'recommendations' => 'array', // Add casting for recommendations
+        // 'calendar_data' => 'array', // Removed as requested
     ];
 
     /**
@@ -48,3 +51,4 @@ class CalendarGrade extends Model
         return $this->belongsTo(User::class);
     }
 }
+
