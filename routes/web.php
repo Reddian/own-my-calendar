@@ -76,9 +76,14 @@ Route::middleware(["auth:sanctum"])->group(function () { // Use sanctum guard he
     Route::post("checkout/create-portal-session", [CheckoutController::class, "createPortalSession"])->name("checkout.portal");
 });
 
+// Home page route
+Route::get("/", function () {
+    return view("welcome");
+})->name("home");
+
 // --- SPA Catch-all Route (MUST be last) ---
 Route::get("/{any?}", function () {
     return view("spa");
-})->where("any", ".*");
+})->where("any", "^(?!$).*"); // Regex excludes root path
 
 
