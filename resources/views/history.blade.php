@@ -32,7 +32,7 @@
                     </div>
                 </div>
                 <div class="col-md-4 d-flex align-items-end">
-                    <button class="btn btn-primary w-100">Apply Filters</button>
+                    <button id="apply-filters" class="btn btn-primary w-100">Apply Filters</button>
                 </div>
             </div>
         </div>
@@ -48,70 +48,13 @@
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <tr>
-                        <td>Apr 15 - Apr 21, 2025</td>
-                        <td>
-                            <span class="badge badge-success">92%</span>
-                        </td>
-                        <td>Non-negotiables, Money-making activities</td>
-                        <td>Reflection time, Learning time</td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#gradeDetailsModal">
-                                <i class="fas fa-eye"></i> View
-                            </button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>Apr 8 - Apr 14, 2025</td>
-                        <td>
-                            <span class="badge badge-success">87%</span>
-                        </td>
-                        <td>Calendar adherence, Time protection</td>
-                        <td>Planning time</td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-eye"></i> View
-                            </button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>Apr 1 - Apr 7, 2025</td>
-                        <td>
-                            <span class="badge badge-warning">78%</span>
-                        </td>
-                        <td>Money-making activities</td>
-                        <td>Non-negotiables, Reflection time</td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-eye"></i> View
-                            </button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>Mar 25 - Mar 31, 2025</td>
-                        <td>
-                            <span class="badge badge-warning">75%</span>
-                        </td>
-                        <td>Learning time</td>
-                        <td>Calendar adherence, Planning time</td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-eye"></i> View
-                            </button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>Mar 18 - Mar 24, 2025</td>
-                        <td>
-                            <span class="badge badge-danger">65%</span>
-                        </td>
-                        <td>Money-making activities</td>
-                        <td>Non-negotiables, Time protection, Planning time</td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-eye"></i> View
-                            </button>
+                <tbody id="grades-table-body">
+                    <!-- Grades will be loaded dynamically -->
+                    <tr id="loading-row">
+                        <td colspan="5" class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
                         </td>
                     </tr>
                 </tbody>
@@ -119,24 +62,12 @@
         </div>
         
         <div class="pagination-container mt-4 d-flex justify-content-between align-items-center">
-            <div class="showing-entries">
-                Showing 1 to 5 of 12 entries
+            <div class="showing-entries" id="pagination-info">
+                Loading entries...
             </div>
             <nav aria-label="Page navigation">
-                <ul class="pagination">
-                    <li class="page-item disabled">
-                        <a class="page-link" href="#" aria-label="Previous">
-                            <span aria-hidden="true">&laquo;</span>
-                        </a>
-                    </li>
-                    <li class="page-item active"><a class="page-link" href="#">1</a></li>
-                    <li class="page-item"><a class="page-link" href="#">2</a></li>
-                    <li class="page-item"><a class="page-link" href="#">3</a></li>
-                    <li class="page-item">
-                        <a class="page-link" href="#" aria-label="Next">
-                            <span aria-hidden="true">&raquo;</span>
-                        </a>
-                    </li>
+                <ul class="pagination" id="pagination-controls">
+                    <!-- Pagination will be loaded dynamically -->
                 </ul>
             </nav>
         </div>
@@ -148,72 +79,19 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="gradeDetailsModalLabel">Week of Apr 15 - Apr 21, 2025</h5>
+                <h5 class="modal-title" id="gradeDetailsModalLabel">Grade Details</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <div class="grade-overview d-flex justify-content-between mb-4">
-                    <div class="grade-display">
-                        <div class="grade-circle" style="--percentage: 92%;">
-                            <div class="grade-value">92%</div>
-                        </div>
-                        <div class="grade-label">Overall Grade</div>
+            <div class="modal-body" id="grade-details-content">
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
                     </div>
-                    
-                    <div class="rule-grades">
-                        <h5>Rule Grades</h5>
-                        <div class="rule-grade-item">
-                            <div class="rule-name">Non-Negotiables</div>
-                            <div class="progress">
-                                <div class="progress-bar bg-success" role="progressbar" style="width: 95%" aria-valuenow="95" aria-valuemin="0" aria-valuemax="100">95%</div>
-                            </div>
-                        </div>
-                        <div class="rule-grade-item">
-                            <div class="rule-name">Money-Making Activities</div>
-                            <div class="progress">
-                                <div class="progress-bar bg-success" role="progressbar" style="width: 90%" aria-valuenow="90" aria-valuemin="0" aria-valuemax="100">90%</div>
-                            </div>
-                        </div>
-                        <div class="rule-grade-item">
-                            <div class="rule-name">Reflection Time</div>
-                            <div class="progress">
-                                <div class="progress-bar bg-warning" role="progressbar" style="width: 70%" aria-valuenow="70" aria-valuemin="0" aria-valuemax="100">70%</div>
-                            </div>
-                        </div>
-                        <div class="rule-grade-item">
-                            <div class="rule-name">Learning Time</div>
-                            <div class="progress">
-                                <div class="progress-bar bg-primary" role="progressbar" style="width: 85%" aria-valuenow="85" aria-valuemin="0" aria-valuemax="100">85%</div>
-                            </div>
-                        </div>
-                        <div class="rule-grade-item">
-                            <div class="rule-name">Planning Time</div>
-                            <div class="progress">
-                                <div class="progress-bar bg-primary" role="progressbar" style="width: 80%" aria-valuenow="80" aria-valuemin="0" aria-valuemax="100">80%</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="grade-details">
-                    <h5>Strengths</h5>
-                    <p>You've done an excellent job with your non-negotiables this week. All your important commitments were scheduled and protected. Your money-making activities were well-distributed throughout the week, with clear focus on your top priorities.</p>
-                    
-                    <h5>Areas for Improvement</h5>
-                    <p>Your reflection time could use some improvement. You only scheduled 2 out of the recommended 5 reflection blocks this week. Your learning time was adequate but could be more consistent throughout the week rather than concentrated on a single day.</p>
-                    
-                    <h5>Recommendations</h5>
-                    <ul>
-                        <li>Schedule 30-minute reflection blocks at the end of each workday</li>
-                        <li>Distribute learning time more evenly - try 30 minutes daily instead of 2 hours on one day</li>
-                        <li>Continue protecting your Sunday planning block - this is working well</li>
-                        <li>Consider adding more buffer time between meetings to prevent back-to-back scheduling</li>
-                    </ul>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary">Download Report</button>
+                <button type="button" class="btn btn-primary" id="download-report">Download Report</button>
             </div>
         </div>
     </div>
@@ -268,5 +146,334 @@
         text-align: center;
         margin-top: 10px;
     }
+    
+    .badge-success {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .badge-warning {
+        background-color: #ffc107;
+        color: #212529;
+    }
+    
+    .badge-danger {
+        background-color: #dc3545;
+        color: white;
+    }
 </style>
+@endsection
+
+@section('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initial load of grades
+        loadGrades();
+        
+        // Event listeners
+        document.getElementById('apply-filters').addEventListener('click', function() {
+            loadGrades();
+        });
+        
+        // Handle grade details modal
+        document.addEventListener('click', function(e) {
+            if (e.target && e.target.classList.contains('view-grade-btn')) {
+                const gradeId = e.target.getAttribute('data-grade-id');
+                loadGradeDetails(gradeId);
+            }
+        });
+    });
+    
+    // Function to load grades from API
+    function loadGrades() {
+        const dateRange = document.getElementById('date-range').value;
+        const gradeFilter = document.getElementById('grade-filter').value;
+        
+        // Show loading state
+        document.getElementById('grades-table-body').innerHTML = `
+            <tr id="loading-row">
+                <td colspan="5" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </td>
+            </tr>
+        `;
+        
+        // Calculate date range
+        let startDate, endDate;
+        const today = new Date();
+        endDate = formatDate(today);
+        
+        switch(dateRange) {
+            case 'last-month':
+                startDate = formatDate(new Date(today.setMonth(today.getMonth() - 1)));
+                break;
+            case 'last-3-months':
+                startDate = formatDate(new Date(today.setMonth(today.getMonth() - 3)));
+                break;
+            case 'last-6-months':
+                startDate = formatDate(new Date(today.setMonth(today.getMonth() - 6)));
+                break;
+            case 'last-year':
+                startDate = formatDate(new Date(today.setFullYear(today.getFullYear() - 1)));
+                break;
+            case 'all-time':
+                startDate = '2000-01-01'; // Far in the past
+                break;
+            default:
+                startDate = formatDate(new Date(today.setMonth(today.getMonth() - 3)));
+        }
+        
+        // Fetch grades from API
+        fetch(`/api/grades/date-range`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                start_date: startDate,
+                end_date: endDate
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            displayGrades(data.grades, gradeFilter);
+        })
+        .catch(error => {
+            console.error('Error fetching grades:', error);
+            document.getElementById('grades-table-body').innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center text-danger">
+                        Error loading grades. Please try again.
+                    </td>
+                </tr>
+            `;
+        });
+    }
+    
+    // Function to display grades in the table
+    function displayGrades(grades, gradeFilter) {
+        const tableBody = document.getElementById('grades-table-body');
+        
+        // Filter grades based on selected filter
+        let filteredGrades = grades;
+        if (gradeFilter !== 'all') {
+            filteredGrades = grades.filter(grade => {
+                const gradeValue = parseFloat(grade.overall_grade);
+                switch(gradeFilter) {
+                    case 'excellent':
+                        return gradeValue >= 90;
+                    case 'good':
+                        return gradeValue >= 80 && gradeValue < 90;
+                    case 'average':
+                        return gradeValue >= 70 && gradeValue < 80;
+                    case 'needs-improvement':
+                        return gradeValue < 70;
+                    default:
+                        return true;
+                }
+            });
+        }
+        
+        // Update pagination info
+        document.getElementById('pagination-info').textContent = 
+            `Showing ${filteredGrades.length} of ${grades.length} entries`;
+        
+        // Clear loading state
+        tableBody.innerHTML = '';
+        
+        if (filteredGrades.length === 0) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center">
+                        No grades found for the selected criteria.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        // Add grades to table
+        filteredGrades.forEach(grade => {
+            const startDate = new Date(grade.week_start_date);
+            const endDate = new Date(grade.week_end_date);
+            
+            const formattedStartDate = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const formattedEndDate = endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            
+            const gradeValue = parseFloat(grade.overall_grade);
+            let badgeClass = 'badge-success';
+            
+            if (gradeValue < 70) {
+                badgeClass = 'badge-danger';
+            } else if (gradeValue < 80) {
+                badgeClass = 'badge-warning';
+            }
+            
+            // Parse rule_grades if it's a string
+            let ruleGrades = grade.rule_grades;
+            if (typeof ruleGrades === 'string') {
+                try {
+                    ruleGrades = JSON.parse(ruleGrades);
+                } catch (e) {
+                    console.error('Error parsing rule_grades:', e);
+                    ruleGrades = {};
+                }
+            }
+            
+            // Get top strengths and improvement areas
+            const strengths = grade.strengths || 'Not specified';
+            const improvementAreas = grade.improvement_areas || 'Not specified';
+            
+            tableBody.innerHTML += `
+                <tr>
+                    <td>${formattedStartDate} - ${formattedEndDate}</td>
+                    <td>
+                        <span class="badge ${badgeClass}">${gradeValue.toFixed(0)}%</span>
+                    </td>
+                    <td>${strengths}</td>
+                    <td>${improvementAreas}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary view-grade-btn" data-grade-id="${grade.id}" data-bs-toggle="modal" data-bs-target="#gradeDetailsModal">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+    
+    // Function to load grade details for the modal
+    function loadGradeDetails(gradeId) {
+        const modalContent = document.getElementById('grade-details-content');
+        
+        // Show loading state
+        modalContent.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `;
+        
+        // Fetch grade details from API
+        fetch(`/api/grades/${gradeId}`)
+            .then(response => response.json())
+            .then(data => {
+                const grade = data.grade;
+                
+                // Parse rule_grades if it's a string
+                let ruleGrades = grade.rule_grades;
+                if (typeof ruleGrades === 'string') {
+                    try {
+                        ruleGrades = JSON.parse(ruleGrades);
+                    } catch (e) {
+                        console.error('Error parsing rule_grades:', e);
+                        ruleGrades = {};
+                    }
+                }
+                
+                // Format dates
+                const startDate = new Date(grade.week_start_date);
+                const endDate = new Date(grade.week_end_date);
+                const formattedDateRange = `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                
+                // Update modal title
+                document.getElementById('gradeDetailsModalLabel').textContent = `Week of ${formattedDateRange}`;
+                
+                // Create rule grade HTML
+                let ruleGradesHtml = '';
+                if (ruleGrades && typeof ruleGrades === 'object') {
+                    Object.entries(ruleGrades).forEach(([rule, value]) => {
+                        let progressClass = 'bg-success';
+                        if (value < 70) {
+                            progressClass = 'bg-danger';
+                        } else if (value < 80) {
+                            progressClass = 'bg-warning';
+                        }
+                        
+                        const ruleName = rule.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                        
+                        ruleGradesHtml += `
+                            <div class="rule-grade-item">
+                                <div class="rule-name">${ruleName}</div>
+                                <div class="progress">
+                                    <div class="progress-bar ${progressClass}" role="progressbar" 
+                                         style="width: ${value}%" aria-valuenow="${value}" 
+                                         aria-valuemin="0" aria-valuemax="100">${value}%</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+                
+                // Parse recommendations if it's a string
+                let recommendations = grade.recommendations;
+                if (typeof recommendations === 'string') {
+                    try {
+                        recommendations = JSON.parse(recommendations);
+                    } catch (e) {
+                        // If it's not valid JSON, keep as is
+                    }
+                }
+                
+                // Format recommendations
+                let recommendationsHtml = '';
+                if (Array.isArray(recommendations)) {
+                    recommendationsHtml = '<ul>' + recommendations.map(rec => `<li>${rec}</li>`).join('') + '</ul>';
+                } else if (typeof recommendations === 'string') {
+                    recommendationsHtml = `<p>${recommendations}</p>`;
+                }
+                
+                // Update modal content
+                modalContent.innerHTML = `
+                    <div class="grade-overview d-flex justify-content-between mb-4">
+                        <div class="grade-display">
+                            <div class="grade-circle" style="--percentage: ${grade.overall_grade}%;">
+                                <div class="grade-value">${parseFloat(grade.overall_grade).toFixed(0)}%</div>
+                            </div>
+                            <div class="grade-label">Overall Grade</div>
+                        </div>
+                        
+                        <div class="rule-grades">
+                            <h5>Rule Grades</h5>
+                            ${ruleGradesHtml}
+                        </div>
+                    </div>
+                    
+                    <div class="grade-details">
+                        <h5>Strengths</h5>
+                        <p>${grade.strengths || 'No strengths specified.'}</p>
+                        
+                        <h5>Areas for Improvement</h5>
+                        <p>${grade.improvement_areas || 'No improvement areas specified.'}</p>
+                        
+                        <h5>Recommendations</h5>
+                        ${recommendationsHtml || '<p>No recommendations available.</p>'}
+                    </div>
+                `;
+                
+                // Set download button data
+                document.getElementById('download-report').setAttribute('data-grade-id', grade.id);
+            })
+            .catch(error => {
+                console.error('Error fetching grade details:', error);
+                modalContent.innerHTML = `
+                    <div class="alert alert-danger">
+                        Error loading grade details. Please try again.
+                    </div>
+                `;
+            });
+    }
+    
+    // Helper function to format date as YYYY-MM-DD
+    function formatDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+</script>
 @endsection

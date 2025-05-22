@@ -81,9 +81,12 @@ Route::get("/", function () {
     return view("welcome");
 })->name("home");
 
+// History/Grades page route
+Route::get("/history", [App\Http\Controllers\DashboardController::class, 'history'])->name("history")->middleware("auth:sanctum");
+
 // --- SPA Catch-all Route (MUST be last) ---
 Route::get("/{any?}", function () {
     return view("spa");
-})->where("any", "^(?!$).*"); // Regex excludes root path
+})->where("any", "^(?!$|history$).*"); // Regex excludes root path and history
 
 
