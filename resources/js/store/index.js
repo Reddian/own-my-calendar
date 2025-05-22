@@ -42,6 +42,10 @@ const userModule = {
       commit('SET_LOADING', true);
       commit('SET_ERROR', null);
       try {
+        // First ensure CSRF cookie is set
+        console.log('[Vuex Action] fetchUser: Refreshing CSRF cookie...'); // DEBUG
+        await axios.get('/sanctum/csrf-cookie');
+        
         // Use the standard Sanctum endpoint to get the authenticated user
         console.log('[Vuex Action] fetchUser: Calling /api/user...'); // DEBUG
         const response = await axios.get('/api/user'); 

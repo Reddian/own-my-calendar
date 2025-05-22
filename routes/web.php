@@ -27,6 +27,9 @@ Route::get("/login", function () {
     return view("spa");
 })->name("login");
 
+// Explicitly handle POST /logout to redirect to SPA login
+Route::post("/logout", [App\Http\Controllers\Auth\LoginController::class, "logout"])->name("logout");
+
 // Registration Routes
 Route::get("register", function () { // Serve SPA for GET request
     return view("spa");

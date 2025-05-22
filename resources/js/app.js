@@ -20,17 +20,21 @@ import '../css/bootstrap-custom.css';
 // Function to initialize and mount the Vue app
 async function initializeApp() {
     try {
-        // Fetch CSRF cookie from Sanctum before mounting the app
-        console.log('[App Init] Fetching CSRF cookie from /sanctum/csrf-cookie...'); // DEBUG
-        await window.axios.get('/sanctum/csrf-cookie');
-        console.log('[App Init] CSRF cookie fetched successfully.'); // DEBUG
-
-        // Create the Vue application instance
+        // Create the Vue application instance first
         const app = createApp(App);
 
         // Use the router and store
         app.use(router);
-        app.use(store); // Use the store
+        app.use(store);
+
+        // Mount the application immediately to prevent blank screen
+        app.mount('#app');
+        console.log('[App Init] Vue app mounted.'); // DEBUG
+
+        // Fetch CSRF cookie from Sanctum after mounting
+        console.log('[App Init] Fetching CSRF cookie from /sanctum/csrf-cookie...'); // DEBUG
+        await window.axios.get('/sanctum/csrf-cookie');
+        console.log('[App Init] CSRF cookie fetched successfully.'); // DEBUG
 
         // Attempt to fetch initial user data when the app loads
         // This helps establish the auth state before initial navigation guards run
@@ -44,16 +48,13 @@ async function initializeApp() {
             console.warn('[App Init] Failed to fetch user, continuing as logged out:', userError);
             // Ensure user state is cleared to prevent stale auth state
             store.commit('user/CLEAR_USER');
+            // Redirect to login if not already there
+            if (router.currentRoute.value.name !== 'login') {
+                router.push({ name: 'login' });
+            }
         }
-
-        // Mount the application to the element with id="app"
-        // Ensure your main Blade view (e.g., spa.blade.php) 
-        // has <div id="app"></div> where the Vue app will be mounted.
-        app.mount('#app');
-        console.log('[App Init] Vue app mounted.'); // DEBUG
-
     } catch (error) {
-        console.error('[App Init] Failed to fetch CSRF cookie or mount Vue app:', error);
+        console.error('[App Init] Error during app initialization:', error);
         // Handle error appropriately, maybe show a message to the user
         document.getElementById('app').innerHTML = '<div class="alert alert-danger">Failed to initialize the application. Please try refreshing the page.</div>';
     }
