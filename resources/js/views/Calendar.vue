@@ -138,17 +138,28 @@
       </div>
 
       <div class="calendar-legend">
-        <div class="legend-item">
-          <div class="legend-color" style="background-color: var(--primary-purple);"></div>
-          <span>Meetings</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background-color: var(--primary-teal);"></div>
-          <span>Deadlines</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background-color: var(--accent-yellow);"></div>
-          <span>Presentations</span>
+        <h4>Event Categories</h4>
+        <div class="legend-items">
+          <div class="legend-item" @click="selectCategory('non-negotiable')" :class="{ 'selected': selectedCategory === 'non-negotiable' }">
+            <div class="legend-color" style="background-color: #8A2BE2;"></div>
+            <span>Non-Negotiable Events</span>
+          </div>
+          <div class="legend-item" @click="selectCategory('money-making')" :class="{ 'selected': selectedCategory === 'money-making' }">
+            <div class="legend-color" style="background-color: #00A86B;"></div>
+            <span>Money-Making Activities</span>
+          </div>
+          <div class="legend-item" @click="selectCategory('growth-learning')" :class="{ 'selected': selectedCategory === 'growth-learning' }">
+            <div class="legend-color" style="background-color: #4169E1;"></div>
+            <span>Growth & Learning Events</span>
+          </div>
+          <div class="legend-item" @click="selectCategory('energy-renewal')" :class="{ 'selected': selectedCategory === 'energy-renewal' }">
+            <div class="legend-color" style="background-color: #FF7F50;"></div>
+            <span>Energy Renewal Activities</span>
+          </div>
+          <div class="legend-item" @click="selectCategory('low-value')" :class="{ 'selected': selectedCategory === 'low-value' }">
+            <div class="legend-color" style="background-color: #808080;"></div>
+            <span>Low-Value Activities</span>
+          </div>
         </div>
       </div>
     </div>
@@ -180,6 +191,7 @@ const gradeResult = ref(null); // Raw result from API
 const canGradeWeek = ref(true); // Will be checked on mount
 const gridScrollContainer = ref(null); // Ref for the scrollable container
 const userTimezone = computed(() => store.state.user.user?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+const selectedCategory = ref(null); // Track selected category
 
 // Constants for grid
 const GRID_START_HOUR = 0; // Changed to 0 for 12 AM
@@ -308,6 +320,13 @@ const canNavigateForward = computed(() => {
   return nextWeekStartDate <= maxAllowedWeekStart.value;
 });
 
+// --- Category Selection ---
+function selectCategory(category) {
+  // Toggle selection - if already selected, deselect it
+  selectedCategory.value = selectedCategory.value === category ? null : category;
+  console.log(`[Calendar] Category selected: ${selectedCategory.value}`);
+}
+
 // --- Event Fetching ---
 async function fetchEventsForWeek(startDate, endDate) {
   isLoading.value = true;
@@ -411,264 +430,120 @@ async function fetchEventsForWeek(startDate, endDate) {
               durationMinutes = 60; // Default duration 60 mins
             }
           }
-          // For all-day events, timeRange and durationMinutes remain as initialized
+          // For all-day events, timeRange is already set to "All Day"
         } catch (e) {
-          console.error("[Calendar] Error processing event dates:", event, e);
-          // Fallback: treat as all-day but log the error
-          isAllDayEvent = true;
-          startHour = 0;
-          startMinute = 0;
-          timeRange = "All Day (Error)";
-          durationMinutes = 24 * 60;
-          // Try to salvage dateStr if possible
-          if (event.start) {
-            try {
-              // Extract date part reliably
-              dateStr = event.start.substring(0, 10);
-              if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) dateStr = null;
-            } catch {
-              dateStr = null;
-            }
-          }
+          console.error("[Calendar] Error processing event:", event, e);
+          return null; // Skip this event if processing fails
         }
 
-        // Ensure essential properties exist before returning
-        if (dateStr === null) {
-          console.warn(
-            "[Calendar] Skipping event due to missing/invalid date string:",
-            event
-          );
-          return null; // Skip event if date couldn"t be determined
-        }
-
+        // Return the processed event with all required fields
         return {
-          ...event,
+          id: event.id || `event-${Math.random().toString(36).substr(2, 9)}`, // Generate ID if missing
+          title: event.title || "Untitled Event",
+          start: start,
+          end: end,
           dateStr: dateStr,
-          timeRange,
-          startHour,
-          startMinute,
-          durationMinutes,
           isAllDay: isAllDayEvent,
-          color: "var(--primary-purple)", // Placeholder color
+          startHour: startHour,
+          startMinute: startMinute,
+          durationMinutes: durationMinutes,
+          timeRange: timeRange,
+          calendarName: event.calendar_name || "",
+          color: event.color || "#4285F4", // Default blue color
         };
       })
-      .filter((event) => event !== null); // Filter out skipped events
+      .filter((event) => event !== null); // Remove any events that failed processing
 
-    console.log("[Calendar] Processed events array:", events.value);
-    await nextTick();
-    scrollToTime();
-  } catch (error) {
-    console.error("[Calendar] Error fetching calendar events:", error);
-    fetchError.value =
-      error.response?.data?.error ||
-      "Failed to load calendar events. Please ensure your Google Calendar is connected and try again.";
-    events.value = [];
-  } finally {
+    console.log("[Calendar] Processed events:", events.value);
     isLoading.value = false;
+  } catch (error) {
+    console.error("[Calendar] Error fetching events:", error);
+    fetchError.value = "Failed to load calendar events. Please try again later.";
+    isLoading.value = false;
+  } finally {
     isRefreshing.value = false;
   }
 }
 
-// --- Event Display Logic ---
+// --- Event Display Helpers ---
 function getEventsForDay(dateStr) {
-  // Filter events for the specific day
-  const dayEvents = events.value.filter((event) => event.dateStr === dateStr);
-  // Separate all-day and timed events
-  const allDayEvents = dayEvents.filter((event) => event.isAllDay);
-  const timedEvents = dayEvents.filter((event) => !event.isAllDay);
-  // Return timed events first, then all-day events for rendering order (all-day stack at top)
-  return [...timedEvents, ...allDayEvents];
+  return events.value.filter((event) => event.dateStr === dateStr);
 }
 
 function getEventStyle(event) {
-  // Style for all-day events (use relative positioning for stacking)
   if (event.isAllDay) {
     return {
-      position: "relative",
-      top: "0px", // Stacks naturally
-      height: "20px", // Fixed height for all-day bar
-      backgroundColor: event.color || "var(--secondary-color)",
-      opacity: 0.8,
-      fontSize: "10px",
-      lineHeight: "20px",
-      zIndex: 0, // Lower z-index than timed events
-      marginBottom: "2px", // Space between stacked all-day events
-      overflow: "hidden",
-      whiteSpace: "nowrap",
-      textOverflow: "ellipsis",
-      padding: "0 4px",
-      borderRadius: "3px",
-      border: "1px solid rgba(0, 0, 0, 0.1)",
-      cursor: "pointer",
-      display: "block", // Ensure it takes full width
+      backgroundColor: event.color,
+      top: "0px",
+      height: "30px",
+      width: "100%",
+      zIndex: 10,
+    };
+  } else {
+    const top = event.startHour * HOUR_HEIGHT_PX + (event.startMinute / 60) * HOUR_HEIGHT_PX;
+    const height = (event.durationMinutes / 60) * HOUR_HEIGHT_PX;
+    return {
+      backgroundColor: event.color,
+      top: `${top}px`,
+      height: `${height}px`,
+      width: "calc(100% - 4px)",
+      zIndex: 5,
     };
   }
-
-  // Style for timed events (use absolute positioning)
-  const startTotalMinutes = event.startHour * 60 + event.startMinute;
-  const topPosition = (startTotalMinutes / 60) * HOUR_HEIGHT_PX;
-
-  let duration = event.durationMinutes;
-  if (duration <= 0) duration = 30; // Minimum duration
-
-  const minHeight = (15 / 60) * HOUR_HEIGHT_PX; // Min height ~15 mins
-  let height = (duration / 60) * HOUR_HEIGHT_PX;
-  if (height < minHeight) height = minHeight;
-
-  // Ensure event doesn"t overflow the 24-hour grid visually
-  const maxTop = GRID_END_HOUR * HOUR_HEIGHT_PX - height;
-  const finalTop = Math.min(topPosition, maxTop);
-  // Ensure height doesn"t cause overflow if start time is near the end of the day
-  const finalHeight = Math.min(height, GRID_END_HOUR * HOUR_HEIGHT_PX - finalTop);
-
-  const style = {
-    position: "absolute",
-    top: `${finalTop}px`,
-    // Use finalHeight and subtract border/padding if needed, -2 seems reasonable
-    height: `${Math.max(0, finalHeight - 2)}px`,
-    left: "2px",
-    right: "2px",
-    backgroundColor: event.color || "var(--primary-purple)",
-    borderRadius: "3px",
-    padding: "2px 4px",
-    fontSize: "12px",
-    color: "white",
-    overflow: "hidden",
-    zIndex: 1, // Higher z-index than all-day events and hour lines
-    border: "1px solid rgba(0, 0, 0, 0.2)",
-    cursor: "pointer",
-  };
-  // console.log(`[Calendar] Style for ${event.title} (${event.timeRange}):`, style);
-  return style;
 }
 
 // --- Navigation ---
 function prevWeek() {
-  if (!canNavigateBackward.value) return;
   const newDate = new Date(currentDate.value);
   newDate.setDate(newDate.getDate() - 7);
   currentDate.value = newDate;
 }
 
 function nextWeek() {
-  if (!canNavigateForward.value) return;
   const newDate = new Date(currentDate.value);
   newDate.setDate(newDate.getDate() + 7);
   currentDate.value = newDate;
 }
 
-// --- Grading ---
-async function checkGradingAbility() {
-  try {
-    const response = await axios.get("/api/subscription/can-grade");
-    canGradeWeek.value = response.data.can_grade;
-    if (!canGradeWeek.value) {
-      gradeError.value =
-        response.data.reason || "Grading limit reached for this period.";
-    } else {
-      gradeError.value = null; // Clear previous error if now able
-    }
-  } catch (error) {
-    console.error("[Calendar] Error checking grading ability:", error);
-    canGradeWeek.value = true; // Assume can grade, let backend handle error on attempt
-    gradeError.value = "Could not verify grading ability. Please try again.";
-  }
-}
-
-// Computed property to safely parse grade results
-const parsedGradeResult = computed(() => {
-  if (!gradeResult.value) return null;
-  try {
-    // Clone the object to avoid modifying the original ref
-    const parsed = { ...gradeResult.value }; 
-    
-    // Explicitly parse fields if they are strings
-    if (typeof parsed.strengths === "string") {
-      parsed.strengths = JSON.parse(parsed.strengths);
-    }
-    if (typeof parsed.improvement_areas === "string") {
-      parsed.improvement_areas = JSON.parse(parsed.improvement_areas);
-    }
-    if (typeof parsed.recommendations === "string") {
-      parsed.recommendations = JSON.parse(parsed.recommendations);
-    }
-    
-    // Ensure they are arrays after parsing
-    if (!Array.isArray(parsed.strengths)) parsed.strengths = [];
-    if (!Array.isArray(parsed.improvement_areas)) parsed.improvement_areas = [];
-    if (!Array.isArray(parsed.recommendations)) parsed.recommendations = [];
-
-    return parsed;
-  } catch (e) {
-    console.error("[Calendar] Error parsing grade result JSON:", e, gradeResult.value);
-    // Return a structure that won"t break the template
-    return {
-      ...gradeResult.value, // Keep other fields like overall_grade
-      strengths: [],
-      improvement_areas: [],
-      recommendations: [],
-      summary: "Error displaying grading details."
-    };
-  }
-});
-
-// Computed property for letter grade
-const letterGrade = computed(() => {
-  if (!parsedGradeResult.value || typeof parsedGradeResult.value.overall_grade !== "number") return "N/A";
-  const score = parsedGradeResult.value.overall_grade;
-  if (score >= 90) return "A";
-  if (score >= 80) return "B";
-  if (score >= 70) return "C";
-  if (score >= 60) return "D";
-  return "F";
-});
-
-// Computed property for grade color class
-const gradeColorClass = computed(() => {
-  if (!parsedGradeResult.value || typeof parsedGradeResult.value.overall_grade !== "number") return "grade-color-default";
-  const score = parsedGradeResult.value.overall_grade;
-  if (score >= 80) return "grade-color-good";
-  if (score >= 60) return "grade-color-average";
-  return "grade-color-poor";
-});
-
+// --- Calendar Grading ---
 async function gradeCurrentWeek() {
+  if (isGrading.value || !canGradeWeek.value) return;
+  
   isGrading.value = true;
   gradeError.value = null;
-  gradeResult.value = null;
-
-  await checkGradingAbility();
-  if (!canGradeWeek.value) {
-    isGrading.value = false;
-    return;
-  }
-
+  
   try {
+    // First check if user can grade (subscription status)
+    const canGradeResponse = await axios.get("/api/subscription/can-grade");
+    if (!canGradeResponse.data.can_grade) {
+      throw new Error(canGradeResponse.data.message || "You've reached your grading limit. Please upgrade to premium.");
+    }
+    
+    // Proceed with grading
     const response = await axios.post("/api/ai/grade-calendar", {
       start_date: formatDate(currentWeekStart.value),
       end_date: formatDate(currentWeekEnd.value),
     });
-    // Assign the raw response data. Parsing is handled by computed property.
-    gradeResult.value = response.data.grade; 
-    console.log("[Calendar] Received grade data:", gradeResult.value);
-    openGradeModal();
-
-    try {
-      await axios.post("/api/subscription/increment-grades");
-    } catch (incError) {
-      console.error("[Calendar] Failed to increment grades used count:", incError);
-    }
+    
+    gradeResult.value = response.data;
+    console.log("[Calendar] Grade result:", gradeResult.value);
+    
+    // Increment grades used counter
+    await axios.post("/api/subscription/increment-grades");
+    
+    // Show the modal with results
+    showGradeModal();
+    
   } catch (error) {
-    console.error("[Calendar] Error grading calendar:", error);
-    gradeError.value =
-      error.response?.data?.error ||
-      "An error occurred while grading the calendar.";
+    console.error("[Calendar] Grading error:", error);
+    gradeError.value = error.response?.data?.message || error.message || "Failed to grade calendar. Please try again later.";
   } finally {
     isGrading.value = false;
   }
 }
 
-function openGradeModal() {
+// --- Modal Handling ---
+function showGradeModal() {
   if (!bsModal) {
     bsModal = new Modal(gradeModal.value);
   }
@@ -681,390 +556,189 @@ function closeGradeModal() {
   }
 }
 
-// --- Auto Scroll ---
-function scrollToTime(hour = SCROLL_TO_HOUR) {
-  if (gridScrollContainer.value) {
-    const scrollTop = hour * HOUR_HEIGHT_PX;
-    gridScrollContainer.value.scrollTop = scrollTop;
-    console.log(`[Calendar] Scrolled to hour ${hour} (scrollTop: ${scrollTop}px)`);
-  }
-}
+// --- Grade Result Parsing ---
+const parsedGradeResult = computed(() => {
+  if (!gradeResult.value) return null;
+  return gradeResult.value;
+});
+
+// --- Letter Grade Calculation ---
+const letterGrade = computed(() => {
+  if (!parsedGradeResult.value || !parsedGradeResult.value.overall_grade) return "N/A";
+  
+  const score = parsedGradeResult.value.overall_grade;
+  if (score >= 97) return "A+";
+  if (score >= 93) return "A";
+  if (score >= 90) return "A-";
+  if (score >= 87) return "B+";
+  if (score >= 83) return "B";
+  if (score >= 80) return "B-";
+  if (score >= 77) return "C+";
+  if (score >= 73) return "C";
+  if (score >= 70) return "C-";
+  if (score >= 67) return "D+";
+  if (score >= 63) return "D";
+  if (score >= 60) return "D-";
+  return "F";
+});
+
+// --- Grade Color Class ---
+const gradeColorClass = computed(() => {
+  if (!parsedGradeResult.value || !parsedGradeResult.value.overall_grade) return "";
+  
+  const score = parsedGradeResult.value.overall_grade;
+  if (score >= 90) return "grade-a";
+  if (score >= 80) return "grade-b";
+  if (score >= 70) return "grade-c";
+  if (score >= 60) return "grade-d";
+  return "grade-f";
+});
 
 // --- Lifecycle Hooks ---
+watch(currentDate, async () => {
+  await fetchEventsForWeek(currentWeekStart.value, currentWeekEnd.value);
+});
+
 onMounted(async () => {
-  if (!store.state.user.user) {
-    await store.dispatch("user/fetchUser");
+  // Check if user can grade calendar
+  try {
+    const response = await axios.get("/api/subscription/can-grade");
+    canGradeWeek.value = response.data.can_grade;
+  } catch (error) {
+    console.error("[Calendar] Error checking grade permission:", error);
+    canGradeWeek.value = false;
   }
-  fetchEventsForWeek(currentWeekStart.value, currentWeekEnd.value);
-  checkGradingAbility();
-  if (gradeModal.value) {
-    bsModal = new Modal(gradeModal.value);
-  }
+  
+  // Fetch events for current week
+  await fetchEventsForWeek(currentWeekStart.value, currentWeekEnd.value);
+  
+  // Scroll to 8 AM (or configured hour)
+  nextTick(() => {
+    if (gridScrollContainer.value) {
+      gridScrollContainer.value.scrollTop = SCROLL_TO_HOUR * HOUR_HEIGHT_PX;
+    }
+  });
 });
-
-watch(currentDate, (newDate) => {
-  const newWeekStart = getStartOfWeek(newDate);
-  const newWeekEnd = getEndOfWeek(newDate);
-  fetchEventsForWeek(newWeekStart, newWeekEnd);
-  checkGradingAbility(); // Re-check grading ability when week changes
-});
-
-// Watch for changes in user timezone and refetch events
-watch(userTimezone, (newTimezone, oldTimezone) => {
-  if (newTimezone && newTimezone !== oldTimezone) {
-    console.log(`[Calendar] User timezone changed to ${newTimezone}. Refetching events.`);
-    fetchEventsForWeek(currentWeekStart.value, currentWeekEnd.value);
-  }
-});
-
 </script>
 
-<style scoped>
-/* General Page Styles */
-.page-title {
-  font-family: "Playfair Display", serif;
-  color: var(--primary-purple);
-  text-align: center;
-  margin-bottom: 2rem;
-}
+<style>
+/* Global styles like fonts.css and dashboard.css are loaded via spa.blade.php */
 
-.premium-cta {
-  background-color: var(--light-purple);
-  border-color: var(--primary-purple);
-  color: var(--dark-text);
-  margin-bottom: 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  border-radius: 8px;
-}
-
-.premium-cta i {
-  color: var(--accent-yellow);
-  margin-right: 0.5rem;
-}
-
-.loading-indicator {
-  text-align: center;
-  padding: 3rem 0;
-  color: var(--medium-text);
-}
-
-/* Calendar Container */
-.calendar-container {
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-/* Calendar Header */
-.calendar-header {
-  display: flex;
-  justify-content: center; /* Center the navigation */
-  align-items: center;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.calendar-navigation {
-  display: flex;
-  align-items: center;
-}
-
-.week-title {
-  font-family: "Lato", sans-serif;
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: var(--dark-text);
-  margin: 0 1.5rem;
-  min-width: 200px; /* Ensure space for title */
-  text-align: center;
-}
-
-.prev-week-btn,
-.next-week-btn {
-  background-color: transparent;
-  border: 1px solid var(--primary-purple);
-  color: var(--primary-purple);
-  padding: 0.5rem 0.8rem;
-  border-radius: 50%;
-  transition: background-color 0.2s, color 0.2s;
-}
-
-.prev-week-btn:hover,
-.next-week-btn:hover {
-  background-color: var(--primary-purple);
-  color: white;
-}
-
-.prev-week-btn:disabled,
-.next-week-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  background-color: transparent;
-  color: var(--medium-text);
-  border-color: var(--medium-text);
-}
-
-/* Week View Grid */
-.calendar-view.week-view {
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  overflow: hidden; /* Hide internal overflow */
-}
-
-.week-header {
-  display: flex;
-  background-color: var(--light-gray);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.time-column {
-  flex: 0 0 60px; /* Fixed width for time labels */
-  border-right: 1px solid var(--border-color);
-}
-
-.week-day {
-  flex: 1;
-  text-align: center;
-  padding: 0.75rem 0.5rem;
-  font-weight: bold;
-  color: var(--dark-text);
-  border-right: 1px solid var(--border-color);
-}
-
-.week-day:last-child {
-  border-right: none;
-}
-
-.week-day.today {
-  background-color: var(--light-purple);
-  color: var(--primary-purple);
-}
-
-.week-grid-scroll-container {
-  max-height: 600px; /* Limit height and enable scrolling */
-  overflow-y: auto;
-  position: relative; /* Needed for absolute positioning of events */
-}
-
-.week-grid {
-  display: flex;
-  position: relative; /* Context for hour lines */
-  min-height: calc(24 * var(--hour-height, 60px)); /* Ensure grid is tall enough */
-}
-
-.time-slots {
-  flex: 0 0 60px;
-  border-right: 1px solid var(--border-color);
-  background-color: var(--light-gray);
-  padding-top: calc(var(--hour-height, 60px) / 2 - 10px); /* Adjust vertical alignment */
-}
-
-.time-slot {
-  height: var(--hour-height, 60px);
-  text-align: center;
-  font-size: 12px;
-  color: var(--medium-text);
-  border-bottom: 1px dashed var(--border-color); /* Dashed line between hours */
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.time-slot:last-child {
-  border-bottom: none;
-}
-
-.day-column {
-  flex: 1;
-  border-right: 1px solid var(--border-color);
-  position: relative; /* Context for events and hour lines */
-  min-height: calc(24 * var(--hour-height, 60px)); /* Ensure column is tall enough */
-}
-
-.day-column:last-child {
-  border-right: none;
-}
-
-.hour-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background-color: var(--border-color);
-  z-index: 0; /* Behind events */
-}
-
-.week-event {
-  /* Styles are applied dynamically via getEventStyle */
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  transition: background-color 0.2s;
-}
-
-.week-event:hover {
-  opacity: 0.9;
-}
-
-/* Grading Action */
-.calendar-grading-action {
-  text-align: center;
-  margin-top: 2rem;
-}
-
-#grade-calendar-btn {
-  padding: 0.8rem 2rem;
-  font-size: 1.1rem;
-}
-
-#grade-calendar-btn i {
-  margin-right: 0.5rem;
-}
-
-/* Grade Result Modal */
-.modal-title {
-  font-family: "Playfair Display", serif;
-  color: var(--primary-purple);
-}
-
-.grade-result {
-  text-align: center;
-}
-
-.grade-header {
-  margin-bottom: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.grade-number {
-  font-size: 4rem;
-  font-weight: bold;
-  line-height: 1;
-  margin-bottom: 0.25rem;
-}
-
-.grade-letter {
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: var(--medium-text);
-}
-
-/* Grade Color Classes */
-.grade-color-good {
-  color: var(--success-color, #28a745);
-}
-.grade-color-average {
-  color: var(--warning-color, #ffc107);
-}
-.grade-color-poor {
-  color: var(--danger-color, #dc3545);
-}
-.grade-color-default {
-  color: var(--primary-purple);
-}
-
-.grade-summary {
-  font-size: 1.1rem;
-  color: var(--dark-text);
-  margin-bottom: 2rem;
-}
-
-.grade-section {
-  text-align: left;
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  background-color: var(--light-gray);
-  border-radius: 4px;
-}
-
-.grade-section h4 {
-  font-family: "Lato", sans-serif;
-  font-weight: bold;
-  color: var(--primary-purple);
-  margin-bottom: 0.8rem;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.5rem;
-}
-
-.recommendations-list {
-  list-style: none;
-  padding-left: 0;
-}
-
-.recommendations-list li {
-  margin-bottom: 1rem;
-  padding: 0.8rem;
-  background-color: white;
-  border-radius: 4px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-  /* Apply aesthetic font */
-  font-family: "Playfair Display", serif; 
-  color: var(--dark-text); 
-  font-size: 1rem; /* Adjust size as needed */
-}
-
-.recommendation-title {
-  font-weight: bold;
-  margin-bottom: 0.3rem;
-  color: var(--dark-text);
-  /* Ensure this also uses the aesthetic font if needed */
-  font-family: "Playfair Display", serif; 
-}
-
-.recommendation-description {
-  font-size: 0.95rem;
-  color: var(--medium-text);
-  /* Ensure this also uses the aesthetic font if needed */
-  font-family: "Playfair Display", serif; 
-}
-
-/* Calendar Legend */
+/* Add any component-specific styles here */
 .calendar-legend {
-  display: flex;
-  justify-content: center;
   margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
+  padding: 1rem;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.calendar-legend h4 {
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.legend-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  margin: 0 1rem;
-  font-size: 0.9rem;
-  color: var(--medium-text);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: white;
+  border: 1px solid #e9ecef;
+}
+
+.legend-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.legend-item.selected {
+  background-color: #f0f0f0;
+  border-color: #ccc;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .legend-color {
-  width: 14px;
-  height: 14px;
-  border-radius: 3px;
-  margin-right: 0.5rem;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  margin-right: 8px;
 }
 
-/* Ensure root variables are defined or imported */
-:root {
-  --primary-purple: #6a1b9a; /* Example */
-  --light-purple: #f3e5f5; /* Example */
-  --primary-teal: #00796b; /* Example */
-  --accent-yellow: #fdd835; /* Example */
-  --dark-text: #333;
-  --medium-text: #666;
-  --border-color: #e0e0e0;
-  --light-gray: #f9f9f9;
-  --hour-height: 60px; /* Define CSS variable */
-  --success-color: #28a745; /* Example */
-  --warning-color: #ffc107; /* Example */
-  --danger-color: #dc3545; /* Example */
+.nav-item a {
+    color: inherit; /* Ensure router-links inherit text color */
+    text-decoration: none;
+    display: flex; /* Ensure icon and text are aligned */
+    align-items: center;
+    gap: 10px; /* Space between icon and text */
+    padding: 10px 15px; /* Add padding to the link itself */
 }
 
+.nav-item.active span,
+.nav-item:hover span {
+    color: var(--primary-purple); /* Or your active/hover color */
+}
+
+.nav-item.active i,
+.nav-item:hover i {
+    color: var(--primary-purple); /* Apply color to icon too */
+}
+
+/* Ensure router-link clicks work */
+.nav-item span {
+    cursor: pointer;
+}
+
+/* Styles for the Subscription CTA */
+.subscription-cta {
+    background-color: #e9ecef; /* Light grey background */
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.5rem; /* Space below the CTA */
+    border-radius: 0.375rem; /* Rounded corners */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+}
+
+.cta-content {
+    flex-grow: 1;
+    margin-right: 1rem; /* Space between text and button */
+}
+
+.subscription-cta h4 {
+    margin-bottom: 0.25rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.subscription-cta p {
+    margin-bottom: 0;
+    font-size: 0.9rem;
+    color: #495057; /* Darker grey text */
+}
+
+.subscription-cta .btn-primary {
+    white-space: nowrap; /* Prevent button text wrapping */
+}
+
+@media (max-width: 768px) {
+    .subscription-cta {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .cta-content {
+        margin-right: 0;
+        margin-bottom: 0.75rem; /* Space between text and button on mobile */
+    }
+}
 </style>
-
