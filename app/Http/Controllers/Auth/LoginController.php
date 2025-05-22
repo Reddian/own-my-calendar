@@ -101,7 +101,27 @@ class LoginController extends Controller
         return response()->json(["message" => "Logged out successfully."], 204); // 204 No Content is often used for successful logout
     }
 
-    // Note: The standard logout method from AuthenticatesUsers trait is still available
-    // if needed for any remaining traditional web routes, but apiLogout handles the SPA.
+    /**
+     * Override the standard logout method from AuthenticatesUsers trait
+     * to ensure it redirects to the SPA login page.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function logout(Request $request)
+    {
+        Log::info("Web Logout attempt", ["user_id" => Auth::id()]); // DEBUG
+        
+        Auth::guard('web')->logout();
+
+        $request->session()->invalidate();
+
+        $request->session()->regenerateToken();
+
+        Log::info("Web Logout successful, redirecting to SPA login"); // DEBUG
+        
+        // Redirect to the login route which serves the SPA
+        return redirect()->route('login');
+    }
 }
 

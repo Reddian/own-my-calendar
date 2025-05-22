@@ -35,8 +35,16 @@ async function initializeApp() {
         // Attempt to fetch initial user data when the app loads
         // This helps establish the auth state before initial navigation guards run
         console.log('[App Init] Dispatching initial user/fetchUser...'); // DEBUG
-        await store.dispatch('user/fetchUser'); // Assuming 'user' is the namespace
-        console.log('[App Init] Initial user/fetchUser completed.'); // DEBUG
+        try {
+            await store.dispatch('user/fetchUser');
+            console.log('[App Init] Initial user/fetchUser completed successfully.'); // DEBUG
+        } catch (userError) {
+            // If fetching user fails, don't fail the whole app initialization
+            // This allows the app to start in a logged-out state
+            console.warn('[App Init] Failed to fetch user, continuing as logged out:', userError);
+            // Ensure user state is cleared to prevent stale auth state
+            store.commit('user/CLEAR_USER');
+        }
 
         // Mount the application to the element with id="app"
         // Ensure your main Blade view (e.g., spa.blade.php) 
@@ -45,7 +53,7 @@ async function initializeApp() {
         console.log('[App Init] Vue app mounted.'); // DEBUG
 
     } catch (error) {
-        console.error('[App Init] Failed to fetch CSRF cookie, fetch initial user, or mount Vue app:', error);
+        console.error('[App Init] Failed to fetch CSRF cookie or mount Vue app:', error);
         // Handle error appropriately, maybe show a message to the user
         document.getElementById('app').innerHTML = '<div class="alert alert-danger">Failed to initialize the application. Please try refreshing the page.</div>';
     }
