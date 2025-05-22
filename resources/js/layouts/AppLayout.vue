@@ -49,10 +49,10 @@
           </router-link>
         </div>
         <div class="nav-item" :class="{ active: $route.path === 
-'/grades' }">
-           <router-link to="/grades">
+'/history' }">
+           <router-link to="/history">
              <i class="fas fa-chart-line"></i>
-             <span>Grades</span>
+             <span>History</span>
            </router-link>
         </div>
         <div class="nav-item" :class="{ active: $route.path === 
